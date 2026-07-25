@@ -10,6 +10,7 @@ import {
   deleteUsersByEmail,
   refreshCookieHeader,
   refreshCookiePair,
+  resetThrottleCounters,
   uniqueEmail,
 } from './fixtures/auth-e2e';
 import {
@@ -48,7 +49,14 @@ describe('MFA alta (e2e) — AC-13, AC-14, AC-15', () => {
     await deleteLoginAttemptKeys(app, emails);
     await deleteAuthKeys(app, userIds);
     await deleteUsersByEmail(app, emails);
+    await resetThrottleCounters(app);
     await app.close();
+  });
+
+  // El rate limit por IP (AC-20) es estado compartido: todas las peticiones de todos los archivos e2e
+  // salen de la misma IP. Sin este reset, un caso heredaría el cupo gastado por el anterior.
+  beforeEach(async () => {
+    await resetThrottleCounters(app);
   });
 
   /** Cada caso trabaja sobre su propia cuenta: los archivos e2e comparten base y no se trunca. */

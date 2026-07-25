@@ -10,6 +10,7 @@ import {
   refreshCookieHeader,
   refreshCookiePair,
   refreshCookieValue,
+  resetThrottleCounters,
   uniqueEmail,
 } from './fixtures/auth-e2e';
 
@@ -28,7 +29,14 @@ describe('POST /api/auth/refresh y /api/auth/logout (e2e) — AC-9, AC-10, AC-11
   afterAll(async () => {
     await deleteAuthKeys(app, userIds);
     await deleteUsersByEmail(app, emails);
+    await resetThrottleCounters(app);
     await app.close();
+  });
+
+  // El rate limit por IP (AC-20) es estado compartido: todas las peticiones de todos los archivos e2e
+  // salen de la misma IP. Sin este reset, un caso heredaría el cupo gastado por el anterior.
+  beforeEach(async () => {
+    await resetThrottleCounters(app);
   });
 
   /** Registra un usuario y devuelve el par `om_refresh=<jwt>` listo para reenviar. */

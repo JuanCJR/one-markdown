@@ -2,12 +2,19 @@ import { Controller, Get, HttpStatus, Res } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 
+import { SkipThrottling } from '../common/throttle';
 import { HealthResponseDto } from './dto/health.response.dto';
 import { ReadinessResponseDto } from './dto/readiness.response.dto';
 import { HealthService } from './health.service';
 
+/**
+ * `SkipThrottling` explícito aunque los throttlers ya sean opt-in: un readiness con rate limit se cae
+ * justo cuando más se le consulta (un despliegue, un incidente, un orquestador reiniciando pods), y
+ * eso convertiría la sonda en la causa de la caída. Debe seguir fuera aunque el modelo cambie.
+ */
 @ApiTags('health')
 @Controller('health')
+@SkipThrottling()
 export class HealthController {
   constructor(private readonly healthService: HealthService) {}
 

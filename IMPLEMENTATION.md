@@ -207,8 +207,31 @@ MFA TOTP:
 
 Transversales del backend:
 
-- [ ] **T-017** · backend · Rate limit por IP con `RedisThrottlerStorage` propio (AC-20)
-      **Entrada obligatoria**: tres huecos que la autorevisión de seguridad del Bloque D encontró y
+- [x] **T-017** · backend · Rate limit por IP con `RedisThrottlerStorage` propio (AC-20) — 2026-07-24 · agente `backend`
+      RED: (a) `Cannot find module './redis-throttler.storage'` · (b) **8 failed de 12** (`expected 429, got 401`)
+      → GREEN: `test redis-throttler.storage` → **7 passed** · `test:e2e auth-throttle` → **12 passed**.
+      Verificado por el orchestrator **en el proceso real**: 12 logins con correos **distintos** (para que
+      salte el límite por IP y no el bloqueo por cuenta) → los 10 primeros `401`, el 11.º y 12.º `429`.
+      Los dos `429` no se confunden: el del throttler trae 5 claves y la cabecera `Retry-After-login` de la
+      librería; el del bloqueo por cuenta trae `retryAfterSeconds` y la cabecera `Retry-After` estándar.
+      `GET /api/health` aguantó 30 peticiones seguidas → **30 × 200**: no se derramó el límite.
+      Tres decisiones que sostienen esto:
+      · **Opt-in por ruta.** El guard evalúa *todos* los throttlers nombrados en cada petición, así que sin
+        `skipIf` + `@Throttled(name)` el más estricto (`register`, 5/15 min) habría caído sobre toda la API,
+        incluida la spec `002`. Health lleva además `@SkipThrottling()` explícito: `@SkipThrottle()` a secas
+        solo salta un throttler llamado `default`, que aquí no existe.
+      · **`generateKey` propio** (`throttle:{throttler}:{sha256(ip)}`, sin nombre de clase ni de handler):
+        los cuatro endpoints de MFA comparten **un** cupo de 10/min. Con la clave por defecto de la librería,
+        un atacante habría sumado 40 intentos cambiando de endpoint.
+      · **`getTracker` usa `req.ip` y `trust proxy` sigue apagado**: nunca `X-Forwarded-For`, que es
+        spoofable. Un despliegue tras proxy tendrá que configurarlo, y está anotado en el código.
+      **Los tres huecos del Bloque D quedan cerrados, cada uno con su test**: `mfa/disable` limitado (11.º
+      intento → 429), `mfa/verify` limitado incluso pidiendo desafíos nuevos a mitad (el ataque exacto), y la
+      amplificación bcrypt de los 8 hashes acotada por el mismo cupo.
+      **Desvío**: hubo que tocar una línea de `beforeEach`/`afterAll` en los 6 e2e de auth. El límite es por IP
+      y todos salen de `127.0.0.1` sobre el mismo Redis: sin resetear el contador fallaban por acumulación, no
+      por comportamiento. Ojo con un caso que ya gasta 10 de los 10 logins permitidos.
+      **Entrada que atendió**: tres huecos que la autorevisión de seguridad del Bloque D encontró y
       reportó en vez de parchear (el plan asigna `@Throttle` a esta tarea). No son opcionales:
       1. **`POST /api/auth/mfa/disable` no tiene límite de ningún tipo.** `LoginAttemptService` solo cuenta
          fallos de login. Quien robe un access token puede fuerza-brutar el TOTP de 6 dígitos (~333k
@@ -217,7 +240,14 @@ Transversales del backend:
          contraseña pide un login nuevo cada 5 intentos y sigue probando.
       3. `RecoveryCodeService.consume` compara hasta 8 hashes bcrypt por intento: con coste 12 son ~2 s de
          CPU por petición en un endpoint sin límite, o sea un amplificador de DoS barato.
-- [ ] **T-018** · backend · Swagger de auth: bearer, cookie y DTOs (AC-21)
+- [x] **T-018** · backend · Swagger de auth: bearer, cookie y DTOs (AC-21) — 2026-07-24 · agente `backend`
+      RED: **2 failed de 40** (los dos esquemas de seguridad ausentes, `Received: undefined`) → GREEN:
+      `test:e2e swagger` → **43 passed**.
+      Verificado por el orchestrator contra el documento servido por el proceso real:
+      `securitySchemes: bearer, om_refresh` · **9** rutas `/api/auth/*` · el documento entero **no menciona**
+      `passwordHash` ni `mfaSecret`.
+      El test de "ningún schema se llama como un modelo de Prisma" **lee los nombres de `schema.prisma` con
+      una regex** en vez de una lista fija: así no se queda viejo cuando la spec `002` añada modelos.
 - [x] **T-019** · backend · Contrato de auth en `packages/shared` — 2026-07-24 · agente `backend`
       RED: `TypeError: isAuthUser is not a function` → **25 failed** → GREEN: `--filter shared test` →
       **37 passed** (antes 11). Verificado por el orchestrator, más `lint` y `typecheck` de `shared` en 0.

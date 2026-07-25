@@ -9,6 +9,7 @@ import {
   deleteUsersByEmail,
   REFRESH_COOKIE,
   refreshCookieHeader,
+  resetThrottleCounters,
   uniqueEmail,
 } from './fixtures/auth-e2e';
 
@@ -35,7 +36,14 @@ describe('POST /api/auth/register (e2e) — AC-1, AC-2, AC-3, AC-4', () => {
   afterAll(async () => {
     await deleteAuthKeys(app, userIds);
     await deleteUsersByEmail(app, emails);
+    await resetThrottleCounters(app);
     await app.close();
+  });
+
+  // El rate limit por IP (AC-20) es estado compartido: todas las peticiones de todos los archivos e2e
+  // salen de la misma IP. Sin este reset, un caso heredaría el cupo gastado por el anterior.
+  beforeEach(async () => {
+    await resetThrottleCounters(app);
   });
 
   describe('AC-1: alta válida', () => {

@@ -36,6 +36,19 @@ Hallazgos de los Bloques A y D-parcial (T-001…T-003, T-012, T-013), sin cambio
 - Dos correcciones que tocaron artefactos de la spec `000` y quedaron en su CHANGELOG (v0.1.2 y v0.1.3):
   el build de `packages/shared` antes de `typecheck`/`test`, y `dotenv/config` en `prisma.config.ts`.
 
+Decisiones y riesgos del rate limit (T-017), sin cambio de criterios:
+
+- **`logout` y `me` no tenían throttler asignado en `plan.md` §3**: quedaron con el de `refresh`
+  (60/min/IP, cupo compartido). Si `me` acaba siendo la llamada más frecuente del frontend, conviene
+  revisarlo.
+- **Riesgo aceptado — NAT compartido**: el límite es por IP, así que varias personas detrás del mismo NAT
+  comparten cupo y una puede agotar el de segundo factor de sus vecinas. Es el mismo trade-off que ya
+  aceptaba `login` con 10/min por IP; se registra explícitamente en vez de dejarlo implícito.
+- **Decisión pendiente para la spec `002`, no para esta**: al ser opt-in, un endpoint futuro que se olvide
+  de `@Throttled` no tiene límite ninguno. Un quinto throttler `default` holgado (~300/min/IP) como red de
+  seguridad lo cerraría. No se añade aquí porque no está en el alcance de `001`; entra como entrada de la
+  spec del árbol de documentos, que es la que crea endpoints nuevos.
+
 Decisiones tomadas durante la implementación del frontend (Bloque F), sin cambio de criterios:
 
 - **`mfa/enable` y `mfa/disable` mantienen `401` para "código o contraseña incorrectos"**, como dicen

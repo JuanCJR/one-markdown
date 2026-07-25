@@ -3,6 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 
+import { REFRESH_COOKIE_NAME } from './auth/refresh-cookie';
+import { AUTH_BEARER_SCHEME } from './common/api-security';
 import { ErrorResponseDto } from './common/dto/error.response.dto';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import type { AppConfig } from './config/env.validation';
@@ -48,6 +50,26 @@ export function configureApp(app: INestApplication): void {
         .setTitle('One Markdown API')
         .setDescription('Gestión de documentos markdown organizados en directorios.')
         .setVersion(getAppVersion())
+        // Los endpoints ya declaran `@ApiBearerAuth('bearer')` y `@ApiCookieAuth('om_refresh')`, pero
+        // una referencia a un esquema que el documento no define no la resuelve nadie: la UI no
+        // ofrecería dónde pegar el token y un cliente generado no sabría cómo autenticarse (AC-21).
+        .addBearerAuth(
+          { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
+          AUTH_BEARER_SCHEME,
+        )
+        // `apiKey` en `cookie` es como OpenAPI describe una cookie de sesión. Se documenta para que el
+        // contrato diga que el refresh viaja ahí y **no** en el cuerpo ni en una cabecera.
+        .addCookieAuth(
+          REFRESH_COOKIE_NAME,
+          {
+            type: 'apiKey',
+            in: 'cookie',
+            name: REFRESH_COOKIE_NAME,
+            description:
+              'Refresh token en cookie `HttpOnly`, `SameSite=Strict`, `Path=/api/auth`. La emite el propio API; el navegador la manda solo.',
+          },
+          REFRESH_COOKIE_NAME,
+        )
         .build(),
       // `ErrorResponseDto` es el contrato de error de toda la API, no de un endpoint concreto:
       // sin registrarlo como modelo extra no aparecería en el documento.

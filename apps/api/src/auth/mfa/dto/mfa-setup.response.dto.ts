@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import type { MfaSetup } from '@one-markdown/shared';
 
 /**
  * Datos del enrolamiento pendiente (specs/001-auth/plan.md §3, AC-13).
@@ -6,8 +7,11 @@ import { ApiProperty } from '@nestjs/swagger';
  * Los tres primeros campos son el **mismo** secreto en tres formas: base32 para quien no puede
  * escanear, `otpauth://` para el enlace, y PNG para el QR. Se entregan una sola vez y no vuelven a
  * salir en ninguna respuesta posterior: el `enable` solo devuelve códigos de recuperación.
+ *
+ * `implements MfaSetup` ancla la forma al contrato de `@one-markdown/shared`: una divergencia rompe
+ * el typecheck aquí, no la vista de alta del segundo factor en el navegador.
  */
-export class MfaSetupResponseDto {
+export class MfaSetupResponseDto implements MfaSetup {
   @ApiProperty({
     type: String,
     example: 'JBSWY3DPEHPK3PXP',

@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import type { LoginResult } from '@one-markdown/shared';
 
 import { AuthSessionResponseDto } from './auth-session.response.dto';
 
@@ -9,8 +10,11 @@ import { AuthSessionResponseDto } from './auth-session.response.dto';
  * previsto del flujo, no un error, y así el frontend lo tipa en vez de leer códigos de estado.
  *
  * Los cuatro campos están **siempre** presentes, con `null` donde no aplican (decisión 10).
+ *
+ * `implements LoginResult` ancla la forma al contrato de `@one-markdown/shared`: si el DTO y el tipo
+ * que consume el frontend divergen, rompe el typecheck aquí y no el `isLoginResult` en el navegador.
  */
-export class LoginResponseDto {
+export class LoginResponseDto implements LoginResult {
   @ApiProperty({ type: Boolean, description: 'Si es `true`, la sesión aún no está abierta' })
   readonly mfaRequired: boolean;
 

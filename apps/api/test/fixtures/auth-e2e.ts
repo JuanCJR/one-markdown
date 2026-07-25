@@ -4,6 +4,7 @@ import type { Response } from 'supertest';
 
 import { AppModule } from '../../src/app.module';
 import { configureApp } from '../../src/bootstrap';
+import { THROTTLE_KEY_PREFIX } from '../../src/common/throttle';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { RedisService } from '../../src/redis/redis.service';
 
@@ -98,6 +99,23 @@ export async function deleteAuthKeys(app: INestApplication, userIds: string[]): 
     if (keys.length > 0) {
       await redis.del(...keys);
     }
+  }
+}
+
+/**
+ * Pone a cero los contadores de rate limit por IP.
+ *
+ * Se llama en un `beforeEach`: el límite es por IP, y todas las peticiones de todos los archivos e2e
+ * salen de `127.0.0.1`, así que sin este reset un caso heredaría el cupo gastado por el anterior y la
+ * suite fallaría por acumulación en vez de por el comportamiento que mide. El e2e de AC-20 es el que
+ * agota los límites a propósito.
+ */
+export async function resetThrottleCounters(app: INestApplication): Promise<void> {
+  const redis = app.get(RedisService).client;
+  const keys = await redis.keys(`${THROTTLE_KEY_PREFIX}*`);
+
+  if (keys.length > 0) {
+    await redis.del(...keys);
   }
 }
 

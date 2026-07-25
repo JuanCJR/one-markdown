@@ -15,7 +15,9 @@ import {
 } from '@nestjs/swagger';
 import type { Response } from 'express';
 
+import { AUTH_BEARER_SCHEME } from '../common/api-security';
 import { ErrorResponseDto } from '../common/dto/error.response.dto';
+import { Throttled } from '../common/throttle';
 import type { AppConfig } from '../config/env.validation';
 import { AuthService, type IssuedSession } from './auth.service';
 import type { AuthenticatedUser } from './authenticated-user';
@@ -28,10 +30,10 @@ import { RegisterRequestDto } from './dto/register.request.dto';
 import { UserResponseDto } from './dto/user.response.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import {
-  clearRefreshCookie,
+  issueRefreshCookie,
   REFRESH_COOKIE_NAME,
   RefreshCookie,
-  setRefreshCookie,
+  revokeRefreshCookie,
 } from './refresh-cookie';
 
 @ApiTags('auth')
@@ -43,6 +45,7 @@ export class AuthController {
   ) {}
 
   @Post('register')
+  @Throttled('register')
   @ApiOperation({ summary: 'Crea una cuenta y abre sesión', operationId: 'register' })
   @ApiCreatedResponse({
     type: AuthSessionResponseDto,
@@ -50,6 +53,10 @@ export class AuthController {
   })
   @ApiBadRequestResponse({ type: ErrorResponseDto, description: 'Cuerpo inválido' })
   @ApiConflictResponse({ type: ErrorResponseDto, description: 'El correo ya está registrado' })
+  @ApiTooManyRequestsResponse({
+    type: ErrorResponseDto,
+    description: 'Límite de altas por IP alcanzado',
+  })
   async register(
     @Body() dto: RegisterRequestDto,
     // `passthrough` para poder emitir la cookie sin renunciar a devolver el DTO como cuerpo.
@@ -61,6 +68,7 @@ export class AuthController {
   @Post('login')
   // Un login no crea un recurso: `200`, no el `201` que Nest pone por defecto en un POST.
   @HttpCode(HttpStatus.OK)
+  @Throttled('login')
   @ApiOperation({ summary: 'Inicia sesión con correo y contraseña', operationId: 'login' })
   @ApiOkResponse({
     type: LoginResponseDto,
@@ -73,7 +81,8 @@ export class AuthController {
   })
   @ApiTooManyRequestsResponse({
     type: ErrorResponseDto,
-    description: 'Cuenta bloqueada temporalmente; el cuerpo trae `retryAfterSeconds`',
+    description:
+      'Cuenta bloqueada temporalmente (el cuerpo trae `retryAfterSeconds`), o límite por IP alcanzado',
   })
   async login(
     @Body() dto: LoginRequestDto,
@@ -84,7 +93,7 @@ export class AuthController {
     // Sin sesión no hay cookie: cuando falta el segundo factor, el navegador no debe quedarse con
     // nada que sirva para refrescar (AC-16).
     if (outcome.refreshToken !== null) {
-      this.attachRefreshCookie(response, outcome.refreshToken);
+      issueRefreshCookie(response, outcome.refreshToken, this.config);
     }
 
     return outcome.response;
@@ -92,6 +101,7 @@ export class AuthController {
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
+  @Throttled('refresh')
   @ApiCookieAuth(REFRESH_COOKIE_NAME)
   @ApiOperation({
     summary: 'Rota el refresh y emite un access token nuevo',
@@ -106,6 +116,10 @@ export class AuthController {
     type: ErrorResponseDto,
     description: 'Sin cookie, inválida, expirada, revocada o reutilizada (revoca la familia)',
   })
+  @ApiTooManyRequestsResponse({
+    type: ErrorResponseDto,
+    description: 'Límite de renovaciones por IP alcanzado',
+  })
   async refreshSession(
     // El DTO vacío existe para que el `ValidationPipe` rechace cualquier cuerpo; la credencial es la
     // cookie, y aceptar además un token en el cuerpo abriría una segunda superficie de entrada.
@@ -118,10 +132,17 @@ export class AuthController {
 
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
+  // Comparte cupo con `refresh` y `me`: son las tres peticiones de mantenimiento de sesión, y ninguna
+  // debería repetirse decenas de veces por minuto desde la misma IP.
+  @Throttled('refresh')
   @ApiCookieAuth(REFRESH_COOKIE_NAME)
   @ApiOperation({ summary: 'Cierra la sesión de este dispositivo', operationId: 'logout' })
   @ApiNoContentResponse({
     description: 'Sesión cerrada y cookie borrada. Idempotente: sin cookie también responde 204',
+  })
+  @ApiTooManyRequestsResponse({
+    type: ErrorResponseDto,
+    description: 'Límite por IP alcanzado',
   })
   async logout(
     @Body() _body: RefreshRequestDto,
@@ -132,19 +153,22 @@ export class AuthController {
 
     // Se borra la cookie incluso si no había sesión: el navegador no debe quedarse con una
     // credencial que ya no sirve para nada.
-    clearRefreshCookie(response, {
-      secure: this.config.get('NODE_ENV', { infer: true }) === 'production',
-    });
+    revokeRefreshCookie(response, this.config);
   }
 
   @Get('me')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('bearer')
+  @Throttled('refresh')
+  @ApiBearerAuth(AUTH_BEARER_SCHEME)
   @ApiOperation({ summary: 'Usuario del token de acceso', operationId: 'getCurrentUser' })
   @ApiOkResponse({ type: UserResponseDto })
   @ApiUnauthorizedResponse({
     type: ErrorResponseDto,
     description: 'Sin token, expirado, firma inválida, `typ` distinto de `access` o usuario inexistente',
+  })
+  @ApiTooManyRequestsResponse({
+    type: ErrorResponseDto,
+    description: 'Límite por IP alcanzado',
   })
   getCurrentUser(@CurrentUser() user: AuthenticatedUser): UserResponseDto {
     // El guard ya resolvió la fila; aquí solo se proyecta al DTO, que es la única superficie pública.
@@ -153,16 +177,7 @@ export class AuthController {
 
   /** Deja el refresh en la cookie y devuelve solo el DTO: el refresh nunca sale en el cuerpo. */
   private respondWithSession(response: Response, issued: IssuedSession): AuthSessionResponseDto {
-    this.attachRefreshCookie(response, issued.refreshToken);
+    issueRefreshCookie(response, issued.refreshToken, this.config);
     return issued.session;
-  }
-
-  private attachRefreshCookie(response: Response, refreshToken: string): void {
-    setRefreshCookie(response, refreshToken, {
-      ttlSeconds: this.config.get('JWT_REFRESH_TTL', { infer: true }),
-      // `Secure` solo en producción: en desarrollo la app corre en http://localhost y una cookie
-      // `Secure` no se guardaría, dejando el refresh inservible en el único entorno sin TLS.
-      secure: this.config.get('NODE_ENV', { infer: true }) === 'production',
-    });
   }
 }

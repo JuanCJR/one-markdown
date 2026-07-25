@@ -230,7 +230,7 @@ salida observable. **Toda tarea que introduce comportamiento es TDD estricta.** 
 
 ## Bloque E — Transversales del backend
 
-- [ ] **T-017** · `backend` · Rate limit por IP con storage en Redis
+- [x] **T-017** · `backend` · Rate limit por IP con storage en Redis
       **AC**: AC-20
       **Depende de**: T-009
       **RED**: (a) `apps/api/src/auth/redis-throttler.storage.spec.ts` — `increment` devuelve
@@ -247,7 +247,7 @@ salida observable. **Toda tarea que introduce comportamiento es TDD estricta.** 
       **NOTA**: implementar la interfaz del propio `@nestjs/throttler` 6.x (riesgo #2); no añadir
       `@nest-lab/throttler-storage-redis` sin pasar por el orchestrator.
 
-- [ ] **T-018** · `backend` · Swagger de auth (bearer, cookie y DTOs)
+- [x] **T-018** · `backend` · Swagger de auth (bearer, cookie y DTOs)
       **AC**: AC-21
       **Depende de**: T-016
       **RED**: ampliar `apps/api/test/swagger.e2e-spec.ts` — el documento contiene las nueve rutas

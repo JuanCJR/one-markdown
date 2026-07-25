@@ -7,18 +7,21 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiTags,
+  ApiTooManyRequestsResponse,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import type { Response } from 'express';
 
+import { AUTH_BEARER_SCHEME } from '../../common/api-security';
 import { ErrorResponseDto } from '../../common/dto/error.response.dto';
+import { Throttled } from '../../common/throttle';
 import type { AppConfig } from '../../config/env.validation';
 import type { AuthenticatedUser } from '../authenticated-user';
 import { CurrentUser } from '../current-user.decorator';
 import { AuthSessionResponseDto } from '../dto/auth-session.response.dto';
 import { UserResponseDto } from '../dto/user.response.dto';
 import { JwtAuthGuard } from '../jwt-auth.guard';
-import { setRefreshCookie } from '../refresh-cookie';
+import { issueRefreshCookie } from '../refresh-cookie';
 import { MfaDisableRequestDto } from './dto/mfa-disable.request.dto';
 import { MfaEnableRequestDto } from './dto/mfa-enable.request.dto';
 import { MfaRecoveryCodesResponseDto } from './dto/mfa-recovery-codes.response.dto';
@@ -33,9 +36,20 @@ import { MfaService } from './mfa.service';
  * pública porque su credencial es el `mfaToken` que devolvió el login.
  *
  * Ningún handler loguea el secreto, el `otpauthUri`, el QR ni los códigos de recuperación.
+ *
+ * El throttler `mfa` se declara en la clase, no en cada método: los cuatro endpoints comparten un
+ * único cupo por IP (AC-20). Ninguno de ellos lo tenía antes, y `LoginAttemptService` no los cubre
+ * porque solo cuenta fallos de contraseña en el login: con un access token robado se podían probar
+ * los 10^6 códigos TOTP de `disable`, pedir un desafío nuevo cada cinco intentos en `verify`, y
+ * quemar ocho comparaciones bcrypt por petición con un código con formato de recuperación.
  */
 @ApiTags('auth')
 @Controller('auth/mfa')
+@Throttled('mfa')
+@ApiTooManyRequestsResponse({
+  type: ErrorResponseDto,
+  description: 'Límite de intentos de segundo factor por IP alcanzado',
+})
 export class MfaController {
   constructor(
     private readonly mfa: MfaService,
@@ -46,7 +60,7 @@ export class MfaController {
   // Un enrolamiento sin confirmar no crea ningún recurso: `200`, no el `201` por defecto del POST.
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('bearer')
+  @ApiBearerAuth(AUTH_BEARER_SCHEME)
   @ApiOperation({
     summary: 'Inicia el alta del segundo factor y devuelve el secreto y su QR',
     operationId: 'mfaSetup',
@@ -64,7 +78,7 @@ export class MfaController {
   @Post('enable')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('bearer')
+  @ApiBearerAuth(AUTH_BEARER_SCHEME)
   @ApiOperation({
     summary: 'Confirma el alta del segundo factor con un código TOTP',
     operationId: 'mfaEnable',
@@ -113,7 +127,9 @@ export class MfaController {
   ): Promise<AuthSessionResponseDto> {
     const issued = await this.mfa.verifyChallenge(dto);
 
-    this.attachRefreshCookie(response, issued.refreshToken);
+    // Misma política de cookie que `AuthController`, con el mismo helper: el refresh solo sale por
+    // `Set-Cookie` y nunca en el cuerpo.
+    issueRefreshCookie(response, issued.refreshToken, this.config);
 
     return issued.session;
   }
@@ -121,7 +137,7 @@ export class MfaController {
   @Post('disable')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('bearer')
+  @ApiBearerAuth(AUTH_BEARER_SCHEME)
   @ApiOperation({
     summary: 'Da de baja el segundo factor con contraseña y código',
     operationId: 'mfaDisable',
@@ -145,17 +161,5 @@ export class MfaController {
     @Body() dto: MfaDisableRequestDto,
   ): Promise<UserResponseDto> {
     return this.mfa.disable(user, dto);
-  }
-
-  /**
-   * Misma política de cookie que `AuthController`: el refresh solo sale por `Set-Cookie`, nunca en el
-   * cuerpo, y `Secure` únicamente en producción (en dev la app corre en `http://localhost`, donde una
-   * cookie `Secure` no se guardaría y el refresh quedaría inservible).
-   */
-  private attachRefreshCookie(response: Response, refreshToken: string): void {
-    setRefreshCookie(response, refreshToken, {
-      ttlSeconds: this.config.get('JWT_REFRESH_TTL', { infer: true }),
-      secure: this.config.get('NODE_ENV', { infer: true }) === 'production',
-    });
   }
 }

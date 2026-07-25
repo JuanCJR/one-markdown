@@ -1,5 +1,8 @@
 import { createParamDecorator, type ExecutionContext } from '@nestjs/common';
+import type { ConfigService } from '@nestjs/config';
 import type { CookieOptions, Response } from 'express';
+
+import type { AppConfig } from '../config/env.validation';
 
 /** Nombre de la cookie de refresh (specs/001-auth/plan.md §2 decisión 1). */
 export const REFRESH_COOKIE_NAME = 'om_refresh';
@@ -36,6 +39,40 @@ export function setRefreshCookie(
  */
 export function clearRefreshCookie(response: Response, params: { secure: boolean }): void {
   response.cookie(REFRESH_COOKIE_NAME, '', { ...baseOptions(params.secure), maxAge: 0 });
+}
+
+/**
+ * `Secure` solo en producción: en desarrollo la app corre en `http://localhost` y una cookie `Secure`
+ * no se guardaría, dejando el refresh inservible en el único entorno sin TLS.
+ */
+function isSecureEnvironment(config: ConfigService<AppConfig, true>): boolean {
+  return config.get('NODE_ENV', { infer: true }) === 'production';
+}
+
+/**
+ * Emite la cookie de refresh con la política que sale de la configuración.
+ *
+ * Existe para que la vida de la cookie y el flag `Secure` se decidan en **un** sitio: `AuthController`
+ * y `MfaController` los repetían línea por línea, y dos copias de una política de cookies acaban
+ * divergiendo justo en el atributo que importa.
+ */
+export function issueRefreshCookie(
+  response: Response,
+  token: string,
+  config: ConfigService<AppConfig, true>,
+): void {
+  setRefreshCookie(response, token, {
+    ttlSeconds: config.get('JWT_REFRESH_TTL', { infer: true }),
+    secure: isSecureEnvironment(config),
+  });
+}
+
+/** Borra la cookie de refresh con la misma política con la que se emitió. */
+export function revokeRefreshCookie(
+  response: Response,
+  config: ConfigService<AppConfig, true>,
+): void {
+  clearRefreshCookie(response, { secure: isSecureEnvironment(config) });
 }
 
 /**
