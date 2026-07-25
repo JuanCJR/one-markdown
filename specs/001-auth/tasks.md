@@ -273,7 +273,7 @@ salida observable. **Toda tarea que introduce comportamiento es TDD estricta.** 
 
 ## Bloque F — Frontend
 
-- [ ] **T-020** · `frontend` · Cliente HTTP autenticado con refresh y reintento único
+- [x] **T-020** · `frontend` · Cliente HTTP autenticado con refresh y reintento único
       **AC**: AC-24
       **Depende de**: T-019
       **RED**: ampliar `apps/web/src/shared/api/http.test.ts` (con `fetch` mockeado) — una llamada
@@ -287,7 +287,7 @@ salida observable. **Toda tarea que introduce comportamiento es TDD estricta.** 
       `mfaDisable`) tipadas con `@one-markdown/shared`. Cero `any`.
       **DONE**: `pnpm --filter @one-markdown/web test http`
 
-- [ ] **T-021** · `frontend` · `useAuthStore` y arranque con refresh silencioso
+- [x] **T-021** · `frontend` · `useAuthStore` y arranque con refresh silencioso
       **AC**: AC-22, AC-23
       **Depende de**: T-020
       **RED**: `apps/web/src/features/auth/auth.store.test.ts` — el estado arranca en `'unknown'`;
@@ -299,7 +299,7 @@ salida observable. **Toda tarea que introduce comportamiento es TDD estricta.** 
       **GREEN**: `auth.store.ts` según `plan.md` §7, sin middleware de persistencia.
       **DONE**: `pnpm --filter @one-markdown/web test auth.store`
 
-- [ ] **T-022** · `frontend` · `/login`, `/register` y `RequireAuth`
+- [x] **T-022** · `frontend` · `/login`, `/register` y `RequireAuth`
       **AC**: AC-22
       **Depende de**: T-021
       **RED**: `apps/web/src/features/auth/RequireAuth.test.tsx` — con estado anónimo, una ruta
@@ -313,7 +313,7 @@ salida observable. **Toda tarea que introduce comportamiento es TDD estricta.** 
       envuelto por `RequireAuth`).
       **DONE**: `pnpm --filter @one-markdown/web test RequireAuth LoginPage RegisterPage`
 
-- [ ] **T-023** · `frontend` · Paso de segundo factor en el login
+- [x] **T-023** · `frontend` · Paso de segundo factor en el login
       **AC**: AC-23
       **Depende de**: T-022
       **RED**: ampliar `apps/web/src/features/auth/LoginPage.test.tsx` — cuando el login responde
@@ -324,7 +324,7 @@ salida observable. **Toda tarea que introduce comportamiento es TDD estricta.** 
       **GREEN**: `MfaChallengeForm` y su integración en `LoginPage`.
       **DONE**: `pnpm --filter @one-markdown/web test LoginPage`
 
-- [ ] **T-024** · `frontend` · `/settings/security`: alta y baja de MFA
+- [x] **T-024** · `frontend` · `/settings/security`: alta y baja de MFA
       **AC**: AC-13, AC-14, AC-19 (desde la UI)
       **Depende de**: T-014, T-016, T-022
       **RED**: `apps/web/src/features/auth/SecurityPage.test.tsx` — sin MFA, el botón de activar llama a

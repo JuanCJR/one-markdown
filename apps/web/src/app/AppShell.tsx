@@ -1,5 +1,6 @@
-import { Outlet } from 'react-router';
+import { Link, Outlet } from 'react-router';
 
+import { useAuthStore } from '../features/auth/auth.store';
 import { useUiStore } from '../shared/store/ui.store';
 
 /**
@@ -10,6 +11,8 @@ import { useUiStore } from '../shared/store/ui.store';
 export function AppShell(): React.JSX.Element {
   const sidebarCollapsed = useUiStore((state) => state.sidebarCollapsed);
   const toggleSidebar = useUiStore((state) => state.toggleSidebar);
+  const user = useAuthStore((state) => state.user);
+  const logout = useAuthStore((state) => state.logout);
 
   return (
     <div className="flex h-full min-h-screen bg-white text-slate-900">
@@ -29,14 +32,39 @@ export function AppShell(): React.JSX.Element {
           {sidebarCollapsed ? 'Mostrar barra lateral' : 'Ocultar barra lateral'}
         </button>
 
-        <div id="document-tree" hidden={sidebarCollapsed} className="px-3 py-2 text-sm text-slate-500">
+        <div
+          id="document-tree"
+          hidden={sidebarCollapsed}
+          className="px-3 py-2 text-sm text-slate-500"
+        >
           El árbol de directorios llega con la spec 002.
         </div>
       </nav>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="border-b border-slate-200 px-6 py-4">
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-6 py-4">
           <h1 className="text-lg font-semibold">One Markdown</h1>
+
+          <div className="flex items-center gap-4 text-sm">
+            {user === null ? null : <span className="text-slate-600">{user.email}</span>}
+
+            <Link
+              to="/settings/security"
+              className="rounded px-1 font-medium text-blue-700 underline outline-none hover:text-blue-900 focus-visible:ring-2 focus-visible:ring-blue-700/50"
+            >
+              Seguridad
+            </Link>
+
+            <button
+              type="button"
+              onClick={() => {
+                void logout();
+              }}
+              className="min-h-9 rounded-md border border-slate-300 px-3 py-1 font-medium text-slate-700 outline-none hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-blue-700/50"
+            >
+              Cerrar sesión
+            </button>
+          </div>
         </header>
 
         <main role="main" className="min-h-0 flex-1 overflow-auto px-6 py-6">

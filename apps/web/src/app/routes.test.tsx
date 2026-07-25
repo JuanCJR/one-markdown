@@ -1,9 +1,11 @@
 import { render, screen } from '@testing-library/react';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import { routes } from './routes';
+import { useAuthStore } from '../features/auth/auth.store';
+import { authUser } from '../test/auth-fixtures';
 
 function renderAt(path: string): void {
   const router = createMemoryRouter(routes, { initialEntries: [path] });
@@ -11,6 +13,15 @@ function renderAt(path: string): void {
 }
 
 describe('Enrutado (AC-10)', () => {
+  // Desde la spec 001 estas rutas están detrás de `RequireAuth`: sin sesión redirigen a `/login`.
+  beforeEach(() => {
+    useAuthStore.setState({
+      status: 'authenticated',
+      user: authUser(),
+      accessToken: 'access-token-1',
+    });
+  });
+
   it('muestra el estado vacío del workspace en /', () => {
     renderAt('/');
 

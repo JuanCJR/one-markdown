@@ -233,12 +233,31 @@ Transversales del backend:
 
 Frontend:
 
-- [ ] **T-020** · frontend · Cliente HTTP autenticado con refresh single-flight y reintento único (AC-24)
-- [ ] **T-021** · frontend · `useAuthStore` y arranque con refresh silencioso (AC-22, AC-23)
-- [ ] **T-022** · frontend · `/login`, `/register` y `RequireAuth` (AC-22)
-- [ ] **T-023** · frontend · Paso de segundo factor en el login (AC-23)
-- [ ] **T-024** · frontend · `/settings/security`: alta y baja de MFA
+- [x] **T-020** · frontend · Cliente HTTP autenticado con refresh single-flight y reintento único (AC-24) — 2026-07-24 · agente `frontend`
+      RED: `configureAuthBridge is not a function`, **16 failed de 23** → GREEN: `test http` → **25 passed**.
+      `credentials: 'include'` se aplica **después** del spread del `init`, así que ninguna llamada puede
+      desactivarlo por descuido. `login`/`register`/`refresh`/`verifyMfa`/`logout` van por un camino
+      distinto y **no pueden** entrar en el circuito de reintento: ahí estaría el bucle infinito.
+- [x] **T-021** · frontend · `useAuthStore` y arranque con refresh silencioso (AC-22, AC-23) — 2026-07-24 · agente `frontend`
+      RED: `Failed to resolve import "./auth.store"` → GREEN: `test auth.store` → **19 passed**.
+- [x] **T-022** · frontend · `/login`, `/register` y `RequireAuth` (AC-22) — 2026-07-24 · agente `frontend`
+      RED: **20 failed de 23** (`Unable to find a label with the text of: /correo electrónico/i`) → GREEN:
+      `test RequireAuth LoginPage RegisterPage` → **29 passed**.
+      `RequireAuth` **no** redirige mientras el estado es `unknown`/`authenticating` (si lo hiciera, el
+      refresh silencioso no llegaría a tiempo y el usuario vería `/login` en cada recarga), y
+      `readRedirectTarget` rechaza rutas externas y `/login`/`/register`: open redirect y bucle, cerrados.
+- [x] **T-023** · frontend · Paso de segundo factor en el login (AC-23) — 2026-07-24 · agente `frontend`
+      RED: **6 failed de 15** → GREEN: `test LoginPage` → **15 passed**.
+- [x] **T-024** · frontend · `/settings/security`: alta y baja de MFA — 2026-07-24 · agente `frontend`
+      RED: **7 failed de 9** → GREEN: `test SecurityPage` → **9 passed**.
+      Total web: **92 passed** (venía de 14) · `typecheck` 0 · `lint` 0, verificado por el orchestrator.
 - [ ] **T-025** · frontend · e2e del flujo de auth en navegador (AC-25)
+      **Urgente, no solo pendiente**: `pnpm test:e2e` está **rojo** desde T-022 y con él el AC-11 de la
+      spec `000`. `/` pasó a estar detrás de `RequireAuth`, y `playwright.config.ts` solo levanta el dev
+      server de la web: el `bootstrap()` pega a `/api/auth/refresh`, no hay nadie escuchando, la ruta
+      redirige a `/login` y el error de red rompe el `expect(consoleErrors).toEqual([])`. Verificado:
+      **3 failed** (`element(s) not found` en `role="main"`, `role="navigation"` y el texto del 404).
+      El GREEN de T-025 ya lo contempla (segundo `webServer` que levanta el API), así que se arregla ahí.
 
 CI:
 

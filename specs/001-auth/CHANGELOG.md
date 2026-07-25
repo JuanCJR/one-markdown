@@ -36,6 +36,31 @@ Hallazgos de los Bloques A y D-parcial (T-001…T-003, T-012, T-013), sin cambio
 - Dos correcciones que tocaron artefactos de la spec `000` y quedaron en su CHANGELOG (v0.1.2 y v0.1.3):
   el build de `packages/shared` antes de `typecheck`/`test`, y `dotenv/config` en `prisma.config.ts`.
 
+Decisiones tomadas durante la implementación del frontend (Bloque F), sin cambio de criterios:
+
+- **`mfa/enable` y `mfa/disable` mantienen `401` para "código o contraseña incorrectos"**, como dicen
+  AC-15 y AC-19, aunque el mismo `401` signifique también "el bearer caducó". La asimetría es real y la
+  destapó el frontend: un cliente genérico con refresh-on-401 interpretaría un código mal tecleado como
+  token caducado, dispararía un refresh, reintentaría el código equivocado y podría **cerrar la sesión en
+  medio del enrolamiento**. Se resuelve en el cliente con un opt-out explícito por endpoint
+  (`refreshOn401: false`, con dos tests propios) en vez de cambiar el contrato, porque cambiarlo obligaría
+  a tocar dos AC ya aprobados. Si más adelante se prefiere `403`/`422` para "segundo factor rechazado",
+  es un cambio **minor** de esta spec y se decide aparte.
+- **Los tipos de *request* no son contrato compartido todavía**: `packages/shared` publica respuestas y
+  guards (T-019). El frontend declara `RegisterInput`, `LoginInput`, `MfaVerifyInput` y `MfaDisableInput`
+  en su propio cliente HTTP. Promoverlos a `packages/shared` queda como mejora, no como deuda urgente: el
+  `ValidationPipe` del backend es el que valida de verdad.
+- **El *single-flight* del refresh vive en el cliente HTTP, no en el store** (el plan §7 lo insinuaba en el
+  store). Ponerlo en el store creaba el ciclo `auth.store → http → auth.store`; se resolvió con un puente
+  inyectado. El comportamiento observable de AC-24 es el mismo y está testeado en los dos niveles.
+- **Hallazgo de entorno de test que invalidaba una verificación**: en este jsdom `window.localStorage`
+  llega como un objeto sin `setItem` (el `localStorage` propio de Node gana la partida), así que el assert
+  de AC-23 "el almacenamiento sigue vacío" pasaba **por accidente**. Ahora `src/test/setup.ts` instala un
+  `Storage` en memoria que guarda de verdad; comprobado con una prueba desechable.
+- **La cabecera del `AppShell` suma correo, enlace a `/settings/security` y botón de cerrar sesión.** Va
+  más allá de la letra de T-024, pero sin eso la pantalla de seguridad era inalcanzable y no existía forma
+  de cerrar sesión en la aplicación.
+
 - **Aprobada por el usuario el 2026-07-24** sin cambios de alcance: los tres puntos que se le señalaron
   (enumeración de cuentas en el registro, ausencia de recuperación por correo y MFA opcional por usuario)
   quedan aceptados tal como están escritos. Estado `draft` → `approved`; arranca la Fase 3.
