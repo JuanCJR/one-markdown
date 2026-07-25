@@ -12,6 +12,7 @@ import { LoginResponseDto } from './dto/login.response.dto';
 import { RegisterRequestDto } from './dto/register.request.dto';
 import { UserProjection, UserResponseDto } from './dto/user.response.dto';
 import { LoginAttemptService } from './login-attempt.service';
+import { MfaChallengeStore } from './mfa/mfa-challenge.store';
 import { PasswordService } from './password.service';
 import { SessionStore } from './session.store';
 import { TokenService } from './token.service';
@@ -57,6 +58,7 @@ export class AuthService {
     private readonly tokens: TokenService,
     private readonly sessions: SessionStore,
     private readonly attempts: LoginAttemptService,
+    private readonly challenges: MfaChallengeStore,
     private readonly config: ConfigService<AppConfig, true>,
   ) {}
 
@@ -110,11 +112,34 @@ export class AuthService {
 
     await this.attempts.reset(dto.email);
 
-    // TODO(T-015): si `user.mfaEnabled`, este es el punto donde el login se corta y devuelve
-    // `LoginResponseDto.withMfaChallenge(...)` sin abrir sesión ni emitir cookie (AC-16).
+    // El segundo factor corta el flujo aquí (AC-16): la contraseña ya es correcta, pero no se abre
+    // sesión ni se emite cookie. `mfaSecret` nulo con `mfaEnabled` en `true` sería una fila
+    // imposible; si apareciera, dejar entrar sin segundo factor sería peor que negar el paso.
+    if (user.mfaEnabled) {
+      return this.challengeSecondFactor(user.id);
+    }
+
     const issued = await this.issueSession(user);
 
     return { response: LoginResponseDto.withSession(issued.session), refreshToken: issued.refreshToken };
+  }
+
+  /**
+   * Abre el desafío de segundo factor y devuelve el `mfaToken` que lo acredita (AC-16).
+   *
+   * El `jti` del token es la clave del desafío en Redis: el token por sí solo no vale nada, y así
+   * cerrar el desafío (al resolverlo o al agotar los intentos) invalida el token sin listas negras.
+   */
+  private async challengeSecondFactor(userId: string): Promise<LoginOutcome> {
+    const jti = randomUUID();
+    const expiresInSeconds = await this.challenges.create({ jti, userId });
+    const mfaToken = await this.tokens.signMfa({ userId, jti });
+
+    return {
+      response: LoginResponseDto.withMfaChallenge({ mfaToken, expiresInSeconds }),
+      // `null` y no un token: sin sesión no hay cookie de refresh que emitir.
+      refreshToken: null,
+    };
   }
 
   /**

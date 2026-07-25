@@ -184,7 +184,7 @@ salida observable. **Toda tarea que introduce comportamiento es TDD estricta.** 
       **DONE**: `pnpm --filter @one-markdown/api test totp.service`
       **NOTA**: no copiar ejemplos de `otplib` 12 (`authenticator.check`, síncrono): riesgo #1.
 
-- [ ] **T-014** · `backend` · `POST /api/auth/mfa/setup` y `POST /api/auth/mfa/enable`
+- [x] **T-014** · `backend` · `POST /api/auth/mfa/setup` y `POST /api/auth/mfa/enable`
       **AC**: AC-13, AC-14, AC-15
       **Depende de**: T-010, T-012, T-013
       **RED**: `apps/api/test/auth-mfa.e2e-spec.ts` — `setup` autenticado → `200` con `secret` base32,
@@ -200,7 +200,7 @@ salida observable. **Toda tarea que introduce comportamiento es TDD estricta.** 
       `mfa_recovery_codes`.
       **DONE**: `pnpm --filter @one-markdown/api test:e2e auth-mfa`
 
-- [ ] **T-015** · `backend` · Login con segundo factor y `POST /api/auth/mfa/verify`
+- [x] **T-015** · `backend` · Login con segundo factor y `POST /api/auth/mfa/verify`
       **AC**: AC-16, AC-17, AC-18
       **Depende de**: T-014
       **RED**: (a) `apps/api/src/auth/mfa/mfa-challenge.store.spec.ts` — el desafío se guarda con TTL,
@@ -216,7 +216,7 @@ salida observable. **Toda tarea que introduce comportamiento es TDD estricta.** 
       **DONE**: `pnpm --filter @one-markdown/api test mfa-challenge.store` ·
       `pnpm --filter @one-markdown/api test:e2e auth-mfa-login`
 
-- [ ] **T-016** · `backend` · `POST /api/auth/mfa/disable`
+- [x] **T-016** · `backend` · `POST /api/auth/mfa/disable`
       **AC**: AC-19
       **Depende de**: T-015
       **RED**: ampliar `apps/api/test/auth-mfa.e2e-spec.ts` — con contraseña y código correctos → `200`

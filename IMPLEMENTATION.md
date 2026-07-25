@@ -187,13 +187,36 @@ MFA TOTP:
       T-014/T-015 — se aplica en cuanto el agente del Bloque C suelte `test/**`; (b) `require('otplib')`
       exige `require(esm)`, que Node trae sin flag **desde 22.12**, así que `engines` pasa a `>=22.12`
       (la matriz de CI ya instala el último 22.x).
-- [ ] **T-014** · backend · `mfa/setup` y `mfa/enable` con códigos de recuperación (AC-13…AC-15)
-- [ ] **T-015** · backend · Login con segundo factor y `mfa/verify` (AC-16…AC-18)
-- [ ] **T-016** · backend · `mfa/disable` (AC-19)
+- [x] **T-014** · backend · `mfa/setup` y `mfa/enable` con códigos de recuperación (AC-13…AC-15) — 2026-07-24 · agente `backend`
+      RED: **19 failed** (`got 404`) → GREEN: `test:e2e auth-mfa` → **19 passed**.
+      El secreto pendiente vive cifrado en Redis con TTL de 10 min: tras el `setup`, `mfaEnabled` sigue
+      `false` y `mfaSecret` nulo en la base (AC-13 verificado leyendo la fila, no la respuesta).
+      Los códigos de recuperación evitan `I`, `O`, `0` y `1`: se copian a mano de una pantalla.
+- [x] **T-015** · backend · Login con segundo factor y `mfa/verify` (AC-16…AC-18) — 2026-07-24 · agente `backend`
+      RED: (a) `Cannot find module './mfa-challenge.store'` · (b) **26 failed de 27** → GREEN: `test
+      mfa-challenge.store` → **9 passed** · `test:e2e auth-mfa-login` → **27 passed**.
+      Dos decisiones que valen: el intento se **contabiliza antes** de verificar el código (un fallo a
+      mitad no regala intentos) y el script Lua usa `KEEPTTL`, así que teclear códigos no alarga los 5
+      minutos del desafío. `verifyChallenge` cruza `lookup.userId === payload.sub`: un `mfaToken` no sirve
+      para completar el login de otra cuenta.
+- [x] **T-016** · backend · `mfa/disable` (AC-19) — 2026-07-24 · agente `backend`
+      RED: **15 failed de 34** → GREEN: `test:e2e auth-mfa` → **34 passed**.
+      Comprueba la contraseña antes del código, con test dedicado a que un intento con contraseña mala
+      **no queme** un código de recuperación. Revoca las demás sesiones y deja viva la actual (verificado
+      con dos cookies de refresh distintas).
 
 Transversales del backend:
 
 - [ ] **T-017** · backend · Rate limit por IP con `RedisThrottlerStorage` propio (AC-20)
+      **Entrada obligatoria**: tres huecos que la autorevisión de seguridad del Bloque D encontró y
+      reportó en vez de parchear (el plan asigna `@Throttle` a esta tarea). No son opcionales:
+      1. **`POST /api/auth/mfa/disable` no tiene límite de ningún tipo.** `LoginAttemptService` solo cuenta
+         fallos de login. Quien robe un access token puede fuerza-brutar el TOTP de 6 dígitos (~333k
+         peticiones esperadas) o la contraseña sin fricción. Es el más serio de los tres.
+      2. **`mfa/verify` limita a 5 intentos por desafío, pero no el número de desafíos**: quien ya tenga la
+         contraseña pide un login nuevo cada 5 intentos y sigue probando.
+      3. `RecoveryCodeService.consume` compara hasta 8 hashes bcrypt por intento: con coste 12 son ~2 s de
+         CPU por petición en un endpoint sin límite, o sea un amplificador de DoS barato.
 - [ ] **T-018** · backend · Swagger de auth: bearer, cookie y DTOs (AC-21)
 - [x] **T-019** · backend · Contrato de auth en `packages/shared` — 2026-07-24 · agente `backend`
       RED: `TypeError: isAuthUser is not a function` → **25 failed** → GREEN: `--filter shared test` →
@@ -302,6 +325,16 @@ Datos de la prueba borrados después: 0 usuarios en `users`, 0 claves `auth:*` e
 **Falso positivo mío, anotado para no repetirlo**: en el primer intento conté mal los fallos (el intento
 contra un correo inexistente cuenta en **otra** clave) y creí ver un bloqueo que no saltaba. La
 implementación estaba bien; el guion de prueba, no.
+
+**Un error de diagnóstico mío, peor que el anterior**: cuando el agente del Bloque C reportó un fallo
+unitario en `mfa-secret.cipher.spec.ts`, lo despaché como "transitorio, el otro agente estaba escribiendo a
+la vez". No lo era: **el test era intermitente de verdad**, ~1 de cada 8 corridas. `alterarParte` cambiaba el
+último carácter base64url de una de las tres partes, y cuando la parte no mide múltiplo de 3 bytes (el tag son
+16 y el texto cifrado 32) los bits bajos de ese carácter son relleno que `Buffer.from(…, 'base64url')`
+descarta: la parte "alterada" decodificaba a los **mismos** bytes y GCM la aceptaba con toda la razón. Lo
+detectó y lo arregló el agente del Bloque D invirtiendo un bit de un byte real; verificado con **10 corridas
+verdes de 10**. Lección: un fallo que no se reproduce no es un fallo transitorio hasta que se explica **por
+qué** desapareció.
 
 ### Lo que destapó el primer run de CI (2026-07-24)
 

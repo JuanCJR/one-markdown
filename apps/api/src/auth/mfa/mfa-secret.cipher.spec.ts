@@ -20,13 +20,21 @@ function cipherConClave(key: string): MfaSecretCipher {
   return new MfaSecretCipher(config);
 }
 
-/** Cambia el último carácter de una de las tres partes por otro del alfabeto base64url. */
+/**
+ * Invierte un bit de un byte **real** de una de las tres partes.
+ *
+ * No vale cambiar el último carácter base64url: cuando la longitud en bytes no es múltiplo de 3 (el
+ * tag son 16 y el texto cifrado 32), los bits bajos de ese carácter son relleno que
+ * `Buffer.from(…, 'base64url')` descarta. La parte "alterada" decodificaba entonces a los **mismos**
+ * bytes, GCM la aceptaba y el test fallaba una de cada ocho veces.
+ */
 function alterarParte(cifrado: string, indiceParte: number): string {
   const partes = cifrado.split('.');
-  const parte = partes[indiceParte] ?? '';
-  const ultimo = parte.slice(-1);
+  const bytes = Buffer.from(partes[indiceParte] ?? '', 'base64url');
+  const ultimo = bytes.byteLength - 1;
 
-  partes[indiceParte] = `${parte.slice(0, -1)}${ultimo === 'A' ? 'B' : 'A'}`;
+  bytes.writeUInt8(bytes.readUInt8(ultimo) ^ 1, ultimo);
+  partes[indiceParte] = bytes.toString('base64url');
 
   return partes.join('.');
 }
