@@ -4,7 +4,22 @@ Formato: `## vX.Y.Z — YYYY-MM-DD` + motivo del cambio.
 
 ## v0.1.0 — 2026-07-24
 
-Hallazgos del Bloque A (T-001…T-003), sin cambio de alcance ni de criterios:
+Hallazgos de los Bloques A y D-parcial (T-001…T-003, T-012, T-013), sin cambio de alcance ni de criterios:
+
+- **`otplib` 13 arrastra dependencias ESM puro** (`@scure/base`, `@noble/hashes`), y eso tiene dos
+  consecuencias que la spec no había previsto:
+  - El runtime CJS de **Jest** no las carga: `SyntaxError: Unexpected token 'export'`. Se resolvió con
+    `allowJs` en el transform de ts-jest y un `transformIgnorePatterns` que **solo** exceptúa esos dos
+    paquetes. Hace falta el mismo par de claves en `test/jest-e2e.json` antes de T-014/T-015.
+  - En producción, `require('otplib')` necesita `require(esm)`, que Node trae sin flag **desde
+    22.12**. Con 22.0–22.11 la API arrancaría y caería al primer uso de MFA. Por eso `engines` pasa de
+    `>=22` a **`>=22.12`**; la matriz de CI (`node: ['22','24']`) ya instala el último 22.x, así que no
+    cambia.
+- **Tolerancia TOTP fijada en ±30 s** (un paso). Verificado empíricamente: a −25 s acepta, a ±90 s
+  rechaza.
+- `TotpService.verify` traduce a `false` las excepciones de otplib (código no numérico, longitud
+  distinta de 6, secreto no base32): un segundo factor mal formado es una credencial inválida, no un
+  500 que además serviría de oráculo.
 
 - **`otplib` 13.4.1 se comporta como dice el plan**: verificado ejecutándolo (secret base32, token de 6
   dígitos, `verify().valid`, `generateURI` con issuer). El riesgo #1 queda cerrado.

@@ -8,6 +8,7 @@
     "^@one-markdown/shared$": "<rootDir>/../../../packages/shared/src/index.ts"
   },
   "transform": {
-    "^.+\\.(t|j)s$": "ts-jest"
-  }
+    "^.+\\.(t|j)s$": ["ts-jest", { "tsconfig": { "allowJs": true } }]
+  },
+  "transformIgnorePatterns": ["^(?!.*(@scure[+/]base|@noble[+/]hashes)).*/node_modules/"]
 }

@@ -103,7 +103,7 @@ salida observable. **Toda tarea que introduce comportamiento es TDD estricta.** 
 
 ## Bloque C — Endpoints de sesión
 
-- [ ] **T-008** · `backend` · `POST /api/auth/register`
+- [x] **T-008** · `backend` · `POST /api/auth/register`
       **AC**: AC-1, AC-2, AC-3
       **Depende de**: T-003, T-004, T-005, T-006
       **RED**: `apps/api/test/auth-register.e2e-spec.ts` — alta válida → `201`, claves del cuerpo
@@ -117,7 +117,7 @@ salida observable. **Toda tarea que introduce comportamiento es TDD estricta.** 
       helper de cookie de refresh (`plan.md` §3). Nunca se devuelve la entidad Prisma.
       **DONE**: `pnpm --filter @one-markdown/api test:e2e auth-register`
 
-- [ ] **T-009** · `backend` · `POST /api/auth/login` (sin segundo factor)
+- [x] **T-009** · `backend` · `POST /api/auth/login` (sin segundo factor)
       **AC**: AC-5, AC-6, AC-7
       **Depende de**: T-007, T-008
       **RED**: `apps/api/test/auth-login.e2e-spec.ts` — credenciales correctas → `200`,
@@ -130,7 +130,7 @@ salida observable. **Toda tarea que introduce comportamiento es TDD estricta.** 
       `plan.md` §3: bloqueo → búsqueda → `compareWithDecoy` si no hay usuario → sesión.
       **DONE**: `pnpm --filter @one-markdown/api test:e2e auth-login`
 
-- [ ] **T-010** · `backend` · `JwtAccessStrategy`, `JwtAuthGuard`, `@CurrentUser()` y `GET /api/auth/me`
+- [x] **T-010** · `backend` · `JwtAccessStrategy`, `JwtAuthGuard`, `@CurrentUser()` y `GET /api/auth/me`
       **AC**: AC-8, AC-12
       **Depende de**: T-009
       **RED**: `apps/api/test/auth-me.e2e-spec.ts` — con Bearer válido → `200` con las claves exactas de
@@ -143,7 +143,7 @@ salida observable. **Toda tarea que introduce comportamiento es TDD estricta.** 
       **NOTA**: el guard y el decorador son la interfaz que consumirá la spec `002`: se exportan desde
       el índice público de `AuthModule`.
 
-- [ ] **T-011** · `backend` · `POST /api/auth/refresh` y `POST /api/auth/logout`
+- [x] **T-011** · `backend` · `POST /api/auth/refresh` y `POST /api/auth/logout`
       **AC**: AC-9, AC-10, AC-11
       **Depende de**: T-006, T-010
       **RED**: `apps/api/test/auth-session.e2e-spec.ts` — refresh con la cookie del login → `200` con
@@ -158,7 +158,7 @@ salida observable. **Toda tarea que introduce comportamiento es TDD estricta.** 
 
 ## Bloque D — MFA TOTP
 
-- [ ] **T-012** · `backend` · `MfaSecretCipher` (AES-256-GCM)
+- [x] **T-012** · `backend` · `MfaSecretCipher` (AES-256-GCM)
       **AC**: AC-14
       **Depende de**: T-002
       **RED**: `apps/api/src/auth/mfa/mfa-secret.cipher.spec.ts` — `encrypt(secreto)` devuelve un texto
@@ -169,7 +169,7 @@ salida observable. **Toda tarea que introduce comportamiento es TDD estricta.** 
       base64url, clave desde `MFA_ENCRYPTION_KEY`.
       **DONE**: `pnpm --filter @one-markdown/api test mfa-secret.cipher`
 
-- [ ] **T-013** · `backend` · `TotpService` (otplib 13) y QR
+- [x] **T-013** · `backend` · `TotpService` (otplib 13) y QR
       **AC**: AC-13, AC-17
       **Depende de**: T-001
       **RED**: `apps/api/src/auth/mfa/totp.service.spec.ts` — `generateSecret()` devuelve base32 (solo

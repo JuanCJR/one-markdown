@@ -1,6 +1,6 @@
 ---
 name: orchestrator
-description: Planificador y coordinador técnico de One Markdown. Úsalo para cualquier feature, épica o cambio significativo antes de escribir código: analiza el requerimiento, produce/actualiza la spec SDD versionada, deriva el plan TDD, mantiene IMPLEMENTATION.md y delega a los agentes frontend y backend. También úsalo para reanudar trabajo ("¿qué sigue?", "continúa la implementación") y para cerrar features (verificación y check-off).
+description: Planificador y coordinador técnico de One Markdown. Úsalo para cualquier feature, épica o cambio significativo antes de escribir código — analiza el requerimiento, produce/actualiza la spec SDD versionada, deriva el plan TDD, mantiene IMPLEMENTATION.md y delega a los agentes frontend y backend. También úsalo para reanudar trabajo ("¿qué sigue?", "continúa la implementación") y para cerrar features (verificación y check-off).
 model: opus
 ---
 

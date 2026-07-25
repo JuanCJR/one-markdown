@@ -147,15 +147,46 @@ Primitivas de sesión:
 
 Endpoints de sesión:
 
-- [ ] **T-008** · backend · `POST /api/auth/register` (AC-1, AC-2, AC-3)
-- [ ] **T-009** · backend · `POST /api/auth/login` sin segundo factor (AC-5, AC-6, AC-7)
-- [ ] **T-010** · backend · `JwtAuthGuard`, `@CurrentUser()` y `GET /api/auth/me` (AC-8, AC-12)
-- [ ] **T-011** · backend · `POST /api/auth/refresh` y `POST /api/auth/logout` (AC-9…AC-11)
+- [x] **T-008** · backend · `POST /api/auth/register` (AC-1, AC-2, AC-3) — 2026-07-24 · agente `backend`
+      RED: **12 failed**, todas `expected 201, got 404` → GREEN: `test:e2e auth-register` → **12 passed**.
+      El `409` sale de la violación de índice único de Prisma (`P2002`) y **no** de un `findUnique` previo:
+      entre la consulta y el insert cabe otro registro con el mismo correo, y el índice es el único juez atómico.
+- [x] **T-009** · backend · `POST /api/auth/login` sin segundo factor (AC-5, AC-6, AC-7) — 2026-07-24 · agente `backend`
+      RED: **10 failed** (404) → GREEN: `test:e2e auth-login` → **10 passed**.
+      El mensaje del 401 es una **constante compartida** por los dos caminos, no un literal repetido: si cada
+      rama escribiera su texto, un retoque reabriría la enumeración de cuentas sin que se note.
+- [x] **T-010** · backend · `JwtAuthGuard`, `@CurrentUser()` y `GET /api/auth/me` (AC-8, AC-12) — 2026-07-24 · agente `backend`
+      RED: **10 failed** (404) → GREEN: `test:e2e auth-me` → **10 passed**.
+      **Contrato para la spec `002`**: `import { JwtAuthGuard, CurrentUser, type AuthenticatedUser } from '../auth'`.
+      `AuthenticatedUser` incluye `sid` (lo necesita `mfa/disable` para preservar la sesión actual). El guard
+      valida que el `sub` sea UUID antes de consultar, para que un token manipulado dé 401 y no un 500 de Postgres.
+- [x] **T-011** · backend · `POST /api/auth/refresh` y `POST /api/auth/logout` (AC-9…AC-11) — 2026-07-24 · agente `backend`
+      RED: **12 failed** (404) → GREEN: `test:e2e auth-session` → **12 passed**.
+      `refresh` rota sobre el **mismo `sid`**: un `sid` nuevo por refresh haría crecer la familia sin límite y
+      "revocar la familia" dejaría de servir. `RefreshRequestDto` es una clase vacía a propósito, para que
+      `forbidNonWhitelisted` rechace con 400 cualquier cuerpo en un endpoint cuya credencial es la cookie.
+      `bootstrap.ts` monta `cookie-parser` y `enableCors({ credentials: true })` (decisión 13).
 
 MFA TOTP:
 
-- [ ] **T-012** · backend · `MfaSecretCipher` AES-256-GCM (AC-14)
-- [ ] **T-013** · backend · `TotpService` sobre otplib 13 + QR (AC-13, AC-17)
+- [x] **T-012** · backend · `MfaSecretCipher` AES-256-GCM (AC-14) — 2026-07-24 · agente `backend`
+      RED: `Cannot find module './mfa-secret.cipher'` → GREEN: **17 passed**.
+      Verificado por el orchestrator (`test "mfa-secret.cipher|totp.service"` → **37 passed**) y revisado
+      a mano: IV de 12 bytes por operación, tag GCM verificado, formato `iv.tag.ciphertext` en base64url,
+      guarda de clave de 32 bytes en el constructor y **error único** en todo fallo de descifrado (no
+      dice en qué byte se equivocó quien manipule la fila).
+- [x] **T-013** · backend · `TotpService` sobre otplib 13 + QR (AC-13, AC-17) — 2026-07-24 · agente `backend`
+      RED: `Cannot find module './totp.service'` → GREEN: **20 passed**.
+      Tolerancia ±30 s comprobada empíricamente (−25 s acepta, ±90 s rechaza); `epoch` inyectable, así
+      que ni los tests ni los e2e dependen del reloj de la máquina.
+      **Desvío autorizado a posteriori**: el agente tuvo que tocar el bloque `jest` de
+      `apps/api/package.json`. `otplib` 13 arrastra `@scure/base` y `@noble/hashes`, que son **ESM puro**,
+      y el runtime CJS de Jest moría con `SyntaxError: Unexpected token 'export'`. El arreglo es aditivo
+      (`allowJs` + `transformIgnorePatterns` que solo exceptúa esos dos paquetes) y no afecta a `tsc` ni
+      a `nest build`. Consecuencias: (a) `test/jest-e2e.json` necesita el mismo par de claves antes de
+      T-014/T-015 — se aplica en cuanto el agente del Bloque C suelte `test/**`; (b) `require('otplib')`
+      exige `require(esm)`, que Node trae sin flag **desde 22.12**, así que `engines` pasa a `>=22.12`
+      (la matriz de CI ya instala el último 22.x).
 - [ ] **T-014** · backend · `mfa/setup` y `mfa/enable` con códigos de recuperación (AC-13…AC-15)
 - [ ] **T-015** · backend · Login con segundo factor y `mfa/verify` (AC-16…AC-18)
 - [ ] **T-016** · backend · `mfa/disable` (AC-19)
@@ -237,6 +268,29 @@ Hallazgos que costaron tiempo y conviene no volver a pagar:
   es `configs.flat['recommended-latest']`.
 - **`ErrorResponseDto` no aparecía en el OpenAPI** por no estar referenciado en ningún endpoint concreto;
   se registra con `extraModels` al crear el documento.
+
+### Verificación del Bloque C contra el proceso real (2026-07-24)
+
+Los 62 e2e pasan, pero además se arrancó el binario (`node dist/main.js`, puerto 3099, con el `.env` real)
+y se recorrió el flujo con `curl`, que es lo que en la Fase 2 destapó el `EADDRINUSE` que ningún test veía:
+
+| Comprobación | Resultado observado |
+|---|---|
+| `POST /api/auth/register` | `201` · `Set-Cookie: om_refresh=…; Max-Age=604800; Path=/api/auth; HttpOnly; SameSite=Strict` · cuerpo con `accessToken,expiresInSeconds,tokenType,user` y nada más |
+| `GET /api/auth/me` con Bearer | `200`, claves exactas de `UserResponseDto`, **sin** `passwordHash` ni `mfaSecret` |
+| `POST /api/auth/refresh` | `200` y cookie **distinta** de la anterior (rotación) |
+| Reutilizar la cookie vieja | `401` — y la cookie **nueva** también `401`: familia revocada (AC-10 de punta a punta) |
+| 5 fallos + 6.º intento **con la contraseña correcta** | `429` · cabecera `Retry-After: 900` · cuerpo con `retryAfterSeconds: 900` (AC-7) |
+| Contraseña mala vs correo inexistente | `message` **idéntico** en los dos: `Credenciales inválidas` (AC-6) |
+| `logout` con cookie / sin cookie | `204` y `204`; la cookie sale con `Max-Age=0` y el refresh posterior da `401` |
+| `refresh` con cuerpo no vacío | `400` (el DTO vacío hace su trabajo) |
+| Regresión: un `404` cualquiera | sigue con las 5 claves de siempre, **sin** `retryAfterSeconds` |
+
+Datos de la prueba borrados después: 0 usuarios en `users`, 0 claves `auth:*` en Redis.
+
+**Falso positivo mío, anotado para no repetirlo**: en el primer intento conté mal los fallos (el intento
+contra un correo inexistente cuenta en **otra** clave) y creí ver un bloqueo que no saltaba. La
+implementación estaba bien; el guion de prueba, no.
 
 ### Lo que destapó el primer run de CI (2026-07-24)
 

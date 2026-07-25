@@ -13,6 +13,8 @@ import { ErrorResponseDto } from '../dto/error.response.dto';
 interface HttpExceptionBody {
   readonly message?: string | string[];
   readonly error?: string;
+  /** Solo lo traen los errores que saben cuánto durará el castigo (`AccountLockedException`). */
+  readonly retryAfterSeconds?: number;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -32,12 +34,19 @@ function extractBody(exception: HttpException): HttpExceptionBody {
 
   const message = raw['message'];
   const error = raw['error'];
+  const retryAfterSeconds = raw['retryAfterSeconds'];
 
   return {
     ...(typeof message === 'string' || Array.isArray(message)
       ? { message: message as string | string[] }
       : {}),
     ...(typeof error === 'string' ? { error } : {}),
+    // Solo un entero positivo pasa: `Retry-After` con un valor absurdo es peor que sin cabecera.
+    ...(typeof retryAfterSeconds === 'number' &&
+    Number.isInteger(retryAfterSeconds) &&
+    retryAfterSeconds > 0
+      ? { retryAfterSeconds }
+      : {}),
   };
 }
 
@@ -65,6 +74,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
       );
     }
 
+    // La cabecera estándar además del campo en el cuerpo: un cliente HTTP genérico (o un proxy)
+    // entiende `Retry-After` sin saber nada de nuestro DTO.
+    if (body.retryAfterSeconds !== undefined) {
+      response.setHeader('Retry-After', String(body.retryAfterSeconds));
+    }
+
     response.status(status).json(
       new ErrorResponseDto({
         statusCode: status,
@@ -72,6 +87,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
         message: body.message ?? 'Error interno del servidor',
         path: request.originalUrl,
         timestamp: new Date().toISOString(),
+        ...(body.retryAfterSeconds !== undefined
+          ? { retryAfterSeconds: body.retryAfterSeconds }
+          : {}),
       }),
     );
   }
