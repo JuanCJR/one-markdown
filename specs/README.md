@@ -26,7 +26,7 @@ Cada cambio de versión agrega entrada en el `CHANGELOG.md` de la feature con fe
 
 | # | Feature | Spec | Versión | Estado | Depende de |
 |---|---------|------|---------|--------|------------|
-| 000 | Foundation — monorepo, tooling, health/DTO base, CI | [`000-foundation/`](000-foundation/spec.md) | 0.1.2 | implemented (AC-14: falta el run verde) | — |
+| 000 | Foundation — monorepo, tooling, health/DTO base, CI | [`000-foundation/`](000-foundation/spec.md) | 0.1.3 | implemented (AC-14: falta el run verde) | — |
 | 001 | Auth — registro, login, JWT access+refresh, bcrypt, MFA TOTP, Redis, rate limit | [`001-auth/`](001-auth/spec.md) | 0.1.0 | **approved** — en implementación (Fase 3) | 000 |
 | 002 | Workspace tree — directorios/subdirectorios y documentos markdown (CRUD, propiedad por usuario) | — | — | sin especificar | 000, 001 |
 | 003 | Editor — vista texto/preview, guardado, sanitización del preview | — | — | sin especificar | 002 |

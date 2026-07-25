@@ -90,9 +90,33 @@ Cada línea llevará el comando que se corrió y su salida real, igual que la Fa
 
 Base (dependencias, entorno, esquema):
 
-- [ ] **T-001** · backend · setup · Dependencias de auth (`@nestjs/jwt`, `passport-jwt`, `bcrypt`, `otplib` 13, `qrcode`, `@nestjs/throttler`, `cookie-parser`)
-- [ ] **T-002** · backend · Variables de entorno de auth validadas al arranque (AC-26)
-- [ ] **T-003** · backend · setup · Modelos `User` y `MfaRecoveryCode` + migración `20260724_auth_user_mfa`
+- [x] **T-001** · backend · setup · Dependencias de auth — 2026-07-24
+      13 paquetes en las versiones exactas del plan (`pnpm add -E`), `pnpm --filter api build` → exit 0.
+      Smoke real de las tres dependencias con riesgo: **bcrypt** (nativo, riesgo #3) → hash `$2b$04$`,
+      `compare` correcto/incorrecto → `true false` en Node v25.8.2 · **otplib 13** → secret base32,
+      token de 6 dígitos, `verify().valid === true`, `generateURI` → `otpauth://totp/One%20Markdown:…` ·
+      **qrcode** → `data:image/png;base64,…` · `@nestjs/throttler` → `seconds(60) === 60000` (ms).
+      El riesgo #1 (API nueva de otplib 13) queda cerrado: se comporta como dice el plan.
+      **Pendiente**: bcrypt en Node 22/24 se confirma en el próximo run de CI.
+- [x] **T-002** · backend · Variables de entorno de auth validadas al arranque (AC-26) — 2026-07-24
+      RED: `Property 'MFA_ENCRYPTION_KEY' does not exist on type 'AppConfig'` (+7 errores TS más) →
+      GREEN: `test env.validation` → **33 passed** (antes 16).
+      Verificado además en el **proceso real** (no solo en el test): sin la variable →
+      `MFA_ENCRYPTION_KEY es requerida`; con una clave de 16 bytes →
+      `debe decodificar a exactamente 32 bytes (tiene 16); genérala con: openssl rand -base64 32`.
+      Y arrancando con el `.env` del usuario → `Nest application successfully started`, lo que **verifica
+      indirectamente que sus variables nuevas son correctas** (pendiente 5 de la lista de abajo).
+      `BCRYPT_ROUNDS=4` y una `MFA_ENCRYPTION_KEY` fija quedaron en `test/setup-env.ts`.
+- [x] **T-003** · backend · setup · Modelos `User` y `MfaRecoveryCode` + migración — 2026-07-24
+      `prisma migrate dev --name auth_user_mfa` → migración **`20260725020837_auth_user_mfa`** aplicada ·
+      `prisma migrate status` → `Database schema is up to date!`
+      Esquema real verificado con `psql`, no solo con el schema: `users` con sus 8 columnas,
+      `users_email_key` UNIQUE, `mfa_recovery_codes` con `mfa_recovery_codes_userId_idx` y FK
+      `ON DELETE CASCADE`. Probado en una transacción con `ROLLBACK`: el correo duplicado revienta con
+      `duplicate key value violates unique constraint "users_email_key"` y al borrar el usuario quedan
+      **0** códigos huérfanos. Sin filas residuales (`0|0`).
+      **Desvío**: el prefijo de la migración lo pone Prisma (`20260725020837`, UTC), no el
+      `20260724_auth_user_mfa` que anticipaba el plan.
 
 Primitivas de sesión:
 

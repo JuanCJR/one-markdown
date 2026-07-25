@@ -1,5 +1,5 @@
-// Spec 000-foundation: Prisma queda configurado y conectado, SIN modelos de negocio.
-// Los primeros modelos llegan con la spec 001-auth (User) y 002-workspace-tree (Directory, Document).
+// Modelos de la spec 001-auth (ver specs/001-auth/plan.md §5).
+// Los de 002-workspace-tree (Directory, Document) colgarán de User por `userId`.
 generator client {
   provider     = "prisma-client"
   output       = "../src/generated/prisma"
@@ -8,4 +8,43 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+model User {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// Se normaliza a minúsculas en el DTO de entrada: en Postgres el índice único es sensible a la
+  /// caja, así que la normalización en el borde es lo que hace efectiva la unicidad real del correo.
+  email        String  @unique
+  passwordHash String
+  displayName  String?
+
+  mfaEnabled Boolean @default(false)
+  /// Secreto TOTP (base32) cifrado con AES-256-GCM: `iv.tag.ciphertext` en base64url.
+  /// Solo se persiste al confirmar el enrolamiento; antes vive en Redis con TTL de 10 min.
+  mfaSecret  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  recoveryCodes MfaRecoveryCode[]
+
+  @@map("users")
+}
+
+model MfaRecoveryCode {
+  id String @id @default(uuid()) @db.Uuid
+
+  userId String @db.Uuid
+  /// bcrypt del código: son credenciales equivalentes a un segundo factor.
+  /// El código en claro solo existe en la respuesta del `enable`.
+  codeHash String
+  /// Uso único: al consumirlo se sella la fecha en vez de borrar la fila, para poder auditar.
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("mfa_recovery_codes")
 }

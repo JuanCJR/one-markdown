@@ -2,6 +2,20 @@
 
 Formato: `## vX.Y.Z — YYYY-MM-DD` + motivo del cambio.
 
+## v0.1.3 — 2026-07-24
+
+Segunda corrección de la misma naturaleza que la v0.1.2 — algo que solo se ve desde un entorno limpio —
+detectada al crear la primera migración en la spec `001`:
+
+- **`prisma.config.ts` necesita `import 'dotenv/config'`**: Prisma 7 dejó de cargar `.env` de forma
+  implícita, así que el CLI fallaba con
+  `PrismaConfigEnvError: Cannot resolve environment variable: DATABASE_URL`. En la spec `000` (T-009)
+  esto no se notó porque la sesión tenía las variables exportadas en el shell. Añadido `dotenv@17.4.2`
+  como devDependency de `apps/api` y `migrations.path` explícito en la config. Verificado con
+  `context7` contra la doc actual de Prisma.
+- **`prisma migrate dev` NO regenera el cliente** con esta configuración: tras aplicar la migración,
+  `prisma.user` seguía sin existir hasta correr `prisma generate` aparte. Queda como paso explícito.
+
 ## v0.1.2 — 2026-07-24
 
 Corrección de un defecto que **destapó el primer run real del CI** (run `30139345799`, en rojo): el AC-1

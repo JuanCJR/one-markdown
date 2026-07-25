@@ -14,7 +14,7 @@ salida observable. **Toda tarea que introduce comportamiento es TDD estricta.** 
 
 ## Bloque A — Base (dependencias, entorno, esquema)
 
-- [ ] **T-001** · `backend` · `setup` · Dependencias de auth
+- [x] **T-001** · `backend` · `setup` · Dependencias de auth
       **AC**: — (habilita todo el bloque)
       **Depende de**: —
       **QUÉ**: instalar en `apps/api` las versiones **exactas** de `plan.md` §1: `@nestjs/jwt`,
@@ -25,7 +25,7 @@ salida observable. **Toda tarea que introduce comportamiento es TDD estricta.** 
       **NOTA**: si `bcrypt` no compila (riesgo #3), **parar y reportar** al orchestrator; el cambio a
       `bcryptjs` no se decide en la tarea.
 
-- [ ] **T-002** · `backend` · Variables de entorno de auth validadas al arranque
+- [x] **T-002** · `backend` · Variables de entorno de auth validadas al arranque
       **AC**: AC-26
       **Depende de**: T-001
       **RED**: ampliar `apps/api/src/config/env.validation.spec.ts` — sin `MFA_ENCRYPTION_KEY` el
@@ -39,7 +39,7 @@ salida observable. **Toda tarea que introduce comportamiento es TDD estricta.** 
       **NOTA**: `.env.example` está denegado a la sesión; el orchestrator lo deja anotado como pendiente
       del usuario y añade las claves de test a `apps/api/test/setup-env.ts`.
 
-- [ ] **T-003** · `backend` · `setup` · Modelos `User` y `MfaRecoveryCode` + primera migración
+- [x] **T-003** · `backend` · `setup` · Modelos `User` y `MfaRecoveryCode` + primera migración
       **AC**: — (habilita AC-1, AC-2, AC-4, AC-14, AC-18)
       **Depende de**: T-002
       **QUÉ**: `apps/api/prisma/schema.prisma` con los dos modelos de `plan.md` §5 (índice único en

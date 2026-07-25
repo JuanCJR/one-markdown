@@ -1,6 +1,6 @@
 # Spec 000 — Foundation: monorepo, tooling, contratos base y CI
 
-- **Versión**: 0.1.2
+- **Versión**: 0.1.3
 - **Estado**: implemented — AC-1 se corrigió tras el primer run real del CI (ver `CHANGELOG.md` v0.1.2).
   De AC-14 ya está verificada la mitad negativa (el job se puso **rojo** ante un fallo real, run
   `30139345799`); falta confirmar el run **verde** con el arreglo pusheado

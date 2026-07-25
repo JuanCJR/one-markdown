@@ -4,6 +4,23 @@ Formato: `## vX.Y.Z — YYYY-MM-DD` + motivo del cambio.
 
 ## v0.1.0 — 2026-07-24
 
+Hallazgos del Bloque A (T-001…T-003), sin cambio de alcance ni de criterios:
+
+- **`otplib` 13.4.1 se comporta como dice el plan**: verificado ejecutándolo (secret base32, token de 6
+  dígitos, `verify().valid`, `generateURI` con issuer). El riesgo #1 queda cerrado.
+- **`bcrypt` 6.0.0 compila y funciona** en Node v25.8.2 (`$2b$04$…`, `compare` true/false). Falta
+  confirmar Node 22 y 24 en CI para cerrar el riesgo #3.
+- **`@nestjs/throttler` expresa el TTL en milisegundos** (`seconds(60) === 60000`): al escribir los
+  throttlers nombrados de `plan.md` §3 hay que usar el helper `seconds()`, no números crudos.
+- **El prefijo de la migración lo pone Prisma**: quedó `20260725020837_auth_user_mfa` (UTC) en vez del
+  `20260724_auth_user_mfa` que anticipaba `plan.md` §5. El nombre del plan era una predicción, no un
+  requisito.
+- **`MFA_ISSUER` vacío se trata como ausente** y toma el default, igual que `PORT` y `WEB_ORIGIN` en
+  `env.validation.ts`. Se prefirió la coherencia del archivo a rechazar el valor vacío; no es un secreto
+  y el default evita un `otpauth://` sin issuer.
+- Dos correcciones que tocaron artefactos de la spec `000` y quedaron en su CHANGELOG (v0.1.2 y v0.1.3):
+  el build de `packages/shared` antes de `typecheck`/`test`, y `dotenv/config` en `prisma.config.ts`.
+
 - **Aprobada por el usuario el 2026-07-24** sin cambios de alcance: los tres puntos que se le señalaron
   (enumeración de cuentas en el registro, ausencia de recuperación por correo y MFA opcional por usuario)
   quedan aceptados tal como están escritos. Estado `draft` → `approved`; arranca la Fase 3.
