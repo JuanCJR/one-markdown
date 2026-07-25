@@ -1,6 +1,21 @@
 import { expect, test } from '@playwright/test';
 
+import { signIn } from './support/session';
+
 test.describe('Smoke (AC-11)', () => {
+  /**
+   * Desde la spec 001 (T-022) el árbol de la aplicación vive detrás de `RequireAuth`: sin sesión,
+   * `/` redirige a `/login` y no hay ni `main` ni `navigation` que comprobar.
+   *
+   * Se siembra la sesión por el API (la cookie `HttpOnly` de refresh queda en el contexto) en vez de
+   * pasar por el formulario: lo que mide este archivo es que la aplicación carga, no cómo se entra
+   * —eso es AC-25, en `auth.spec.ts`—. La exigencia no baja: la carga sigue teniendo que ocurrir sin
+   * un solo error de consola, y ahora además con el refresh silencioso de por medio.
+   */
+  test.beforeEach(async ({ page }) => {
+    await signIn(page);
+  });
+
   test('la app carga en el navegador sin errores de consola', async ({ page }) => {
     const consoleErrors: string[] = [];
     const pageErrors: string[] = [];

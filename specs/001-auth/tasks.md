@@ -335,7 +335,7 @@ salida observable. **Toda tarea que introduce comportamiento es TDD estricta.** 
       **GREEN**: `SecurityPage` y su ruta protegida.
       **DONE**: `pnpm --filter @one-markdown/web test SecurityPage`
 
-- [ ] **T-025** · `frontend` · e2e del flujo de auth en navegador
+- [x] **T-025** · `frontend` · e2e del flujo de auth en navegador
       **AC**: AC-25
       **Depende de**: T-011, T-022
       **RED**: `apps/web/e2e/auth.spec.ts` — registra un usuario con correo único, comprueba que la ruta
@@ -348,7 +348,7 @@ salida observable. **Toda tarea que introduce comportamiento es TDD estricta.** 
 
 ## Bloque G — CI
 
-- [ ] **T-026** · `backend` · CI con migraciones y entorno de auth
+- [~] **T-026** · `backend` · CI con migraciones y entorno de auth
       **AC**: — (cierra la brecha operativa de AC-1…AC-25 en CI)
       **Depende de**: T-003, T-025
       **QUÉ**: en `.github/workflows/ci.yml`, añadir `prisma migrate deploy` antes de los tests y las

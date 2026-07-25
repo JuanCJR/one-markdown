@@ -2,6 +2,26 @@
 
 Formato: `## vX.Y.Z — YYYY-MM-DD` + motivo del cambio.
 
+## v0.1.4 — 2026-07-25
+
+Tercera consecuencia de la decisión 2b (`packages/shared` compila a CommonJS), y la más cara de las tres,
+descubierta al implementar el e2e de navegador de la spec `001`:
+
+- **La aplicación web no arrancaba en un navegador real.** `packages/shared/dist/index.js` es CJS
+  (`exports.isApiErrorShape = …`) y, siendo un paquete **enlazado del workspace**, Vite no lo
+  pre-empaqueta por su cuenta: el `import { isApiErrorShape } from '@one-markdown/shared'` del cliente
+  HTTP moría con `does not provide an export named 'isApiErrorShape'`.
+- **Ningún test lo veía**: Vitest sobre jsdom y `apps/api` consumen CJS sin problema, `vite build` lo
+  resuelve por Rollup, y el único test que abre un navegador de verdad (el smoke, AC-11) llevaba días en
+  rojo por otro motivo. Es decir: el AC-11 existía justamente para atrapar esto y estaba tapado.
+- **Mitigado en el consumidor**, sin tocar `packages/shared`: `optimizeDeps: { include:
+  ['@one-markdown/shared'] }` en `apps/web/vite.config.ts`, verificado además con la caché de Vite en frío.
+- **La solución de raíz sigue pendiente y es una decisión, no una tarea olvidada**: que `shared` emita
+  también ESM (doble salida con `exports` en su `package.json`). No se hace ahora porque el CJS venía de
+  evitar que `nest build` desplazara el `rootDir` (decisión 2b) y el arreglo actual deja los cuatro
+  escenarios verdes. Se revisará cuando la spec `002` amplíe el contrato compartido.
+- Lección repetida: **un test rojo tolerado tapa los fallos que ese test existía para encontrar.**
+
 ## v0.1.3 — 2026-07-24
 
 Segunda corrección de la misma naturaleza que la v0.1.2 — algo que solo se ve desde un entorno limpio —

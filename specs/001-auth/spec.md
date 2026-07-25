@@ -1,8 +1,10 @@
 # Spec 001 — Auth: registro, login, JWT access+refresh, bcrypt, MFA TOTP, Redis, rate limit
 
 - **Versión**: 0.1.0
-- **Estado**: approved — aprobada por el usuario el 2026-07-24; la implementación es la Fase 3 de `IMPLEMENTATION.md`
-- **Fecha**: 2026-07-24
+- **Estado**: implemented — los **26 criterios de aceptación verificados con test automatizado**
+  (2026-07-25). Único pendiente operativo: `T-026` espera un run verde del CI, que requiere `git push`
+  (denegado en la sesión), igual que el `AC-14` de la spec `000`
+- **Fecha**: 2026-07-24 (implementada el 2026-07-25)
 - **Depende de**: `000-foundation` (implemented)
 
 ## 1. Contexto y problema

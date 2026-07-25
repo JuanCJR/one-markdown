@@ -281,13 +281,33 @@ Frontend:
 - [x] **T-024** · frontend · `/settings/security`: alta y baja de MFA — 2026-07-24 · agente `frontend`
       RED: **7 failed de 9** → GREEN: `test SecurityPage` → **9 passed**.
       Total web: **92 passed** (venía de 14) · `typecheck` 0 · `lint` 0, verificado por el orchestrator.
-- [ ] **T-025** · frontend · e2e del flujo de auth en navegador (AC-25)
-      **Urgente, no solo pendiente**: `pnpm test:e2e` está **rojo** desde T-022 y con él el AC-11 de la
-      spec `000`. `/` pasó a estar detrás de `RequireAuth`, y `playwright.config.ts` solo levanta el dev
-      server de la web: el `bootstrap()` pega a `/api/auth/refresh`, no hay nadie escuchando, la ruta
-      redirige a `/login` y el error de red rompe el `expect(consoleErrors).toEqual([])`. Verificado:
-      **3 failed** (`element(s) not found` en `role="main"`, `role="navigation"` y el texto del 404).
-      El GREEN de T-025 ya lo contempla (segundo `webServer` que levanta el API), así que se arregla ahí.
+- [x] **T-025** · frontend · e2e del flujo de auth en navegador (AC-25) — 2026-07-25 · agente `frontend`
+      RED: los 3 del smoke heredados en rojo + el nuevo `element(s) not found` en el `h1` de "Crear cuenta"
+      → GREEN: `pnpm test:e2e` → **4 passed** (verificado por el orchestrator, dos corridas seguidas).
+      **Destapó un fallo que ningún otro test podía ver: la web no arrancaba en un navegador real.**
+      `packages/shared` se publica como CJS y, al ser un paquete enlazado del workspace, Vite no lo
+      pre-empaqueta: el `import { isApiErrorShape }` del cliente HTTP moría con `does not provide an export
+      named`. Vitest sobre jsdom y `apps/api` consumen CJS sin queja, y `vite build` lo resuelve por Rollup,
+      así que el único test que abría un navegador de verdad era el smoke (AC-11)… que llevaba días en rojo
+      por otro motivo. **El test que existía para atrapar esto estaba tapado por su propio fallo.**
+      Mitigado en el consumidor con `optimizeDeps: { include: ['@one-markdown/shared'] }` (ver
+      `specs/000-foundation/CHANGELOG.md` v0.1.4; la solución de raíz —que `shared` emita ESM— queda como
+      decisión abierta, no como olvido).
+      El API del e2e corre en el **3011**, nunca en el 3001, y el proxy de Vite se parametrizó: así la suite
+      no habla por accidente con el proceso que el usuario tenga a mano. `reuseExistingServer: false` en
+      ambos servidores, con la consecuencia de que **`pnpm test:e2e` no se puede correr con `pnpm dev`
+      ocupando el 5173**.
+      Del smoke de la spec `000` solo se añadió un `beforeEach` que abre sesión (desde T-022 el shell vive
+      detrás de `RequireAuth`): **ninguna aserción se relajó**, siguen exigiendo `main`, `navigation`, el
+      `h1`, el 404, el toggle por teclado y `consoleErrors`/`pageErrors` en `[]`.
+      La única tolerancia está en el flujo nuevo y está acotada: el arranque anónimo sondea
+      `POST /api/auth/refresh` a ciegas (la cookie es `HttpOnly`, el JS no puede saber si existe) y Chromium
+      anota todo 4xx en consola. Fuera de ese sondeo, cero errores; y **desde que hay sesión, cero de
+      cualquier tipo**. Auditado por el orchestrator leyendo las aserciones, no el informe.
+      El requisito que le pasé desde T-026 quedó cubierto: `globalSetup`/`globalTeardown` borran solo sus
+      cuentas (por prefijo) y los contadores `throttle:*`, con un mini cliente RESP sobre `node:net` para no
+      añadir dependencias. Idempotencia entre reintentos verificada con un fallo inyectado y `--retries=1`:
+      correo único por **intento**, no por archivo.
 
 CI:
 
@@ -369,6 +389,38 @@ Hallazgos que costaron tiempo y conviene no volver a pagar:
   es `configs.flat['recommended-latest']`.
 - **`ErrorResponseDto` no aparecía en el OpenAPI** por no estar referenciado en ningún endpoint concreto;
   se registra con `extraModels` al crear el documento.
+
+### Cierre de la Fase 3 (2026-07-25)
+
+**25 de 26 tareas hechas y verificadas; 1 bloqueada** (`T-026`, espera un run de CI que necesita `git push`).
+Los **26 criterios de aceptación** de la spec `001` tienen test automatizado en verde.
+
+Secuencia completa corrida de punta a punta, **borrando `packages/shared/dist` antes** para no repetir el
+falso verde que destapó el primer CI:
+
+| Comando | Resultado |
+|---|---|
+| `pnpm lint` | exit 0 |
+| `pnpm typecheck` | exit 0 (los 3 paquetes) |
+| `pnpm test` | api **135** · web **92** · shared **37** |
+| `pnpm --filter @one-markdown/api test:e2e` | 11 suites, **171 passed** |
+| `pnpm build` | exit 0 |
+| `pnpm test:e2e` | **4 passed** (2 corridas seguidas en verde) |
+
+**439 tests en total** (68 al cerrar la Fase 2). Postgres y Redis quedan como se encontraron: 0 usuarios,
+0 claves.
+
+Lo que más costó no fue el código de auth, sino tres cosas que ningún test veía:
+
+1. **El AC-1 de la spec `000` estaba mal verificado** (typecheck sobre un árbol sucio). Lo encontró el
+   primer run real de CI, no una revisión.
+2. **La web no arrancaba en un navegador real** por el CJS de `packages/shared`, y el test que existía para
+   atraparlo (AC-11) llevaba días en rojo por otro motivo: un test rojo tolerado tapa exactamente los
+   fallos que ese test justifica.
+3. **Un test intermitente que despaché como "transitorio"** sin explicarlo. Era real, ~1 de cada 8 corridas.
+
+Las tres tienen la misma forma: la verificación existía, pero no verificaba. De ahí las reglas nuevas de
+este archivo — correr los `DONE` desde estado limpio y no cerrar un fallo sin explicar por qué desapareció.
 
 ### Verificación del Bloque C contra el proceso real (2026-07-24)
 
