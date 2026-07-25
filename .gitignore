@@ -1,0 +1,22 @@
+node_modules/
+dist/
+build/
+coverage/
+.turbo/
+*.log
+
+.env
+.env.*
+!.env.example
+
+# Claude Code / agent tooling
+.claude/settings.local.json
+.claude/skills/
+.agents/
+.coderag/
+
+# Playwright
+playwright-report/
+test-results/
+blob-report/
+.cache/
