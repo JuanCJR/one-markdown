@@ -1,0 +1,37 @@
+{
+  "enabledMcpjsonServers": ["context7", "playwright", "coderag", "postgres"],
+  "permissions": {
+    "allow": [
+      "Bash(pnpm install)",
+      "Bash(pnpm add:*)",
+      "Bash(pnpm dev:*)",
+      "Bash(pnpm build:*)",
+      "Bash(pnpm test:*)",
+      "Bash(pnpm lint:*)",
+      "Bash(pnpm typecheck:*)",
+      "Bash(pnpm --filter:*)",
+      "Bash(pnpm -r:*)",
+      "Bash(pnpm exec:*)",
+      "Bash(npx prisma:*)",
+      "Bash(npx nest:*)",
+      "Bash(npx vitest:*)",
+      "Bash(npx playwright:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git add:*)",
+      "Bash(docker compose up:*)",
+      "Bash(docker compose ps:*)",
+      "Bash(docker compose logs:*)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./**/.env)",
+      "Read(./**/.env.*)",
+      "Bash(git push:*)",
+      "Bash(npx prisma migrate reset:*)",
+      "Bash(docker compose down -v:*)"
+    ]
+  }
+}
