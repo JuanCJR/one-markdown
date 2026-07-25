@@ -15,6 +15,9 @@ coverage/
 .agents/
 .coderag/
 
+# Prisma: el cliente se genera desde el schema, no se versiona
+apps/api/src/generated/
+
 # Playwright
 playwright-report/
 test-results/

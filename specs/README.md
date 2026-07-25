@@ -24,6 +24,14 @@ Cada cambio de versión agrega entrada en el `CHANGELOG.md` de la feature con fe
 
 ## Índice de features
 
-| # | Feature | Spec | Estado |
-|---|---------|------|--------|
-| — | _(sin especificar todavía — la planificación es el siguiente paso)_ | — | — |
+| # | Feature | Spec | Versión | Estado | Depende de |
+|---|---------|------|---------|--------|------------|
+| 000 | Foundation — monorepo, tooling, health/DTO base, CI | [`000-foundation/`](000-foundation/spec.md) | 0.1.1 | implemented (AC-14 pendiente de run de CI) | — |
+| 001 | Auth — registro, login, JWT access+refresh, bcrypt, MFA TOTP, Redis, rate limit | — | — | sin especificar | 000 |
+| 002 | Workspace tree — directorios/subdirectorios y documentos markdown (CRUD, propiedad por usuario) | — | — | sin especificar | 000, 001 |
+| 003 | Editor — vista texto/preview, guardado, sanitización del preview | — | — | sin especificar | 002 |
+| 004 | Markdown palette — listado de elementos markdown insertables | — | — | sin especificar | 003 |
+| 005 | Tabs y split view — tabs tipo VS Code y vista dividida | — | — | sin especificar | 003 |
+
+El orden de especificación sigue el de dependencias: cada spec se escribe cuando la anterior está
+aprobada, para que sus criterios de aceptación se apoyen en contratos ya cerrados y no en supuestos.

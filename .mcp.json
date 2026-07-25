@@ -18,7 +18,7 @@
         "-y",
         "@henkey/postgres-mcp-server",
         "--connection-string",
-        "${DATABASE_URL:-postgresql://one_markdown:one_markdown@localhost:5432/one_markdown}"
+        "${DATABASE_URL:-postgresql://one_markdown:one_markdown@localhost:5433/one_markdown}"
       ]
     }
   }

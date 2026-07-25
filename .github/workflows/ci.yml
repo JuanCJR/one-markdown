@@ -1,0 +1,102 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: verify (node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22', '24']
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: one_markdown
+          POSTGRES_PASSWORD: one_markdown
+          POSTGRES_DB: one_markdown
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U one_markdown -d one_markdown"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      NODE_ENV: test
+      # En CI el servicio expone el 5432; en local usamos el 5433 porque el 5432 suele estar ocupado.
+      DATABASE_URL: postgresql://one_markdown:one_markdown@localhost:5432/one_markdown
+      REDIS_URL: redis://localhost:6379
+      JWT_ACCESS_SECRET: ci-access-secret-con-mas-de-32-caracteres
+      JWT_REFRESH_SECRET: ci-refresh-secret-con-mas-de-32-caracteres
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @one-markdown/api exec prisma generate
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Lint fixture debe fallar (AC-13)
+        run: |
+          if pnpm exec eslint tools/lint-fixtures/explicit-any.ts; then
+            echo "::error::La regla no-explicit-any dejó de fallar sobre el fixture"
+            exit 1
+          fi
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Unit tests
+        run: pnpm test
+
+      - name: API e2e tests
+        run: pnpm --filter @one-markdown/api test:e2e
+
+      - name: Build
+        run: pnpm build
+
+      - name: Install Playwright browsers
+        if: matrix.node == '22'
+        run: pnpm --filter @one-markdown/web exec playwright install --with-deps chromium
+
+      - name: Web e2e tests
+        if: matrix.node == '22'
+        run: pnpm test:e2e

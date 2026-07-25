@@ -1,0 +1,11 @@
+// Spec 000-foundation: Prisma queda configurado y conectado, SIN modelos de negocio.
+// Los primeros modelos llegan con la spec 001-auth (User) y 002-workspace-tree (Directory, Document).
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}

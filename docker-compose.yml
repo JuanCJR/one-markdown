@@ -1,0 +1,44 @@
+# Infraestructura local de desarrollo (spec 000-foundation, AC-8).
+# No es una definición de producción: credenciales fijas y puertos expuestos a localhost.
+# La cadena de conexión coincide con el valor por defecto del MCP `postgres` en .mcp.json.
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: one-markdown-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: one_markdown
+      POSTGRES_PASSWORD: one_markdown
+      POSTGRES_DB: one_markdown
+    # Puerto de host 5433: el 5432 ya está ocupado por otro proyecto en esta máquina.
+    # Dentro de la red de compose el puerto sigue siendo 5432.
+    ports:
+      - '5433:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U one_markdown -d one_markdown']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    container_name: one-markdown-redis
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes']
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+volumes:
+  postgres-data:
+  redis-data:
