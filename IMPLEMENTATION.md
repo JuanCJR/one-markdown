@@ -73,7 +73,13 @@ cada línea lleva el comando que se corrió y su salida real.
       RED: `./http` inexistente → GREEN: `test` (web completo) → **14 passed**
 - [x] **T-014** · frontend · Smoke e2e con Playwright (AC-11)
       RED: sin `playwright.config.ts` Playwright recogía los tests de Vitest y fallaba → GREEN: `pnpm test:e2e` → **3 passed**
-- [~] **T-015** · backend · CI en GitHub Actions (AC-14)
+- [x] **T-015** · backend · CI en GitHub Actions (AC-14) — verificado el 2026-07-25
+      **AC-14 cerrado con runs reales, las dos mitades**: run **`30140383389` en verde** en Node 22 **y** 24
+      (`verify (node 22)` 1m47s, `verify (node 24)` 1m9s), y dos runs en rojo por fallos de verdad
+      (`30139345799`, el defecto del AC-1; `30143727278`, el e2e de navegador). El job falla cuando algo
+      falla y pasa cuando todo pasa: es exactamente lo que pedía el criterio.
+      **De paso cierra el riesgo #3 de la spec `001`**: `bcrypt` 6 (módulo nativo) compila y funciona en
+      Node 22 y 24 del runner, no solo en el Node 25 de esta máquina.
       `.github/workflows/ci.yml` escrito y parseado con js-yaml (13 pasos, matriz Node 22/24, servicios postgres+redis).
       **2026-07-24, primer run real** (`30139345799`, tras el push del usuario): **rojo** en `Typecheck`, en
       las dos versiones de Node. No fue un falso positivo del CI: era un defecto real del AC-1 (ver la nota
@@ -490,9 +496,12 @@ Run `30139345799` (push de `d9c2854` a `main`): **rojo en `Typecheck`**, Node 22
    JWT_REFRESH_SECRET=<mínimo 32 caracteres, distinto del anterior>
    WEB_ORIGIN=http://localhost:5173
    ```
-2. **~~Ejecutar el CI~~** — hecho por el usuario el 2026-07-24: push de `d9c2854` a `main` → run
-   `30139345799`. Salió en rojo por un defecto real (ver la sección anterior). Queda pendiente el run
-   verde con el arreglo.
+2. **~~Ejecutar el CI~~** — hecho. El usuario pusheó varias veces; tres runs hasta ahora:
+   `30139345799` **rojo** por el defecto del AC-1 · `30140383389` **verde** en Node 22 y 24 (cierra AC-14
+   y el riesgo #3 de `001`) · `30143727278` **rojo solo en `Web e2e tests`**, que es el fallo conocido que
+   arregla `T-025`. En ese último run pasaron `Apply Prisma migrations`, `Unit tests`, `API e2e tests` y
+   `Build`, así que la parte nueva del workflow (T-026) ya está probada en el runner.
+   **Falta una sola cosa**: pushear el commit de `T-025` para que el run quede verde de punta a punta.
 3. **~~Commit~~** — la Fase 2 quedó commiteada en `d9c2854` y pusheada.
 4. **~~Aprobar la spec `001-auth`~~** — aprobada el 2026-07-24. Fase 3 en curso.
 5. **~~`.env.example` para `001-auth`~~** — el usuario confirma que creó las variables el 2026-07-24. No
