@@ -2,6 +2,23 @@
 
 Formato: `## vX.Y.Z — YYYY-MM-DD` + motivo del cambio.
 
+## v0.1.2 — 2026-07-24
+
+Corrección de un defecto que **destapó el primer run real del CI** (run `30139345799`, en rojo): el AC-1
+("clon nuevo → `pnpm install && pnpm typecheck` en 0") no se cumplía de verdad.
+
+- `apps/api` y `apps/web` resuelven `@one-markdown/shared` por su `types: ./dist/index.d.ts`
+  (decisión 2b de `plan.md`), así que en un clon limpio el typecheck fallaba con
+  `TS2307: Cannot find module '@one-markdown/shared'` × 3. En local pasaba porque `packages/shared/dist`
+  ya existía de builds anteriores: **el estado sucio del árbol tapaba el fallo**.
+- Arreglo en los scripts de la raíz, no solo en el workflow, porque el AC-1 habla del clon nuevo: se añade
+  `shared:build` y `typecheck`, `test` y `test:e2e` lo ejecutan antes. `build` ya funcionaba porque
+  `pnpm -r build` respeta el orden topológico del workspace.
+- Verificado borrando `packages/shared/dist` antes de cada comando: `pnpm typecheck` → 0 ·
+  `pnpm test` → 0 (api 22, web 14, shared 11) · `pnpm lint` → 0 · `pnpm build` → 0.
+- Lección: los comandos de verificación hay que correrlos también **desde un estado limpio**; un `dist/`
+  o un `node_modules` heredado convierte un fallo real en un falso verde.
+
 ## v0.1.1 — 2026-07-24
 
 Precisiones surgidas al implementar. Ningún criterio de aceptación cambió de significado, por eso es

@@ -1,8 +1,9 @@
 # Spec 000 — Foundation: monorepo, tooling, contratos base y CI
 
-- **Versión**: 0.1.1
-- **Estado**: implemented — 13 de 14 AC verificados con test automatizado; **AC-14 (CI) pendiente**
-  de una ejecución real del workflow, que requiere `git push` (denegado en esta sesión)
+- **Versión**: 0.1.2
+- **Estado**: implemented — AC-1 se corrigió tras el primer run real del CI (ver `CHANGELOG.md` v0.1.2).
+  De AC-14 ya está verificada la mitad negativa (el job se puso **rojo** ante un fallo real, run
+  `30139345799`); falta confirmar el run **verde** con el arreglo pusheado
 - **Fecha**: 2026-07-24
 - **Depende de**: —
 

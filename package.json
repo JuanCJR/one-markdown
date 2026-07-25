@@ -10,10 +10,11 @@
   "scripts": {
     "dev": "pnpm -r --parallel dev",
     "build": "pnpm -r build",
-    "test": "pnpm -r test",
-    "test:e2e": "pnpm --filter @one-markdown/web test:e2e",
+    "shared:build": "pnpm --filter @one-markdown/shared build",
+    "test": "pnpm shared:build && pnpm -r test",
+    "test:e2e": "pnpm shared:build && pnpm --filter @one-markdown/web test:e2e",
     "lint": "pnpm -r lint",
-    "typecheck": "pnpm -r typecheck",
+    "typecheck": "pnpm shared:build && pnpm -r typecheck",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

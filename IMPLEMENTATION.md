@@ -25,7 +25,11 @@ Leyenda: `[ ]` pendiente · `[~]` en curso o bloqueado (con motivo) · `[x]` hec
 - [x] **spec 000-foundation** — `specs/000-foundation/` (`spec.md` v0.1.1 + `plan.md` + `tasks.md` + `CHANGELOG.md`), estado **implemented**. — 2026-07-24
       14 criterios de aceptación; 13 verificados con test automatizado, AC-14 (CI) pendiente de un run real.
       Verificado: ver Fase 2 y las notas de verificación al final.
-- [ ] **spec 001-auth** — registro, login, JWT access+refresh, bcrypt, MFA TOTP, Redis, rate limit.
+- [x] **spec 001-auth** — `specs/001-auth/` (`spec.md` v0.1.0 + `plan.md` + `tasks.md` + `CHANGELOG.md`),
+      estado **approved** (aprobada por el usuario el 2026-07-24, sin cambios de alcance). — 2026-07-24
+      26 criterios de aceptación y 26 tareas TDD en 7 bloques; la implementación es la Fase 3.
+      Versiones de las dependencias nuevas fijadas contra npm y APIs verificadas con `context7`
+      (`otplib` 13.x cambió de API respecto de la 12.x; `@nestjs/throttler` 6.x).
 - [ ] **spec 002-workspace-tree** — directorios/subdirectorios y documentos markdown (CRUD, propiedad por usuario).
 - [ ] **spec 003-editor** — vista texto/preview, guardado, sanitización del preview.
 - [ ] **spec 004-markdown-palette** — listado de elementos markdown insertables.
@@ -71,9 +75,65 @@ cada línea lleva el comando que se corrió y su salida real.
       RED: sin `playwright.config.ts` Playwright recogía los tests de Vitest y fallaba → GREEN: `pnpm test:e2e` → **3 passed**
 - [~] **T-015** · backend · CI en GitHub Actions (AC-14)
       `.github/workflows/ci.yml` escrito y parseado con js-yaml (13 pasos, matriz Node 22/24, servicios postgres+redis).
-      **Bloqueada en**: el `DONE` pide un run real y `git push` está denegado en esta sesión. Los 7 pasos se corrieron en local y pasan.
+      **2026-07-24, primer run real** (`30139345799`, tras el push del usuario): **rojo** en `Typecheck`, en
+      las dos versiones de Node. No fue un falso positivo del CI: era un defecto real del AC-1 (ver la nota
+      de verificación abajo y `specs/000-foundation/CHANGELOG.md` v0.1.2). Con eso queda cubierta la mitad
+      negativa del `DONE` (el job se pone rojo cuando algo falla), y con más valor que un test roto a mano.
+      **Falta**: el run verde con el arreglo pusheado.
 - [x] **T-016** · backend · Regla anti-`any` verificable con fixture de lint (AC-13)
       Con la regla desactivada el fixture sale 0; con la config del proyecto sale 1 con `@typescript-eslint/no-explicit-any` × 2. `pnpm lint` sigue en 0.
+
+## Fase 3 — Implementación de `001-auth`
+
+Detalle completo en `specs/001-auth/tasks.md`. Spec **aprobada el 2026-07-24**: la fase está en curso.
+Cada línea llevará el comando que se corrió y su salida real, igual que la Fase 2.
+
+Base (dependencias, entorno, esquema):
+
+- [ ] **T-001** · backend · setup · Dependencias de auth (`@nestjs/jwt`, `passport-jwt`, `bcrypt`, `otplib` 13, `qrcode`, `@nestjs/throttler`, `cookie-parser`)
+- [ ] **T-002** · backend · Variables de entorno de auth validadas al arranque (AC-26)
+- [ ] **T-003** · backend · setup · Modelos `User` y `MfaRecoveryCode` + migración `20260724_auth_user_mfa`
+
+Primitivas de sesión:
+
+- [ ] **T-004** · backend · `PasswordService` con bcrypt y hash señuelo (AC-4)
+- [ ] **T-005** · backend · `TokenService`: access, refresh y `mfaToken`; rechazo de tokens cruzados (AC-5, AC-12)
+- [ ] **T-006** · backend · `SessionStore` en Redis: rotación, reutilización, revocación de familia (AC-9…AC-11)
+- [ ] **T-007** · backend · `LoginAttemptService`: bloqueo por cuenta con clave hasheada (AC-7)
+
+Endpoints de sesión:
+
+- [ ] **T-008** · backend · `POST /api/auth/register` (AC-1, AC-2, AC-3)
+- [ ] **T-009** · backend · `POST /api/auth/login` sin segundo factor (AC-5, AC-6, AC-7)
+- [ ] **T-010** · backend · `JwtAuthGuard`, `@CurrentUser()` y `GET /api/auth/me` (AC-8, AC-12)
+- [ ] **T-011** · backend · `POST /api/auth/refresh` y `POST /api/auth/logout` (AC-9…AC-11)
+
+MFA TOTP:
+
+- [ ] **T-012** · backend · `MfaSecretCipher` AES-256-GCM (AC-14)
+- [ ] **T-013** · backend · `TotpService` sobre otplib 13 + QR (AC-13, AC-17)
+- [ ] **T-014** · backend · `mfa/setup` y `mfa/enable` con códigos de recuperación (AC-13…AC-15)
+- [ ] **T-015** · backend · Login con segundo factor y `mfa/verify` (AC-16…AC-18)
+- [ ] **T-016** · backend · `mfa/disable` (AC-19)
+
+Transversales del backend:
+
+- [ ] **T-017** · backend · Rate limit por IP con `RedisThrottlerStorage` propio (AC-20)
+- [ ] **T-018** · backend · Swagger de auth: bearer, cookie y DTOs (AC-21)
+- [ ] **T-019** · backend · Contrato de auth en `packages/shared`
+
+Frontend:
+
+- [ ] **T-020** · frontend · Cliente HTTP autenticado con refresh single-flight y reintento único (AC-24)
+- [ ] **T-021** · frontend · `useAuthStore` y arranque con refresh silencioso (AC-22, AC-23)
+- [ ] **T-022** · frontend · `/login`, `/register` y `RequireAuth` (AC-22)
+- [ ] **T-023** · frontend · Paso de segundo factor en el login (AC-23)
+- [ ] **T-024** · frontend · `/settings/security`: alta y baja de MFA
+- [ ] **T-025** · frontend · e2e del flujo de auth en navegador (AC-25)
+
+CI:
+
+- [ ] **T-026** · backend · CI con `prisma migrate deploy` y variables de auth (comparte el bloqueo de push de T-015 de la spec 000)
 
 ---
 
@@ -134,10 +194,31 @@ Hallazgos que costaron tiempo y conviene no volver a pagar:
 - **`ErrorResponseDto` no aparecía en el OpenAPI** por no estar referenciado en ningún endpoint concreto;
   se registra con `extraModels` al crear el documento.
 
+### Lo que destapó el primer run de CI (2026-07-24)
+
+Run `30139345799` (push de `d9c2854` a `main`): **rojo en `Typecheck`**, Node 22 y Node 24, con
+`TS2307: Cannot find module '@one-markdown/shared'` en los tres DTO que lo importan.
+
+- **Causa**: `apps/api` y `apps/web` resuelven el paquete compartido por su `types: ./dist/index.d.ts`
+  (decisión 2b de `specs/000-foundation/plan.md`), y en un clon limpio ese `dist/` **no existe** cuando
+  corre `pnpm typecheck`. En esta máquina pasaba porque el `dist/` estaba construido de antes — incluido
+  el `tsc --watch` que dejó corriendo `pnpm dev`.
+- **El AC-1 de la spec `000` estaba mal verificado**: dice "clon nuevo → `pnpm install && pnpm typecheck`
+  en 0" y se comprobó sobre un árbol sucio. Reproducido en local con `rm -rf packages/shared/dist`.
+- **Arreglo**: script `shared:build` en la raíz, y `typecheck`, `test` y `test:e2e` lo ejecutan antes.
+  En los scripts y no solo en el workflow, porque el AC-1 habla del clon nuevo, no del CI. `build` no
+  necesitó cambio: `pnpm -r build` ya respeta el orden topológico.
+- **Verificado borrando `packages/shared/dist` antes de cada comando**: `pnpm typecheck` → 0 ·
+  `pnpm test` → 0 (api 22, web 14, shared 11) · `pnpm lint` → 0 · `pnpm build` → 0.
+- **Regla que sale de aquí**: los comandos `DONE` se corren también desde estado limpio. Un `dist/`
+  heredado convierte un fallo real en falso verde, que es exactamente lo que este seguimiento
+  pretende evitar.
+
 ### Pendientes que dependen del usuario
 
 1. **`.env.example`** — `.claude/settings.json` deniega leer y escribir `.env.*`, así que no se tocó.
-   Debe contener las 7 claves de `plan.md` §4:
+   Estado verificado el 2026-07-24 (solo metadatos, sin leer contenido): existen `.env.example` en la raíz
+   y `apps/api/.env`. **Falta confirmar** que contengan las 7 claves de `plan.md` §4:
 
    ```
    NODE_ENV=development
@@ -148,5 +229,23 @@ Hallazgos que costaron tiempo y conviene no volver a pagar:
    JWT_REFRESH_SECRET=<mínimo 32 caracteres, distinto del anterior>
    WEB_ORIGIN=http://localhost:5173
    ```
-2. **Ejecutar el CI** — requiere `git push` (denegado en esta sesión). Hasta entonces AC-14 no está verificado.
-3. **Commit** — el árbol tiene todo el trabajo sin commitear; no se hizo commit por no haberlo pedido.
+2. **~~Ejecutar el CI~~** — hecho por el usuario el 2026-07-24: push de `d9c2854` a `main` → run
+   `30139345799`. Salió en rojo por un defecto real (ver la sección anterior). Queda pendiente el run
+   verde con el arreglo.
+3. **~~Commit~~** — la Fase 2 quedó commiteada en `d9c2854` y pusheada.
+4. **~~Aprobar la spec `001-auth`~~** — aprobada el 2026-07-24. Fase 3 en curso.
+5. **~~`.env.example` para `001-auth`~~** — el usuario confirma que creó las variables el 2026-07-24. No
+   se pudo verificar desde la sesión (`.env.*` está denegado, y `ConfigModule` las carga en runtime, así
+   que tampoco aparecen en el entorno del proceso). Se comprobará de forma indirecta al cerrar `T-002`:
+   con la validación en su sitio, el API no arranca si falta `MFA_ENCRYPTION_KEY`. Claves esperadas:
+
+   ```
+   JWT_ACCESS_TTL=900
+   JWT_REFRESH_TTL=604800
+   BCRYPT_ROUNDS=12
+   MFA_ENCRYPTION_KEY=<openssl rand -base64 32>
+   MFA_ISSUER=One Markdown
+   ```
+
+   Ojo: perder `MFA_ENCRYPTION_KEY` inutiliza los secretos TOTP ya guardados (los usuarios con MFA
+   tendrían que re-enrolarse con un código de recuperación).
