@@ -195,7 +195,18 @@ Transversales del backend:
 
 - [ ] **T-017** · backend · Rate limit por IP con `RedisThrottlerStorage` propio (AC-20)
 - [ ] **T-018** · backend · Swagger de auth: bearer, cookie y DTOs (AC-21)
-- [ ] **T-019** · backend · Contrato de auth en `packages/shared`
+- [x] **T-019** · backend · Contrato de auth en `packages/shared` — 2026-07-24 · agente `backend`
+      RED: `TypeError: isAuthUser is not a function` → **25 failed** → GREEN: `--filter shared test` →
+      **37 passed** (antes 11). Verificado por el orchestrator, más `lint` y `typecheck` de `shared` en 0.
+      Publica `AuthUser`, `AuthSession`, `LoginResult`, `MfaSetup`, `MfaRecoveryCodes` y sus guards.
+      Dos detalles que valen más que el resto:
+      · **`ApiErrorShape` gana `retryAfterSeconds?`** — hueco que salió al revisar el Bloque C: el backend
+        ya emitía el campo en el `429` de cuenta bloqueada, pero el contrato no lo conocía y el frontend no
+        habría podido decir cuánto esperar.
+      · Los guards comprueban **presencia de la clave** antes del valor, así que un campo *ausente* no cuela
+        como `null`. Sin eso, la regla de "`null` explícito, nunca ausente" sería solo un comentario.
+      **Pendiente derivado**: falta añadir `implements LoginResult` en `login.response.dto.ts` y los
+      `implements` de los DTO de MFA cuando existan (el agente no los tocó porque otro los estaba editando).
 
 Frontend:
 

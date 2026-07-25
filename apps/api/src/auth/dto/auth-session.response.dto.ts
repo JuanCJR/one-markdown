@@ -1,17 +1,21 @@
 import { ApiProperty } from '@nestjs/swagger';
+import type { AuthSession, TokenType } from '@one-markdown/shared';
 
 import { UserResponseDto } from './user.response.dto';
 
 /** El único `tokenType` que emite la API. Literal, no `string`: el frontend lo discrimina. */
-export const BEARER = 'Bearer';
+export const BEARER: TokenType = 'Bearer';
 
 /**
  * Sesión recién emitida (specs/001-auth/plan.md §3).
  *
  * El refresh token **no** está aquí a propósito: viaja en la cookie `HttpOnly` y no debe ser
  * legible por JavaScript.
+ *
+ * `implements AuthSession` ancla la forma al contrato de `@one-markdown/shared`: una divergencia
+ * (un campo renombrado, un `tokenType` que deje de ser literal) rompe el typecheck, no el frontend.
  */
-export class AuthSessionResponseDto {
+export class AuthSessionResponseDto implements AuthSession {
   @ApiProperty({ type: String, description: 'JWT de acceso; se guarda solo en memoria del cliente' })
   readonly accessToken: string;
 

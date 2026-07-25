@@ -260,7 +260,7 @@ salida observable. **Toda tarea que introduce comportamiento es TDD estricta.** 
       `ErrorResponseDto`.
       **DONE**: `pnpm --filter @one-markdown/api test:e2e swagger`
 
-- [ ] **T-019** · `backend` · Contrato de auth en `packages/shared`
+- [x] **T-019** · `backend` · Contrato de auth en `packages/shared`
       **AC**: — (habilita AC-22, AC-23, AC-24)
       **Depende de**: T-011
       **RED**: ampliar `packages/shared/src/index.test.ts` — los guards `isAuthUser`, `isAuthSession`,

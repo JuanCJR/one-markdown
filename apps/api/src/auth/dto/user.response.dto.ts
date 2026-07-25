@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import type { AuthUser } from '@one-markdown/shared';
 
 /** Lo mínimo que necesita el DTO para construirse: nada de la fila completa de Prisma. */
 export interface UserProjection {
@@ -14,8 +15,11 @@ export interface UserProjection {
  *
  * Se construye campo a campo y **nunca** desde un spread de la fila: `passwordHash` y `mfaSecret`
  * viven en la misma fila, y un spread los publicaría al añadir una columna en el futuro.
+ *
+ * `implements AuthUser` no es decorativo: si el DTO y el contrato compartido divergen, el typecheck
+ * rompe aquí antes de que el frontend descubra la diferencia en runtime.
  */
-export class UserResponseDto {
+export class UserResponseDto implements AuthUser {
   @ApiProperty({ type: String, format: 'uuid' })
   readonly id: string;
 
