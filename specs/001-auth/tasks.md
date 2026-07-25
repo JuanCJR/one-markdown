@@ -51,7 +51,7 @@ salida observable. **Toda tarea que introduce comportamiento es TDD estricta.** 
 
 ## Bloque B — Primitivas de sesión
 
-- [ ] **T-004** · `backend` · `PasswordService` (bcrypt)
+- [x] **T-004** · `backend` · `PasswordService` (bcrypt)
       **AC**: AC-4
       **Depende de**: T-002
       **RED**: `apps/api/src/auth/password.service.spec.ts` — `hash()` devuelve un valor con prefijo
@@ -63,7 +63,7 @@ salida observable. **Toda tarea que introduce comportamiento es TDD estricta.** 
       inicializar el servicio). Decisión 9 de `plan.md`.
       **DONE**: `pnpm --filter @one-markdown/api test password.service`
 
-- [ ] **T-005** · `backend` · `TokenService` (access, refresh y `mfaToken`)
+- [x] **T-005** · `backend` · `TokenService` (access, refresh y `mfaToken`)
       **AC**: AC-5, AC-12
       **Depende de**: T-002
       **RED**: `apps/api/src/auth/token.service.spec.ts` — `signAccess({ userId, sid })` produce un JWT
@@ -76,7 +76,7 @@ salida observable. **Toda tarea que introduce comportamiento es TDD estricta.** 
       en cada payload; tipos de payload exportados, cero `any`.
       **DONE**: `pnpm --filter @one-markdown/api test token.service`
 
-- [ ] **T-006** · `backend` · `SessionStore` en Redis (rotación, reutilización, revocación)
+- [x] **T-006** · `backend` · `SessionStore` en Redis (rotación, reutilización, revocación)
       **AC**: AC-9, AC-10, AC-11
       **Depende de**: T-005
       **RED**: `apps/api/src/auth/session.store.spec.ts` (contra el Redis de docker, claves con prefijo
@@ -89,7 +89,7 @@ salida observable. **Toda tarea que introduce comportamiento es TDD estricta.** 
       rotación es atómica (Lua o `WATCH`/`MULTI`) para que dos refresh simultáneos no acepten los dos.
       **DONE**: `pnpm --filter @one-markdown/api test session.store`
 
-- [ ] **T-007** · `backend` · `LoginAttemptService` (bloqueo por cuenta)
+- [x] **T-007** · `backend` · `LoginAttemptService` (bloqueo por cuenta)
       **AC**: AC-7
       **Depende de**: T-002
       **RED**: `apps/api/src/auth/login-attempt.service.spec.ts` — cuatro fallos no bloquean; el quinto

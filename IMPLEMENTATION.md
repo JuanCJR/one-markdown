@@ -120,10 +120,30 @@ Base (dependencias, entorno, esquema):
 
 Primitivas de sesión:
 
-- [ ] **T-004** · backend · `PasswordService` con bcrypt y hash señuelo (AC-4)
-- [ ] **T-005** · backend · `TokenService`: access, refresh y `mfaToken`; rechazo de tokens cruzados (AC-5, AC-12)
-- [ ] **T-006** · backend · `SessionStore` en Redis: rotación, reutilización, revocación de familia (AC-9…AC-11)
-- [ ] **T-007** · backend · `LoginAttemptService`: bloqueo por cuenta con clave hasheada (AC-7)
+- [x] **T-004** · backend · `PasswordService` con bcrypt y hash señuelo (AC-4) — 2026-07-24
+      RED: `Cannot find module './password.service'` → GREEN: `test password.service` → **10 passed**.
+      Incluye la verificación del coste real de producción (`$2b$12$`) además del 4 de los tests, y que
+      `compareWithDecoy` **ejecuta un bcrypt de verdad** contra un hash señuelo (decisión 9: sin eso el
+      tiempo de respuesta delata qué correos existen, aunque el cuerpo del 401 sea idéntico).
+      **Hallazgo**: `jest.spyOn(bcrypt, 'compare')` falla con `Cannot redefine property`; los exports de
+      bcrypt no son reconfigurables. Se resolvió con `jest.mock` que **delega en `requireActual`**, así el
+      test sigue ejecutando bcrypt real y además observa las llamadas.
+- [x] **T-005** · backend · `TokenService`: access, refresh y `mfaToken` (AC-5, AC-12) — 2026-07-24
+      RED: `Cannot find module './token.service'` → GREEN: `test token.service` → **14 passed**.
+      Los cuatro casos de token cruzado están cubiertos: refresh como access, access como refresh,
+      `mfaToken` como access, y un token con el **secreto correcto pero `typ` equivocado** (que es el que
+      seguiría fallando si algún día los secretos se unificaran por error).
+- [x] **T-006** · backend · `SessionStore` en Redis (AC-9…AC-11) — 2026-07-24
+      RED: `Cannot find module './session.store'` → GREEN: `test session.store` → **12 passed** contra el
+      Redis real de docker. Verificado: TTL de la clave y del índice, que el `jti` viejo muere al rotar,
+      que la reutilización **vacía toda la familia**, `revokeAll` con `exceptSid`, y que de **dos
+      rotaciones simultáneas con el mismo `jti` solo una gana** (la rotación es un script Lua: con
+      GET+SET las dos se habrían creído válidas).
+- [x] **T-007** · backend · `LoginAttemptService`: bloqueo por cuenta (AC-7) — 2026-07-24
+      RED: módulos inexistentes → GREEN: `test login-attempt` → **7 passed**.
+      4 fallos no bloquean, el 5.º sí (429 con `retryAfterSeconds` entre 1 y 900), `reset` levanta el
+      bloqueo, las claves son `auth:login:(fail|lock):<sha256>` **sin el correo en claro**, y la
+      normalización evita que `A@B.test` abra un contador aparte.
 
 Endpoints de sesión:
 
