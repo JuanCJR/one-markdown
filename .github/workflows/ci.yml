@@ -12,13 +12,23 @@ concurrency:
 
 jobs:
   verify:
-    name: verify (node ${{ matrix.node }})
+    name: verify (node ${{ matrix.label }})
     runs-on: ubuntu-latest
 
     strategy:
       fail-fast: false
+      # `label` es el nombre estable del job; `version` es lo que se le pasa a setup-node.
+      # En la línea 22 no vale `'22'` a secas: eso es el rango `22.x` y setup-node, con
+      # `check-latest: false` (el default), se queda con la versión ya cacheada en la imagen del
+      # runner si satisface el rango. `engines.node` del repo pide `>=22.12` porque `otplib` arrastra
+      # dependencias ESM puro y `require(esm)` no existe sin flag antes de esa versión, así que el
+      # rango se fija explícitamente en vez de confiar en qué 22.x trae la imagen ese día.
       matrix:
-        node: ['22', '24']
+        include:
+          - label: '22'
+            version: '>=22.12 <23'
+          - label: '24'
+            version: '24'
 
     services:
       postgres:
@@ -45,13 +55,28 @@ jobs:
           --health-timeout 5s
           --health-retries 10
 
+    # Entorno compartido por todos los pasos: los tests unitarios, los e2e de API y el `webServer`
+    # que Playwright arranca para el e2e de navegador leen todos de aquí. No hay secretos reales:
+    # son valores de usar y tirar para una base de datos efímera.
     env:
       NODE_ENV: test
       # En CI el servicio expone el 5432; en local usamos el 5433 porque el 5432 suele estar ocupado.
       DATABASE_URL: postgresql://one_markdown:one_markdown@localhost:5432/one_markdown
       REDIS_URL: redis://localhost:6379
+      # ≥32 caracteres cada uno y distintos entre sí: `validateEnv` rechaza ambas cosas.
       JWT_ACCESS_SECRET: ci-access-secret-con-mas-de-32-caracteres
       JWT_REFRESH_SECRET: ci-refresh-secret-con-mas-de-32-caracteres
+      # 32 bytes exactos en base64 (`Buffer.alloc(32, 7)`), el mismo valor que `test/setup-env.ts`:
+      # `validateEnv` decodifica y exige 32 bytes justos, no 32 caracteres.
+      MFA_ENCRYPTION_KEY: BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=
+      # Coste 12 son ~250 ms por hash: con decenas de registros por suite, minutos de CI regalados.
+      # El coste real de producción se verifica aparte, en el unitario de `PasswordService`.
+      BCRYPT_ROUNDS: '4'
+      # Explícitos aunque coincidan con los defaults de `validateEnv`: el proxy de Vite apunta a
+      # `localhost:3001` y el CORS del API tiene que aceptar el origen del dev server, así que el
+      # e2e de navegador depende de estos dos valores.
+      PORT: '3001'
+      WEB_ORIGIN: http://localhost:5173
 
     steps:
       - uses: actions/checkout@v4
@@ -62,7 +87,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node }}
+          node-version: ${{ matrix.version }}
           cache: pnpm
 
       - name: Install
@@ -84,6 +109,12 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      # Después de los chequeos estáticos y antes del primer paso que toca la base: lint y typecheck
+      # son baratos y deben fallar primero. `migrate deploy` es idempotente y no genera migraciones:
+      # si el esquema cambió sin migración versionada, el paso siguiente falla, que es lo correcto.
+      - name: Apply Prisma migrations
+        run: pnpm --filter @one-markdown/api exec prisma migrate deploy
+
       - name: Unit tests
         run: pnpm test
 
@@ -94,9 +125,13 @@ jobs:
         run: pnpm build
 
       - name: Install Playwright browsers
-        if: matrix.node == '22'
+        if: matrix.label == '22'
         run: pnpm --filter @one-markdown/web exec playwright install --with-deps chromium
 
+      # El `webServer` de `apps/web/playwright.config.ts` levanta el dev server de Vite y (T-025) el
+      # API. Hereda el `env` del job, así que ya tiene DATABASE_URL, REDIS_URL, JWT_*,
+      # MFA_ENCRYPTION_KEY, BCRYPT_ROUNDS, PORT y WEB_ORIGIN. Si T-025 acaba necesitando algo más
+      # (un `VITE_*`, un puerto distinto o una limpieza de la base entre suites), se añade aquí.
       - name: Web e2e tests
-        if: matrix.node == '22'
+        if: matrix.label == '22'
         run: pnpm test:e2e

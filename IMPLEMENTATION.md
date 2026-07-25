@@ -291,7 +291,25 @@ Frontend:
 
 CI:
 
-- [ ] **T-026** · backend · CI con `prisma migrate deploy` y variables de auth (comparte el bloqueo de push de T-015 de la spec 000)
+- [~] **T-026** · backend · CI con `prisma migrate deploy` y variables de auth — 2026-07-25 · agente `backend`
+      Workflow escrito y verificado en todo lo que se puede verificar sin pushear:
+      `Apply Prisma migrations` entra en el **paso 9**, después del typecheck (lint y typecheck son baratos y
+      deben fallar primero) y antes de los pasos que tocan la base · las 9 variables del job comprobadas
+      contra el `validateEnv` **real** compilado, incluidos los tres casos negativos (clave ausente, clave de
+      16 bytes, secretos iguales) · `prisma migrate deploy` contra la base local → `No pending migrations to
+      apply`, exit 0 · YAML parseado (14 pasos) y `prettier --check` en verde.
+      **Hallazgo que no era teórico**: `actions/setup-node` con `node-version: '22'` se queda con la versión
+      **ya cacheada en la imagen del runner** si satisface el rango (`check-latest` es `false` por defecto).
+      Como `engines` ahora pide `>=22.12` por la cadena ESM de `otplib`, la matriz pasa a un rango semver
+      explícito (`>=22.12 <23`) con `include` + `label`, para no perder el nombre estable del job
+      (`verify (node 22)`), que es el que verían unos *required checks*.
+      **Bloqueada en**: el `DONE` exige un run verde y `git push` sigue denegado en la sesión. Comparte
+      bloqueo con `T-015` de la spec `000`. La mitad negativa ya está cubierta por el run `30139345799`.
+      **Riesgo cruzado que detectó y reportó en vez de parchear**: en CI el e2e de API corre antes que el de
+      navegador, sobre el mismo Redis y la misma IP, y uno de sus tests **satura a propósito** el rate limit.
+      Sin limpiar los contadores entre pasos, los logins del navegador darían `429` intermitentes. El punto
+      natural de limpieza es el `globalSetup` de Playwright, que es de T-025: se lo pasé como requisito al
+      agente que la está implementando, junto con la idempotencia entre reintentos (`retries: 2` en CI).
 
 ---
 
