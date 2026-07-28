@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 
+import { resetLoginThrottleCounter } from './support/services';
 import { signIn } from './support/session';
 
 test.describe('Smoke (AC-11)', () => {
@@ -13,6 +14,10 @@ test.describe('Smoke (AC-11)', () => {
    * un solo error de consola, y ahora además con el refresh silencioso de por medio.
    */
   test.beforeEach(async ({ page }) => {
+    // Cada caso abre **su** sesión, así que con reintentos las entradas se acumulan contra el cupo
+    // de diez por minuto y el rojo acabaría siendo un `429` ajeno a lo que este archivo mide
+    // (AC-35). Lo que se pierde con este reset, y por qué se acepta, está en `support/services.ts`.
+    await resetLoginThrottleCounter();
     await signIn(page);
   });
 

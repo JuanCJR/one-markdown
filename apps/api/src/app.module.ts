@@ -16,6 +16,7 @@ import { HealthModule } from './health/health.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
 import { RedisService } from './redis/redis.service';
+import { WorkspaceModule } from './workspace/workspace.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { RedisService } from './redis/redis.service';
     }),
     HealthModule,
     AuthModule,
+    WorkspaceModule,
   ],
   providers: [
     // Global: un endpoint nuevo de auth que se olvide de limitar sería un agujero silencioso. Los

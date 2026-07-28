@@ -1,6 +1,7 @@
 import { Link, Outlet } from 'react-router';
 
 import { useAuthStore } from '../features/auth/auth.store';
+import { WorkspaceTreeView } from '../features/workspace/WorkspaceTreeView';
 import { useUiStore } from '../shared/store/ui.store';
 
 /**
@@ -35,9 +36,9 @@ export function AppShell(): React.JSX.Element {
         <div
           id="document-tree"
           hidden={sidebarCollapsed}
-          className="px-3 py-2 text-sm text-slate-500"
+          className="min-h-0 flex-1 overflow-auto px-2 pb-3"
         >
-          El árbol de directorios llega con la spec 002.
+          <WorkspaceTreeView />
         </div>
       </nav>
 

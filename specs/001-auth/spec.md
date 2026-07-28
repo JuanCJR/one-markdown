@@ -1,6 +1,10 @@
 # Spec 001 — Auth: registro, login, JWT access+refresh, bcrypt, MFA TOTP, Redis, rate limit
 
-- **Versión**: 0.1.0
+- **Versión**: 0.1.1 — patch. Ningún AC cambia y ningún límite de producción se toca: la v0.1.1 registra
+  que el **andamiaje e2e** de esta spec (`apps/web/e2e/**`) cambió por `T-027` de la spec `002`, con dos
+  consecuencias que hay que conocer antes de tocarlo — la suite de navegador **neutraliza a propósito** los
+  contadores de `register` y `login`, y ese reset **no debe llevarse a la suite del API**, donde destruiría
+  la prueba de que los límites existen. Ver `CHANGELOG.md`
 - **Estado**: implemented — los **26 criterios de aceptación verificados con test automatizado**
   (2026-07-25). Único pendiente operativo: `T-026` espera un run verde del CI, que requiere `git push`
   (denegado en la sesión), igual que el `AC-14` de la spec `000`

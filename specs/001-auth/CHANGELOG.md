@@ -2,6 +2,54 @@
 
 Formato: `## vX.Y.Z — YYYY-MM-DD` + motivo del cambio.
 
+## v0.1.1 — 2026-07-25
+
+**Patch. El andamiaje e2e de esta spec cambia; sus 26 AC y todos sus límites de producción, no.** Lo trae
+`T-027` de la spec `002` (su **AC-35**), que toca `apps/web/e2e/**` por ser andamiaje de `001`, igual que
+`T-026` tocó `vite.config.ts` de `000`. **No se modificó `THROTTLE_LIMITS` ni ningún umbral de seguridad**:
+un límite no se relaja para que pase una suite.
+
+- **El problema, con las dos cuentas medidas.** La suite de navegador comparte presupuesto de rate limit
+  con esta spec: `register` admite **5 altas por IP cada 15 min** y `login` **10 entradas por minuto**. Una
+  ejecución limpia gastaba **exactamente 5** altas, así que el primer reintento de CI (`retries: 2`) pedía
+  la sexta y recibía un `429`. Y en el escenario del AC —todos los casos agotando los reintentos— las
+  **entradas** se iban igual de arriba: smoke 3 casos × 3 intentos = **9**, más el flujo de auth que vuelve
+  a entrar en cada intento (**3**) → **12 contra 10**. En los dos casos el rojo no tiene nada que ver con
+  lo que la suite mide, y aparece justo cuando algo ya había ido mal.
+- **Lo que se hizo**, en `apps/web/e2e/support/session.ts`, `support/services.ts` y `global-setup.ts`:
+  · `signIn` intenta `POST /login` **antes** de registrar, y solo cae al `register` si el login falla por
+    credenciales (camino de reserva, no el normal);
+  · la cuenta compartida se crea **una sola vez** en `global-setup.ts`, antes de que arranque ningún caso;
+  · se ponen a cero los contadores **`throttle:register:*` y `throttle:login:*`** antes de cada caso que
+    los gaste, por el mismo camino RESP-sobre-TCP que ya usaba `global-setup` — **sin dependencias nuevas**.
+    Los contadores de `mfa`, `refresh` y `workspace` quedan intactos y la suite los sigue gastando de
+    verdad.
+- **El bloqueo por cuenta era la parte no obvia, y por eso la cuenta compartida se crea una sola vez.**
+  «Login antes de registrar» hace que, en una base limpia, **todos** los trabajadores empiecen con un
+  `login` fallido contra una cuenta que aún no existe — y **5 fallos bloquean la cuenta 15 minutos**
+  (`LoginAttemptService`, AC-7). Ese bloqueo es **por cuenta, no por IP**, así que ningún reset de
+  `throttle:*` lo evita; en local Playwright levanta **6** trabajadores y era una moneda al aire. Hacer el
+  alta una vez lo elimina **por construcción** y baja el gasto del smoke de 3 altas a **0**. Verificado en
+  el bundle de Playwright 1.62 (`runner/index.js`, `createGlobalSetupTasks`) que los plugins de `webServer`
+  corren **antes** de `globalSetup`, así que el API ya responde cuando se prepara la cuenta.
+- **Qué cobertura se pierde y dónde vive ahora, que es lo que importa de esta entrada**: la suite de
+  navegador **deja de poder detectar** los límites de `register` y de `login` — los neutraliza a propósito.
+  Quien los verifica es `apps/api/test/auth-throttle.e2e-spec.ts`, con **un caso por cada uno**, y el
+  bloqueo por cuenta `apps/api/test/auth-login.e2e-spec.ts` (`AC-7: bloqueo por cuenta tras cinco fallos`).
+  Es su sitio: un límite **por IP** se prueba contra el API, no a través de un navegador. La cobertura de
+  AC-7 y AC-20 queda **intacta**; se comprobó **antes** de neutralizar nada.
+- **NO LLEVES ESTE RESET A LA SUITE DEL API.** Es el atajo obvio el día que aquella suite moleste por
+  acumulación, y allí destruiría la única prueba de que los límites existen. **No se aplicó ninguno** —
+  verificado: `grep -rn "throttle:" apps/api/test/` no devuelve nada— y la prohibición está escrita también
+  en `apps/web/e2e/support/services.ts`, junto a la función que lo hace, porque en el código es donde la
+  lee quien está a punto de hacerlo.
+- **Verificado** (comandos corridos y salida real): RED
+  `pnpm --filter @one-markdown/web exec playwright test --retries=2 --repeat-each=3` → `10 failed /
+  5 passed` con `POST /api/auth/register devolvió 429`; tras el cambio, el mismo comando → **15 passed**,
+  EXIT=0 · `pnpm test:e2e` → **5 passed** · `pnpm --filter @one-markdown/api test:e2e` → 20 suites /
+  **455**, es decir que los e2e de auth de esta spec siguen enteros en verde. **Ningún test de `001` se
+  puso en rojo.**
+
 ## v0.1.0 — 2026-07-24
 
 Hallazgos de los Bloques A y D-parcial (T-001…T-003, T-012, T-013), sin cambio de alcance ni de criterios:
