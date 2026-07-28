@@ -30,6 +30,18 @@ export class ErrorResponseDto implements ApiErrorShape {
   @ApiPropertyOptional({ type: Number, example: 900 })
   readonly retryAfterSeconds?: number;
 
+  /**
+   * Código estable del error de dominio (spec 002, decisión 13). Lo emiten solo los errores del
+   * workspace, que tienen cinco `409` distintos y una interfaz que debe decir algo distinto en cada
+   * uno; emparejar por el texto del `message` se rompe en cuanto alguien lo matiza.
+   *
+   * Aditivo y opcional igual que `retryAfterSeconds`: el resto de errores omiten la clave del JSON
+   * en vez de mandarla en `null`, así que el juego exacto de claves de un error de las specs `000`
+   * y `001` no cambia.
+   */
+  @ApiPropertyOptional({ type: String, example: 'DIRECTORY_NAME_TAKEN' })
+  readonly code?: string;
+
   constructor(params: {
     statusCode: number;
     error: string;
@@ -37,6 +49,7 @@ export class ErrorResponseDto implements ApiErrorShape {
     path: string;
     timestamp: string;
     retryAfterSeconds?: number;
+    code?: string;
   }) {
     this.statusCode = params.statusCode;
     this.error = params.error;
@@ -48,6 +61,10 @@ export class ErrorResponseDto implements ApiErrorShape {
     // un `undefined` explícito no es lo mismo que la propiedad ausente.
     if (params.retryAfterSeconds !== undefined) {
       this.retryAfterSeconds = params.retryAfterSeconds;
+    }
+
+    if (params.code !== undefined) {
+      this.code = params.code;
     }
   }
 }

@@ -2,6 +2,115 @@
 
 Formato: `## vX.Y.Z — YYYY-MM-DD` + motivo del cambio.
 
+## v0.1.7 — 2026-07-25
+
+**Cierre de la revisión que la v0.1.4 dejó apuntada** («se revisará cuando la spec `002` amplíe el contrato
+compartido»). La amplió, y salió mal: la mitigación de la v0.1.4 —`optimizeDeps: { include:
+['@one-markdown/shared'] }` en `apps/web/vite.config.ts`— **no era suficiente**. La corrección la trae
+`T-026` de la spec `002` (su **AC-34**), que toca este archivo por ser contrato de `000`, igual que `T-024`
+tocó `AllExceptionsFilter`.
+
+- **Qué faltaba, con el mecanismo exacto — y la explicación aproximada lleva a la solución equivocada**:
+  Vite invalida `node_modules/.vite` comparando **dos** hashes, `lockfileHash` y `configHash`
+  (`optimizer/index.ts`, `loadCachedDepOptimizationMetadata`; verificado con `context7` el 2026-07-25). El
+  **contenido** de un paquete enlazado del workspace no entra en ninguno de los dos, y la propia
+  documentación de Vite lo dice: *«Vite detects dependency overrides but not `npm link` usage»*. O sea que
+  **no** es que Vite hashee el `package.json` del paquete enlazado: **es que no mira el paquete en
+  absoluto**. La primera hipótesis fue la primera, y llevaba a buscar el arreglo en `packages/shared`,
+  donde no está.
+- **Lo que costó, medido**: al añadir la spec `002` sus tipos y guards a `packages/shared`, la caché de la
+  spec `001` seguía dándose por válida y el navegador recibía un módulo **sin** `isWorkspaceTree`. El árbol
+  moría con «Ocurrió un error inesperado» tras un `GET /api/workspace/tree` que había respondido `200`,
+  porque `expectShape` reventaba con `TypeError: guard is not a function` — **con `packages/shared/dist`
+  perfectamente al día**. Solo se arreglaba borrando `node_modules/.vite` a mano.
+- **Corrección**: `optimizeDeps: { include: ['@one-markdown/shared'], force: true }` en
+  `apps/web/vite.config.ts`, con el comentario ampliado en el propio archivo para que nadie lo quite por
+  parecer redundante. Y `apps/web/playwright.config.ts` vuelve a `pnpm dev` **sin `--force`**: la suite deja
+  de compensar un defecto del producto, que es la mitad del valor del cambio.
+- **Coste asumido y explícito**: `force: true` re-empaqueta **todas** las dependencias en cada arranque del
+  servidor de desarrollo, no solo `shared`. A este tamaño son un par de segundos, y se prefiere un arranque
+  algo más lento a un árbol roto en silencio.
+- **La salida de raíz sigue siendo la misma que apuntaba la v0.1.4 y sigue sin hacerse aquí**: que `shared`
+  emita ESM. Sin CJS no haría falta pre-empaquetarlo —se serviría por el grafo de módulos y no habría caché
+  que envejecer—, pero `apps/api` es NestJS **CommonJS** sobre el mismo `dist` y exigiría salida dual o
+  mover el backend a ESM. Es empaquetado de los tres paquetes: **spec propia**, no un cierre de fase. El
+  día que se haga, `include` y `force` se van juntos.
+- **Verificado** (comandos corridos y salida real): con la caché envenenada y el `--force` ya retirado de
+  Playwright, `pnpm test:e2e` → `1 failed / 4 passed` con el fallo correcto (alerta de la UI **y**
+  `/api/workspace/tree | 200` en la traza de red); con `force: true`, `pnpm test:e2e` → **5 passed**; y
+  envenenando **contra el `configHash` nuevo** (`grep -c` 2 → 0, `node --check` conforme) → **5 passed**
+  otra vez, que es lo que descarta que a la caché la salvara el hash y no el `force`. `pnpm --filter
+  @one-markdown/web test` → 12 archivos / **188**, sin cambios. `typecheck` y `lint` EXIT=0.
+  **Ningún test de `000` se puso en rojo.**
+- **Lo que este cambio NO deja vigilado, y se escribe sin adornar**: el envenenado de la caché es un paso
+  **manual** y **CI no lo cazará nunca** —el runner arranca siempre con `node_modules/.vite` frío, así que
+  allí `force: true` y su ausencia son indistinguibles—. Lo que sí queda vigilando es que
+  `playwright.config.ts` ya no lleva `--force`: si alguien quita el `force` de `vite.config.ts`,
+  `pnpm test:e2e` se rompe **en local** para cualquiera con caché previa, y en CI no. El defecto vive en la
+  máquina de quien desarrolla, que es justo donde CI no mira.
+
+## v0.1.6 — 2026-07-25
+
+**Cierre de la ampliación de AC-5 que abrió la v0.1.5**: `T-024` de la spec `002` está implementada y
+verificada, y AC-33 en verde. Esta entrada registra **cómo quedó la detección**, que es la parte que se
+erosiona con el tiempo: quien la lea dentro de seis meses tiene que poder distinguir la regla que se
+eligió de la que parece equivalente y no lo es.
+
+- **Verificado** (comandos corridos y salida real): `pnpm --filter @one-markdown/api test all-exceptions`
+  → **1 suite / 12 tests** · `pnpm --filter @one-markdown/api test:e2e "body-limit|validation"` →
+  **2 suites / 11 tests** · suite unitaria completa del API → **18 suites / 255 tests** · regresión
+  dirigida `test:e2e "auth-|health|swagger"` → **10 suites / 163 tests**, **ningún test de `000` ni de
+  `001` en rojo**, que era la condición explícita de la tarea. Archivo e2e nuevo:
+  `apps/api/test/body-limit.e2e-spec.ts`.
+- **La detección es por forma y con rango cerrado, no «tiene `status`»**: se leen `status` y `statusCode`
+  (`http-errors` pone las dos) y solo pasa un valor que cumpla
+  `Number.isInteger(value) && value >= 400 && value <= 499`. Los dos extremos son deliberados. Un
+  `status` no entero solo puede venir de un error de programación y no puede decidir el código de una
+  respuesta; y si bastara «tiene un `status`», cualquier `5xx` —o un `200`— de una librería se saltaría el
+  `logger.error`, que es justo la señal que no se puede perder. Casos con test:
+  `'nope'`, `413.5`, `NaN`, `null`, `true` (no enteros) y `399`, `200`, `0`, `-1`, `600` (fuera de rango).
+- **Sin `import` de `http-errors`**, como prometía la v0.1.5: se reconoce por forma, nunca con
+  `instanceof`. La dependencia sigue siendo transitiva de Express y no declarada.
+- **Cambia el criterio de registro, y esto sí es observable**: antes se registraba por **origen**
+  (`!isHttp || status >= 500`) y ahora por **estado** (`status >= HttpStatus.INTERNAL_SERVER_ERROR`). Un
+  `4xx` es un fallo del cliente lo emita quien lo emita, así que el `413` deja de escribir traza; y un
+  `status: 502` de una librería **no entra en el rango**, cae al `500` genérico y **sigue** pasando por
+  `logger.error` con traza. Las dos mitades tienen test.
+- **Del error ajeno solo se publica `message`, y solo si es texto**; **`code` nunca se copia**. El `code`
+  del contrato es el de los errores de dominio del workspace (spec `002`), con el que el frontend
+  distingue cinco `409` distintos: dejar que una librería cualquiera lo rellene lo volvería inservible.
+- **Deuda anotada, no cerrada**: `T-024` **no** corrió el e2e completo del API (`pnpm --filter
+  @one-markdown/api test:e2e`) porque otros agentes estaban escribiendo en `test/**`; lo sustituyó por la
+  regresión dirigida de 12 suites / 174 tests citada arriba. La corrida completa queda pendiente para el
+  cierre de la ola 4 de la Fase 4 (ver `IMPLEMENTATION.md`).
+
+## v0.1.5 — 2026-07-25
+
+**Ampliación de AC-5 pedida desde la spec `002`** (ver `specs/002-workspace-tree/CHANGELOG.md` v0.2.0,
+punto 1). Es aditiva: ningún comportamiento ya verificado de `AllExceptionsFilter` cambia.
+
+- **`AllExceptionsFilter` no reconoce los errores de `http-errors`**, que es como Express y body-parser
+  señalan los fallos de protocolo. El caso que lo destapó: con el límite de cuerpo JSON que la spec `002`
+  sube a 2 MiB, un cuerpo por encima del límite produce un `PayloadTooLargeError` que **no es una
+  `HttpException`** y por tanto sale como **`500`**, aunque el error traiga `status: 413`.
+- **Dos consecuencias, y la segunda no es cosmética**: (a) el cliente recibe un `5xx` por un error suyo,
+  o sea la única respuesta que le dice «reintenta, no es culpa tuya»; (b) el filtro registra `logger.error`
+  **con traza completa** en todo lo que no es `HttpException`, así que cualquiera con un token válido
+  dispone de un amplificador de ruido en los logs y de un disparador de alertas de `5xx`.
+- **Corrección**, en `apps/api/src/common/filters/all-exceptions.filter.ts`, implementada por la tarea
+  `T-024` de la spec `002` y verificada por su **AC-33**: antes de la rama genérica, un *type guard* que
+  reconozca un error con `status`/`statusCode` **entero y en `4xx`** y lo emita con ese estado. El rango
+  es deliberadamente estrecho: un `5xx` reportado por una librería debe seguir registrándose como error, y
+  un `status` que no sea un entero solo puede venir de un fallo de programación. Un `Error` pelado sigue
+  saliendo `500` con `message: 'Error interno del servidor'` y sigue pasando por `logger.error`; hay test
+  unitario de los dos sentidos, para que la traducción no se coma los fallos que sí deben ser `5xx`.
+- **Sin dependencias nuevas**: no se importa `http-errors` ni se usa `instanceof` contra ninguna clase de
+  body-parser. `http-errors` es transitiva de Express, no una dependencia declarada del proyecto, y
+  acoplarse a ella por tipo la convertiría en una de facto.
+- **Higiene del propio artefacto**: la cabecera de `spec.md` se había quedado en `0.1.3` cuando este
+  changelog ya iba por `0.1.4` (la v0.1.4 solo tocó decisiones y no se bajó el número al encabezado).
+  Corregida a `0.1.5`, que es lo que exige la convención de que la versión sea de la **spec completa**.
+
 ## v0.1.4 — 2026-07-25
 
 Tercera consecuencia de la decisión 2b (`packages/shared` compila a CommonJS), y la más cara de las tres,

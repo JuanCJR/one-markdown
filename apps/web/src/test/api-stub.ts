@@ -36,7 +36,7 @@ export function noContentResponse(): Response {
 export function apiErrorResponse(
   statusCode: number,
   message: string | string[],
-  extra: { readonly retryAfterSeconds?: number } = {},
+  extra: { readonly retryAfterSeconds?: number; readonly code?: string } = {},
 ): Response {
   return jsonResponse(
     {

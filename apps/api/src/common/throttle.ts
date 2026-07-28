@@ -13,7 +13,7 @@ import { seconds, SkipThrottle, type ThrottlerOptions } from '@nestjs/throttler'
  * recuperación) solo están protegidos por éste.
  */
 
-export const THROTTLE_NAMES = ['register', 'login', 'mfa', 'refresh'] as const;
+export const THROTTLE_NAMES = ['register', 'login', 'mfa', 'refresh', 'workspace'] as const;
 
 export type ThrottleName = (typeof THROTTLE_NAMES)[number];
 
@@ -37,6 +37,10 @@ export const THROTTLE_LIMITS: Record<ThrottleName, ThrottleLimit> = {
   // esperados) o quemar CPU comparando ocho hashes bcrypt por petición no tiene freno.
   mfa: { limit: 10, ttlSeconds: 60 },
   refresh: { limit: 60, ttlSeconds: 60 },
+  // Superficie del workspace (spec 002, decisión 15). 120/min está muy por encima del uso
+  // interactivo —una mutación más la recarga del árbol son 2 peticiones— y muy por debajo de lo
+  // que hace un script. La cobertura completa y sus tests son de la tarea T-014.
+  workspace: { limit: 120, ttlSeconds: 60 },
 };
 
 /** Mensaje del `429`. Genérico a propósito: no dice qué límite se alcanzó ni cuántos quedaban. */
@@ -124,7 +128,7 @@ export function throttleKey(
 }
 
 /**
- * Los cuatro throttlers nombrados. Cada uno se salta a sí mismo salvo en las rutas que lo declaran
+ * Los throttlers nombrados. Cada uno se salta a sí mismo salvo en las rutas que lo declaran
  * con `@Throttled(name)`: un endpoint nuevo no hereda ningún límite por accidente.
  */
 export const AUTH_THROTTLERS: ThrottlerOptions[] = THROTTLE_NAMES.map((name) => ({

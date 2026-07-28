@@ -4,19 +4,35 @@ import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vite
 import {
   ApiError,
   configureAuthBridge,
+  createDirectory,
+  createDocument,
+  deleteDirectory,
+  deleteDocument,
+  getDocument,
   getHealth,
   getMe,
+  getWorkspaceTree,
   login,
   logout,
   mfaDisable,
   mfaEnable,
   mfaSetup,
+  moveDirectory,
+  moveDocument,
   refreshSession,
   register,
+  renameDirectory,
+  renameDocument,
   verifyMfa,
 } from './http';
 import { apiErrorResponse, noContentResponse, stubApi } from '../../test/api-stub';
 import { authSession, authUser } from '../../test/auth-fixtures';
+import {
+  directoryNode,
+  documentSummary,
+  markdownDocument,
+  workspaceTree,
+} from '../../test/workspace-fixtures';
 
 function mockFetch(response: Response): void {
   vi.stubGlobal(
@@ -398,5 +414,340 @@ describe('funciones del contrato de auth', () => {
 
     expect(user.mfaEnabled).toBe(false);
     expect(api.calls[0]?.body).toEqual({ password: 'contrasena-larga-1', code: '123456' });
+  });
+});
+
+describe('cliente de workspace (T-017: habilita AC-28…AC-32)', () => {
+  let accessToken: string | null;
+
+  beforeEach(() => {
+    accessToken = 'access-token-1';
+
+    configureAuthBridge({
+      getAccessToken: () => accessToken,
+      onSessionRenewed: (session) => {
+        accessToken = session.accessToken;
+      },
+      onSessionLost: () => {
+        accessToken = null;
+      },
+    });
+  });
+
+  describe('GET /api/workspace/tree', () => {
+    it('devuelve el árbol tipado con sus dos listas y la marca de tiempo', async () => {
+      const tree = workspaceTree({
+        directories: [directoryNode()],
+        documents: [documentSummary({ directoryId: 'dir-notas' })],
+      });
+      stubApi({ 'GET /api/workspace/tree': () => jsonResponse(tree) });
+
+      const received = await getWorkspaceTree();
+
+      expect(received.directories[0]?.name).toBe('Notas');
+      expect(received.documents[0]?.directoryId).toBe('dir-notas');
+      expect(received.generatedAt).toBe('2026-07-25T12:00:00.000Z');
+    });
+
+    it('rechaza con ApiError una respuesta que no cumple el contrato', async () => {
+      stubApi({
+        'GET /api/workspace/tree': () =>
+          jsonResponse({ directories: [], generatedAt: '2026-07-25T12:00:00.000Z' }),
+      });
+
+      await expect(getWorkspaceTree()).rejects.toBeInstanceOf(ApiError);
+    });
+
+    it('un solo directorio roto invalida la respuesta entera: no se filtran elementos', async () => {
+      const { parentId: _ignored, ...sinParentId } = directoryNode({ id: 'dir-roto' });
+      stubApi({
+        'GET /api/workspace/tree': () =>
+          jsonResponse({
+            directories: [directoryNode(), sinParentId],
+            documents: [],
+            generatedAt: '2026-07-25T12:00:00.000Z',
+          }),
+      });
+
+      await expect(getWorkspaceTree()).rejects.toBeInstanceOf(ApiError);
+    });
+  });
+
+  describe('directorios', () => {
+    it('createDirectory manda POST con el nombre y el parentId null explícito', async () => {
+      const api = stubApi({
+        'POST /api/workspace/directories': () => jsonResponse(directoryNode(), 201),
+      });
+
+      const created = await createDirectory({ name: 'Notas', parentId: null });
+
+      expect(created.id).toBe('dir-notas');
+      expect(api.calls[0]?.method).toBe('POST');
+      expect(api.calls[0]?.body).toEqual({ name: 'Notas', parentId: null });
+    });
+
+    it('renameDirectory manda el método PATCH y el Content-Type de JSON', async () => {
+      const api = stubApi({
+        'PATCH /api/workspace/directories/dir-notas': () =>
+          jsonResponse(directoryNode({ name: 'Apuntes' })),
+      });
+
+      const renamed = await renameDirectory('dir-notas', 'Apuntes');
+
+      expect(renamed.name).toBe('Apuntes');
+      expect(api.calls[0]?.method).toBe('PATCH');
+      expect(api.calls[0]?.headers['content-type']).toBe('application/json');
+      expect(api.calls[0]?.body).toEqual({ name: 'Apuntes' });
+    });
+
+    it('moveDirectory manda POST a /:id/move con el destino', async () => {
+      const api = stubApi({
+        'POST /api/workspace/directories/dir-notas/move': () =>
+          jsonResponse(directoryNode({ parentId: 'dir-archivo', depth: 1 })),
+      });
+
+      const moved = await moveDirectory('dir-notas', 'dir-archivo');
+
+      expect(moved.parentId).toBe('dir-archivo');
+      expect(api.calls[0]?.body).toEqual({ parentId: 'dir-archivo' });
+    });
+
+    it('deleteDirectory pide el borrado recursivo en la query cuando se le pide', async () => {
+      const api = stubApi({
+        'DELETE /api/workspace/directories/dir-notas?recursive=true': () => noContentResponse(),
+      });
+
+      await deleteDirectory('dir-notas', true);
+
+      expect(api.calls[0]?.method).toBe('DELETE');
+    });
+
+    it('deleteDirectory manda recursive=false cuando el borrado no es recursivo', async () => {
+      const api = stubApi({
+        'DELETE /api/workspace/directories/dir-notas?recursive=false': () => noContentResponse(),
+      });
+
+      await deleteDirectory('dir-notas', false);
+
+      expect(api.calls).toHaveLength(1);
+    });
+  });
+
+  describe('respuestas sin cuerpo', () => {
+    it('un DELETE sin cuerpo no manda Content-Type', async () => {
+      const api = stubApi({
+        'DELETE /api/workspace/documents/doc-diario': () => noContentResponse(),
+      });
+
+      await deleteDocument('doc-diario');
+
+      expect(api.calls[0]?.headers['content-type']).toBeUndefined();
+    });
+
+    it('un 204 resuelve sin error', async () => {
+      stubApi({ 'DELETE /api/workspace/documents/doc-diario': () => noContentResponse() });
+
+      await expect(deleteDocument('doc-diario')).resolves.toBeUndefined();
+    });
+
+    it('un 204 ni siquiera intenta parsear el cuerpo', async () => {
+      const response = noContentResponse();
+      const parseBody = vi.spyOn(response, 'json');
+      stubApi({ 'DELETE /api/workspace/documents/doc-diario': () => response });
+
+      await deleteDocument('doc-diario');
+
+      expect(parseBody).not.toHaveBeenCalled();
+    });
+
+    it('un error en un endpoint sin cuerpo sigue llegando como ApiError', async () => {
+      stubApi({
+        'DELETE /api/workspace/directories/dir-notas?recursive=false': () =>
+          apiErrorResponse(409, 'El directorio no está vacío', { code: 'DIRECTORY_NOT_EMPTY' }),
+      });
+
+      const error = (await deleteDirectory('dir-notas', false).catch(
+        (caught: unknown) => caught,
+      )) as ApiError;
+
+      expect(error).toBeInstanceOf(ApiError);
+      expect(error.code).toBe('DIRECTORY_NOT_EMPTY');
+    });
+  });
+
+  describe('documentos', () => {
+    it('createDocument devuelve el documento con su contenido', async () => {
+      const api = stubApi({
+        'POST /api/workspace/documents': () =>
+          jsonResponse(markdownDocument({ content: '# Hola\n' }), 201),
+      });
+
+      const created = await createDocument({
+        title: 'Diario',
+        directoryId: 'dir-notas',
+        content: '# Hola\n',
+      });
+
+      expect(created.content).toBe('# Hola\n');
+      expect(api.calls[0]?.body).toEqual({
+        title: 'Diario',
+        directoryId: 'dir-notas',
+        content: '# Hola\n',
+      });
+    });
+
+    it('createDocument sin contenido no manda la propiedad content', async () => {
+      const api = stubApi({
+        'POST /api/workspace/documents': () => jsonResponse(markdownDocument({ content: '' }), 201),
+      });
+
+      await createDocument({ title: 'Diario', directoryId: null });
+
+      expect(api.calls[0]?.body).toEqual({ title: 'Diario', directoryId: null });
+    });
+
+    it('getDocument devuelve el detalle con el markdown en crudo', async () => {
+      stubApi({
+        'GET /api/workspace/documents/doc-diario': () =>
+          jsonResponse(markdownDocument({ content: '# Diario\n\ntexto' })),
+      });
+
+      const detail = await getDocument('doc-diario');
+
+      expect(detail.content).toBe('# Diario\n\ntexto');
+    });
+
+    it('getDocument rechaza un resumen sin content: el detalle exige el texto', async () => {
+      stubApi({
+        'GET /api/workspace/documents/doc-diario': () => jsonResponse(documentSummary()),
+      });
+
+      await expect(getDocument('doc-diario')).rejects.toBeInstanceOf(ApiError);
+    });
+
+    it('renameDocument manda PATCH y devuelve el resumen, sin content', async () => {
+      const api = stubApi({
+        'PATCH /api/workspace/documents/doc-diario': () =>
+          jsonResponse(documentSummary({ title: 'Bitácora' })),
+      });
+
+      const renamed = await renameDocument('doc-diario', 'Bitácora');
+
+      expect(renamed.title).toBe('Bitácora');
+      expect(api.calls[0]?.method).toBe('PATCH');
+      expect(api.calls[0]?.body).toEqual({ title: 'Bitácora' });
+    });
+
+    it('moveDocument manda el directorio destino y acepta null para la raíz', async () => {
+      const api = stubApi({
+        'POST /api/workspace/documents/doc-diario/move': () =>
+          jsonResponse(documentSummary({ directoryId: null })),
+      });
+
+      const moved = await moveDocument('doc-diario', null);
+
+      expect(moved.directoryId).toBeNull();
+      expect(api.calls[0]?.body).toEqual({ directoryId: null });
+    });
+  });
+
+  describe('credencial, errores y reintento', () => {
+    it('las diez llamadas de workspace mandan Authorization: Bearer y credentials: include', async () => {
+      const api = stubApi({
+        'GET /api/workspace/tree': () => jsonResponse(workspaceTree()),
+        'POST /api/workspace/directories': () => jsonResponse(directoryNode(), 201),
+        'PATCH /api/workspace/directories/dir-notas': () => jsonResponse(directoryNode()),
+        'POST /api/workspace/directories/dir-notas/move': () => jsonResponse(directoryNode()),
+        'DELETE /api/workspace/directories/dir-notas?recursive=false': () => noContentResponse(),
+        'POST /api/workspace/documents': () => jsonResponse(markdownDocument(), 201),
+        'GET /api/workspace/documents/doc-diario': () => jsonResponse(markdownDocument()),
+        'PATCH /api/workspace/documents/doc-diario': () => jsonResponse(documentSummary()),
+        'POST /api/workspace/documents/doc-diario/move': () => jsonResponse(documentSummary()),
+        'DELETE /api/workspace/documents/doc-diario': () => noContentResponse(),
+      });
+
+      await getWorkspaceTree();
+      await createDirectory({ name: 'Notas', parentId: null });
+      await renameDirectory('dir-notas', 'Apuntes');
+      await moveDirectory('dir-notas', null);
+      await deleteDirectory('dir-notas', false);
+      await createDocument({ title: 'Diario', directoryId: null });
+      await getDocument('doc-diario');
+      await renameDocument('doc-diario', 'Bitácora');
+      await moveDocument('doc-diario', null);
+      await deleteDocument('doc-diario');
+
+      expect(api.calls).toHaveLength(10);
+      for (const call of api.calls) {
+        expect(call.headers['authorization']).toBe('Bearer access-token-1');
+        expect(call.credentials).toBe('include');
+      }
+    });
+
+    it('un 409 con code propaga un ApiError que conserva el code', async () => {
+      stubApi({
+        'POST /api/workspace/directories': () =>
+          apiErrorResponse(409, 'Ya existe un directorio con ese nombre', {
+            code: 'DIRECTORY_NAME_TAKEN',
+          }),
+      });
+
+      const error = (await createDirectory({ name: 'Notas', parentId: null }).catch(
+        (caught: unknown) => caught,
+      )) as ApiError;
+
+      expect(error.statusCode).toBe(409);
+      expect(error.code).toBe('DIRECTORY_NAME_TAKEN');
+      expect(error.message).toContain('Ya existe un directorio con ese nombre');
+    });
+
+    it('un error sin code deja el code en null', async () => {
+      stubApi({
+        'GET /api/workspace/tree': () => apiErrorResponse(500, 'Error interno del servidor'),
+      });
+
+      const error = (await getWorkspaceTree().catch((caught: unknown) => caught)) as ApiError;
+
+      expect(error.code).toBeNull();
+    });
+
+    it('un 401 dispara un solo refresh y un solo reintento', async () => {
+      let treeCalls = 0;
+      const api = stubApi({
+        'GET /api/workspace/tree': () => {
+          treeCalls += 1;
+
+          return treeCalls === 1
+            ? apiErrorResponse(401, 'Token expirado')
+            : jsonResponse(workspaceTree({ directories: [directoryNode()] }));
+        },
+        'POST /api/auth/refresh': () =>
+          jsonResponse(authSession({ accessToken: 'access-token-2' })),
+      });
+
+      const tree = await getWorkspaceTree();
+
+      expect(tree.directories).toHaveLength(1);
+      expect(api.calls).toHaveLength(3);
+      expect(api.callsTo('POST /api/auth/refresh')).toHaveLength(1);
+      expect(api.callsTo('GET /api/workspace/tree')[1]?.headers['authorization']).toBe(
+        'Bearer access-token-2',
+      );
+    });
+
+    it('un 404 de borrado no se reintenta ni cierra la sesión', async () => {
+      const api = stubApi({
+        'DELETE /api/workspace/documents/doc-diario': () =>
+          apiErrorResponse(404, 'El documento no existe', { code: 'DOCUMENT_NOT_FOUND' }),
+      });
+
+      const error = (await deleteDocument('doc-diario').catch(
+        (caught: unknown) => caught,
+      )) as ApiError;
+
+      expect(error.statusCode).toBe(404);
+      expect(error.code).toBe('DOCUMENT_NOT_FOUND');
+      expect(api.calls).toHaveLength(1);
+    });
   });
 });

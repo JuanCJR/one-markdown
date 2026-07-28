@@ -6,11 +6,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { routes } from './routes';
 import { useAuthStore } from '../features/auth/auth.store';
+import { useWorkspaceStore } from '../features/workspace/workspace.store';
 import { useUiStore } from '../shared/store/ui.store';
-import { noContentResponse, stubApi } from '../test/api-stub';
+import { jsonResponse, noContentResponse, stubApi, type StubHandler } from '../test/api-stub';
 import { authUser } from '../test/auth-fixtures';
+import { workspaceTree } from '../test/workspace-fixtures';
 
 type TestRouter = ReturnType<typeof createMemoryRouter>;
+
+/**
+ * Desde la spec 002 la barra lateral monta el árbol, que pide su contenido al montarse: sin esta
+ * ruta cualquier test del shell provocaría una llamada de red no simulada.
+ */
+function workspaceRoutes(): Record<string, StubHandler> {
+  return { 'GET /api/workspace/tree': () => jsonResponse(workspaceTree()) };
+}
 
 function renderAt(path: string): TestRouter {
   const router = createMemoryRouter(routes, { initialEntries: [path] });
@@ -22,12 +32,24 @@ function renderAt(path: string): TestRouter {
 describe('AppShell (AC-9)', () => {
   beforeEach(() => {
     useUiStore.setState({ sidebarCollapsed: false });
+    useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
+    stubApi(workspaceRoutes());
     // El shell vive detrás de `RequireAuth` desde la spec 001.
     useAuthStore.setState({
       status: 'authenticated',
       user: authUser(),
       accessToken: 'access-token-1',
     });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('monta el árbol de documentos en la barra lateral', async () => {
+    renderAt('/');
+
+    expect(await screen.findByRole('tree', { name: /documentos/i })).toBeInTheDocument();
   });
 
   it('renderiza los landmarks de navegación y contenido principal', () => {
@@ -59,6 +81,7 @@ describe('AppShell (AC-9)', () => {
 describe('AppShell — sesión (AC-22)', () => {
   beforeEach(() => {
     useUiStore.setState({ sidebarCollapsed: false });
+    useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
     useAuthStore.setState({
       status: 'authenticated',
       user: authUser(),
@@ -73,7 +96,7 @@ describe('AppShell — sesión (AC-22)', () => {
   });
 
   it('lleva a la configuración de seguridad de la cuenta', () => {
-    stubApi({});
+    stubApi(workspaceRoutes());
     renderAt('/');
 
     expect(screen.getByRole('link', { name: /seguridad/i })).toHaveAttribute(
@@ -83,14 +106,17 @@ describe('AppShell — sesión (AC-22)', () => {
   });
 
   it('identifica la cuenta con la que se entró', () => {
-    stubApi({});
+    stubApi(workspaceRoutes());
     renderAt('/');
 
     expect(screen.getByText('ada@example.test')).toBeInTheDocument();
   });
 
   it('permite cerrar sesión y vuelve a /login', async () => {
-    const api = stubApi({ 'POST /api/auth/logout': () => noContentResponse() });
+    const api = stubApi({
+      ...workspaceRoutes(),
+      'POST /api/auth/logout': () => noContentResponse(),
+    });
     const router = renderAt('/');
 
     await userEvent.click(screen.getByRole('button', { name: /cerrar sesión/i }));

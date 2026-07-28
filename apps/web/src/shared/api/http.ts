@@ -2,16 +2,24 @@ import {
   isApiErrorShape,
   isAuthSession,
   isAuthUser,
+  isDirectoryNode,
+  isDocumentSummary,
   isHealth,
   isLoginResult,
+  isMarkdownDocument,
   isMfaRecoveryCodes,
   isMfaSetup,
+  isWorkspaceTree,
   type AuthSession,
   type AuthUser,
+  type DirectoryNode,
+  type DocumentSummary,
   type Health,
   type LoginResult,
+  type MarkdownDocument,
   type MfaRecoveryCodes,
   type MfaSetup,
+  type WorkspaceTree,
 } from '@one-markdown/shared';
 
 /** Todas las llamadas van al mismo origen: en dev lo resuelve el proxy de Vite. */
@@ -30,17 +38,26 @@ export class ApiError extends Error {
    * "algo falló".
    */
   readonly retryAfterSeconds: number | null;
+  /**
+   * Código estable del error de dominio (`DIRECTORY_NAME_TAKEN`, `MOVE_INTO_DESCENDANT`, …), o
+   * `null` si el error no trae ninguno. Es deliberadamente `string` y no una unión cerrada: la UI
+   * compara con los códigos que conoce y cae al mensaje genérico con el resto, así que un código
+   * nuevo del backend no rompe el cliente (decisión 13 del plan de la spec 002).
+   */
+  readonly code: string | null;
 
   constructor(params: {
     statusCode: number;
     messages: string[];
     retryAfterSeconds?: number | null;
+    code?: string | null;
   }) {
     super(params.messages.join(' · '));
     this.name = 'ApiError';
     this.statusCode = params.statusCode;
     this.messages = params.messages;
     this.retryAfterSeconds = params.retryAfterSeconds ?? null;
+    this.code = params.code ?? null;
   }
 }
 
@@ -72,7 +89,7 @@ export function configureAuthBridge(bridge: AuthBridge): void {
 }
 
 interface JsonRequest {
-  readonly method: 'GET' | 'POST';
+  readonly method: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   /** Cuerpo a serializar como JSON. Ausente = petición sin cuerpo (y sin `Content-Type`). */
   readonly body?: unknown;
 }
@@ -124,6 +141,7 @@ function errorFrom(response: Response, body: unknown): ApiError {
       statusCode: body.statusCode,
       messages: Array.isArray(body.message) ? body.message : [body.message],
       retryAfterSeconds: body.retryAfterSeconds ?? null,
+      code: body.code ?? null,
     });
   }
 
@@ -141,6 +159,18 @@ async function toJson(response: Response): Promise<unknown> {
   }
 
   return body;
+}
+
+/**
+ * Camino para las respuestas **sin cuerpo** (`204` de los borrados y del logout): comprueba el
+ * estado y no toca el cuerpo. Parsearlo daría `undefined` y cualquier validación posterior lo
+ * tomaría por una respuesta que incumple el contrato; el cuerpo de un error sí se lee, porque ahí
+ * el `ErrorResponseDto` es justo lo que hay que traducir.
+ */
+async function toNothing(response: Response): Promise<void> {
+  if (!response.ok) {
+    throw errorFrom(response, await readJson(response));
+  }
 }
 
 function expectShape<T>(
@@ -176,21 +206,37 @@ interface AuthorizedOptions {
 /**
  * Petición con `Authorization: Bearer`. Ante un `401` hace **un** refresh y **un** reintento
  * (AC-24). Si el refresh falla, propaga el error: el aviso de sesión perdida ya lo dio el refresh.
+ *
+ * Devuelve la `Response` sin interpretarla, porque quien decide si hay cuerpo que leer es la
+ * función de contrato: el reintento es idéntico para un `GET` con JSON y para un `DELETE` con `204`.
  */
-async function authorizedJson(
+async function authorizedResponse(
   path: string,
   request: JsonRequest,
   options: AuthorizedOptions = { refreshOn401: true },
-): Promise<unknown> {
+): Promise<Response> {
   const first = await sendRequest(path, buildInit(request, authBridge.getAccessToken()));
 
   if (first.status !== 401 || !options.refreshOn401) {
-    return toJson(first);
+    return first;
   }
 
   await refreshSession();
 
-  return toJson(await sendRequest(path, buildInit(request, authBridge.getAccessToken())));
+  return sendRequest(path, buildInit(request, authBridge.getAccessToken()));
+}
+
+async function authorizedJson(
+  path: string,
+  request: JsonRequest,
+  options?: AuthorizedOptions,
+): Promise<unknown> {
+  return toJson(await authorizedResponse(path, request, options));
+}
+
+/** Igual que `authorizedJson`, para los endpoints cuyo éxito es un `204` sin cuerpo. */
+async function authorizedNoContent(path: string, request: JsonRequest): Promise<void> {
+  return toNothing(await authorizedResponse(path, request));
 }
 
 let refreshInFlight: Promise<AuthSession> | null = null;
@@ -271,11 +317,7 @@ export async function verifyMfa(input: MfaVerifyInput): Promise<AuthSession> {
 }
 
 export async function logout(): Promise<void> {
-  const response = await sendRequest('/auth/logout', buildInit({ method: 'POST' }, null));
-
-  if (!response.ok) {
-    throw errorFrom(response, await readJson(response));
-  }
+  return toNothing(await sendRequest('/auth/logout', buildInit({ method: 'POST' }, null)));
 }
 
 export async function getMe(): Promise<AuthUser> {
@@ -320,4 +362,114 @@ export async function mfaDisable(input: MfaDisableInput): Promise<AuthUser> {
 
 export async function getHealth(): Promise<Health> {
   return expectShape(await publicJson('/health', { method: 'GET' }), isHealth, '/api/health');
+}
+
+// ---------------------------------------------------------------------------------------------
+// Workspace (specs/002-workspace-tree/plan.md §4 y §7): diez rutas, todas con bearer.
+// ---------------------------------------------------------------------------------------------
+
+export interface CreateDirectoryInput {
+  readonly name: string;
+  /** `null` explícito para la raíz; nunca ausente (decisión 11 del plan). */
+  readonly parentId: string | null;
+}
+
+export interface CreateDocumentInput {
+  readonly title: string;
+  readonly directoryId: string | null;
+  /** Ausente = documento en blanco; el backend lo guarda como cadena vacía. */
+  readonly content?: string;
+}
+
+function directoryPath(id: string): string {
+  return `/workspace/directories/${encodeURIComponent(id)}`;
+}
+
+function documentPath(id: string): string {
+  return `/workspace/documents/${encodeURIComponent(id)}`;
+}
+
+export async function getWorkspaceTree(): Promise<WorkspaceTree> {
+  return expectShape(
+    await authorizedJson('/workspace/tree', { method: 'GET' }),
+    isWorkspaceTree,
+    '/api/workspace/tree',
+  );
+}
+
+export async function createDirectory(input: CreateDirectoryInput): Promise<DirectoryNode> {
+  return expectShape(
+    await authorizedJson('/workspace/directories', { method: 'POST', body: input }),
+    isDirectoryNode,
+    '/api/workspace/directories',
+  );
+}
+
+export async function renameDirectory(id: string, name: string): Promise<DirectoryNode> {
+  return expectShape(
+    await authorizedJson(directoryPath(id), { method: 'PATCH', body: { name } }),
+    isDirectoryNode,
+    'PATCH /api/workspace/directories/:id',
+  );
+}
+
+export async function moveDirectory(id: string, parentId: string | null): Promise<DirectoryNode> {
+  return expectShape(
+    await authorizedJson(`${directoryPath(id)}/move`, { method: 'POST', body: { parentId } }),
+    isDirectoryNode,
+    'POST /api/workspace/directories/:id/move',
+  );
+}
+
+export async function deleteDirectory(id: string, recursive: boolean): Promise<void> {
+  // `recursive` viaja siempre explícito: el backend acepta solo 'true' y 'false', y mandarlo
+  // siempre hace que el borrado no recursivo sea visible en la petición en vez de implícito.
+  return authorizedNoContent(`${directoryPath(id)}?recursive=${recursive ? 'true' : 'false'}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function createDocument(input: CreateDocumentInput): Promise<MarkdownDocument> {
+  const body = {
+    title: input.title,
+    directoryId: input.directoryId,
+    ...(input.content === undefined ? {} : { content: input.content }),
+  };
+
+  return expectShape(
+    await authorizedJson('/workspace/documents', { method: 'POST', body }),
+    isMarkdownDocument,
+    '/api/workspace/documents',
+  );
+}
+
+export async function getDocument(id: string): Promise<MarkdownDocument> {
+  return expectShape(
+    await authorizedJson(documentPath(id), { method: 'GET' }),
+    isMarkdownDocument,
+    'GET /api/workspace/documents/:id',
+  );
+}
+
+export async function renameDocument(id: string, title: string): Promise<DocumentSummary> {
+  return expectShape(
+    await authorizedJson(documentPath(id), { method: 'PATCH', body: { title } }),
+    isDocumentSummary,
+    'PATCH /api/workspace/documents/:id',
+  );
+}
+
+export async function moveDocument(
+  id: string,
+  directoryId: string | null,
+): Promise<DocumentSummary> {
+  return expectShape(
+    await authorizedJson(`${documentPath(id)}/move`, { method: 'POST', body: { directoryId } }),
+    isDocumentSummary,
+    'POST /api/workspace/documents/:id/move',
+  );
+}
+
+export async function deleteDocument(id: string): Promise<void> {
+  return authorizedNoContent(documentPath(id), { method: 'DELETE' });
 }

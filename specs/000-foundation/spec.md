@@ -1,6 +1,14 @@
 # Spec 000 — Foundation: monorepo, tooling, contratos base y CI
 
-- **Versión**: 0.1.3
+- **Versión**: 0.1.7 — la v0.1.7 **cierra la revisión que la v0.1.4 dejó apuntada** sobre el CJS de
+  `packages/shared`: la spec `002` amplió el contrato compartido y la mitigación de entonces
+  (`optimizeDeps.include`) resultó **insuficiente**, porque la caché de dependencias de Vite no mira el
+  contenido de un paquete enlazado del workspace. `apps/web/vite.config.ts` pasa a
+  `optimizeDeps: { include: [...], force: true }` y `playwright.config.ts` vuelve a `pnpm dev` sin
+  `--force`; lo trae `T-026` de la spec `002` (**AC-34**). La v0.1.5 amplió AC-5 (`AllExceptionsFilter`
+  traduce los errores de `http-errors` con `status` `4xx`) y la v0.1.6 la **cerró**: `T-024` de la spec
+  `002` implementada y verificada, AC-33 en verde, con la regla de detección y el nuevo criterio de
+  registro escritos. Ver `CHANGELOG.md`
 - **Estado**: implemented — **los 14 AC verificados** (2026-07-25). AC-1 se corrigió tras el primer run
   real del CI (ver `CHANGELOG.md` v0.1.2), y AC-14 quedó cerrado con sus dos mitades: run `30140383389`
   en **verde** en Node 22 y 24, y dos runs en **rojo** por fallos reales (`30139345799` y `30143727278`)
@@ -121,7 +129,7 @@ Todo AC debe ser verificable por un test automatizado o por un comando con salid
 | AC-2 | `apps/api/test/health.e2e-spec.ts` | T-005 |
 | AC-3 | `apps/api/test/health.e2e-spec.ts` (readiness ok) | T-006 |
 | AC-4 | `apps/api/src/health/health.service.spec.ts` (dependencia caída) | T-006 |
-| AC-5 | `apps/api/test/validation.e2e-spec.ts` | T-007 |
+| AC-5 | `apps/api/test/validation.e2e-spec.ts` · ampliación v0.1.5/v0.1.6: `apps/api/src/common/filters/all-exceptions.filter.spec.ts` + `apps/api/test/body-limit.e2e-spec.ts` | T-007 · `T-024` de la spec `002` (AC-33) |
 | AC-6 | `apps/api/src/config/env.validation.spec.ts` | T-004 |
 | AC-7 | `apps/api/test/swagger.e2e-spec.ts` | T-008 |
 | AC-8 | `docker compose up -d` + `pg_isready` / `redis-cli PING` | T-002 |

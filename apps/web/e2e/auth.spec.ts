@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 
+import { resetLoginThrottleCounter, resetRegisterThrottleCounter } from './support/services';
 import { E2E_PASSWORD, uniqueE2eEmail } from './support/session';
 
 /**
@@ -18,6 +19,17 @@ const ANONYMOUS_REFRESH_PROBE = /status of 401 \(Unauthorized\)/;
  * casos independientes exigiría una cuenta nueva por caso y perdería justo esa continuidad.
  */
 test.describe('Flujo de autenticación en el navegador (AC-25)', () => {
+  /**
+   * Este caso estrena cuenta **y** vuelve a entrar en cada intento, reintentos incluidos, así que
+   * arranca con los dos cupos a cero: sin esto, el reintento de CI moriría con un `429` —de altas o
+   * de entradas— que no dice nada del flujo que se mide (AC-35). Lo que se pierde y por qué se
+   * acepta está escrito en `support/services.ts`.
+   */
+  test.beforeEach(async () => {
+    await resetRegisterThrottleCounter();
+    await resetLoginThrottleCounter();
+  });
+
   test('registro, ruta protegida, cierre de sesión, vuelta a entrar y recarga', async ({
     page,
   }) => {

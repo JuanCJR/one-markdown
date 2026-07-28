@@ -127,6 +127,52 @@ async function resetThrottleCounters(): Promise<void> {
   console.warn(`[e2e] contadores de rate limit borrados: ${removed}`);
 }
 
+/**
+ * Pone a cero el contador por IP de **un** throttler antes de un caso que va a gastarlo (AC-35).
+ *
+ * Por qué hace falta, con las cifras medidas: `register` admite **5 altas por IP cada 15 min** y
+ * `login` **10 entradas por minuto**. Una ejecución limpia de esta suite gastaba **exactamente 5**
+ * altas, así que con `retries: 2` —la configuración de CI— el primer reintento pedía la sexta y
+ * recibía un `429`. Y con la suite entera agotando reintentos, las entradas se van igual de arriba:
+ * cada caso del smoke abre la suya (3 casos × 3 intentos = 9) y el flujo de auth vuelve a entrar en
+ * cada intento (3 más) — 12 contra un cupo de 10. En los dos casos el rojo no tiene nada que ver
+ * con lo que la suite mide y aparece justo cuando algo ya había ido mal. Con el contador a cero por
+ * caso, el número de reintentos deja de decidir si la suite pasa.
+ *
+ * **Lo que esto cuesta, escrito aquí a propósito**: al neutralizar esos contadores, la suite de
+ * navegador **deja de poder detectar** los límites de alta y de entrada. Se acepta porque quien los
+ * verifica es `apps/api/test/auth-throttle.e2e-spec.ts` (AC-20 de la spec 001), que tiene un caso
+ * por cada uno: es su sitio, porque un límite **por IP** se prueba contra el API, no a través de un
+ * navegador.
+ *
+ * **No lleves este reset a la suite del API.** Es el atajo obvio el día que aquella suite moleste,
+ * y allí destruiría la única prueba de que los límites existen.
+ *
+ * Solo `register` y `login`: los contadores de `mfa`, `refresh` y `workspace` se quedan intactos, y
+ * la suite los sigue gastando de verdad.
+ */
+async function resetThrottleCounter(name: 'register' | 'login'): Promise<void> {
+  try {
+    await redisCommand(['EVAL', DELETE_BY_PATTERN, '0', `throttle:${name}:*`]);
+  } catch (cause) {
+    // Aquí no vale el «best-effort» de `resetDevServices`: sin el reset, el caso que viene detrás
+    // puede morir con un `429` que parece un fallo de la interfaz. Mejor fallar diciendo la verdad.
+    throw new Error(`No se pudo poner a cero el cupo de ${name} en Redis: ${describe(cause)}`, {
+      cause,
+    });
+  }
+}
+
+/** Cupo de altas (`register`: 5 por IP cada 15 min). Ver `resetThrottleCounter`. */
+export async function resetRegisterThrottleCounter(): Promise<void> {
+  await resetThrottleCounter('register');
+}
+
+/** Cupo de entradas (`login`: 10 por IP cada minuto). Ver `resetThrottleCounter`. */
+export async function resetLoginThrottleCounter(): Promise<void> {
+  await resetThrottleCounter('login');
+}
+
 interface E2eAccount {
   readonly id: string;
   readonly email: string;

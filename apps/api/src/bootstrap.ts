@@ -1,5 +1,6 @@
 import { type INestApplication, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 
@@ -9,6 +10,21 @@ import { ErrorResponseDto } from './common/dto/error.response.dto';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import type { AppConfig } from './config/env.validation';
 import { getAppVersion } from './common/app-version';
+import { JSON_BODY_LIMIT } from './workspace/workspace.constants';
+
+/**
+ * `useBodyParser` lo declara `NestExpressApplication`, no la interfaz genérica.
+ *
+ * Se comprueba en tiempo de ejecución en lugar de cambiar la firma de `configureApp` a
+ * `NestExpressApplication`: eso obligaría a que los seis sitios que la llaman (incluidos cinco
+ * archivos e2e) creasen la app con el genérico, y el tipo no aporta nada que este `in` no dé. El
+ * `in` narrowing evita cualquier `as`, así que la comprobación es real y no un casteo con adorno.
+ */
+type BodyParserCapableApplication = INestApplication & Pick<NestExpressApplication, 'useBodyParser'>;
+
+function isBodyParserCapable(app: INestApplication): app is BodyParserCapableApplication {
+  return 'useBodyParser' in app && typeof app.useBodyParser === 'function';
+}
 
 /**
  * Configuración compartida por `main.ts` y por los e2e.
@@ -18,6 +34,25 @@ export function configureApp(app: INestApplication): void {
   const config = app.get(ConfigService<AppConfig, true>);
 
   app.setGlobalPrefix('api');
+
+  // El límite por defecto de Express son 100 kB, muy por debajo de un documento markdown válido de
+  // 200.000 caracteres: sin esto, el cuerpo se rechaza por tamaño **antes** de que el DTO lo valide
+  // y el cliente recibe un error de transporte donde el contrato promete un `201`.
+  //
+  // `useBodyParser` y **no** `app.use(json({ limit }))`: el body parser interno de Nest ya está
+  // registrado en este punto, así que un middleware añadido después no lo sustituye —el primero que
+  // consume el stream gana— y el límite viejo seguiría mandando. `useBodyParser` reemplaza el
+  // parser, que es justo lo que hace falta.
+  if (!isBodyParserCapable(app)) {
+    // Fallo ruidoso al arrancar y no un `if` silencioso: si algún día la app deja de ser Express,
+    // el límite dejaría de aplicarse sin que ningún test lo notara hasta que un documento grande
+    // fallara en producción.
+    throw new Error(
+      'configureApp requiere una aplicación Express: sin `useBodyParser` no se puede fijar el límite de cuerpo JSON.',
+    );
+  }
+
+  app.useBodyParser('json', { limit: JSON_BODY_LIMIT });
 
   // El refresh token viaja en una cookie `HttpOnly`: sin este middleware `request.cookies` no existe
   // y el endpoint de refresh no tendría de dónde leer la credencial.

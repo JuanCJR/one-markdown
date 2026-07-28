@@ -36,6 +36,10 @@ export default defineConfig({
       timeout: 180_000,
     },
     {
+      // `pnpm dev` a secas, sin `--force`. Aquí hubo un `--force` mientras el defecto de la caché
+      // de `optimizeDeps` seguía vivo; se retira a propósito (AC-34): quien fuerza la
+      // reoptimización es ahora `vite.config.ts`, que es donde el arreglo alcanza también a quien
+      // desarrolla. Una suite que compensa un defecto del producto deja de poder verlo.
       command: 'pnpm dev',
       url: E2E_WEB_ORIGIN,
       // El dev server tiene que ser el nuestro: uno reutilizado de `pnpm dev` proxearía al API de

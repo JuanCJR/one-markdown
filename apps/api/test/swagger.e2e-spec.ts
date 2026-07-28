@@ -1,6 +1,6 @@
 import './fixtures/env-development';
 
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import type { INestApplication } from '@nestjs/common';
@@ -11,10 +11,18 @@ import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/bootstrap';
 
 /** Lo que estos casos necesitan del documento OpenAPI, tipado en vez de leído a ciegas. */
+interface OpenApiParameter {
+  readonly name?: string;
+  readonly in?: string;
+  readonly required?: boolean;
+  readonly schema?: { readonly type?: string };
+}
+
 interface OpenApiOperation {
   readonly operationId?: string;
   readonly security?: ReadonlyArray<Record<string, readonly string[]>>;
   readonly responses?: Record<string, unknown>;
+  readonly parameters?: readonly OpenApiParameter[];
 }
 
 interface OpenApiSecurityScheme {
@@ -82,6 +90,91 @@ function prismaModelNames(): string[] {
 
   return [...schema.matchAll(/^model\s+(\w+)\s*\{/gm)].map(([, name]) => String(name));
 }
+
+/**
+ * Las diez rutas de `/api/workspace/*` de `plan.md` §4, con su método y su `operationId`.
+ *
+ * El `operationId` va aquí y no se comprueba solo «que exista»: es el nombre de la función en el
+ * cliente generado, así que cambiarlo es un cambio incompatible que el frontend nota en compilación.
+ */
+const WORKSPACE_ROUTES: ReadonlyArray<readonly [string, string, string]> = [
+  ['/api/workspace/tree', 'get', 'getWorkspaceTree'],
+  ['/api/workspace/directories', 'post', 'createDirectory'],
+  ['/api/workspace/directories/{id}', 'patch', 'renameDirectory'],
+  ['/api/workspace/directories/{id}', 'delete', 'deleteDirectory'],
+  ['/api/workspace/directories/{id}/move', 'post', 'moveDirectory'],
+  ['/api/workspace/documents', 'post', 'createDocument'],
+  ['/api/workspace/documents/{id}', 'get', 'getDocument'],
+  ['/api/workspace/documents/{id}', 'patch', 'renameDocument'],
+  ['/api/workspace/documents/{id}', 'delete', 'deleteDocument'],
+  ['/api/workspace/documents/{id}/move', 'post', 'moveDocument'],
+];
+
+/** La única ruta de workspace que no resuelve ningún id de recurso (`plan.md` §4). */
+const WORKSPACE_TREE_PATH = '/api/workspace/tree';
+
+/**
+ * Las **nueve** rutas que sí pueden emitir un `404`, derivadas por filtro de `WORKSPACE_ROUTES` y
+ * **no** escritas aparte: una segunda lista a mano se desincroniza en cuanto se añada una ruta.
+ *
+ * El criterio es «resuelve algún id de recurso», que es lo que `plan.md` §4 enumera ruta por ruta:
+ * siete lo toman de la plantilla de ruta (`{id}` → `DIRECTORY_NOT_FOUND` / `DOCUMENT_NOT_FOUND`) y los
+ * dos `POST` de creación lo toman del cuerpo (`parentId` / `directoryId` → `PARENT_NOT_FOUND`, §4
+ * líneas 197 y 249). Por eso el filtro **no** puede ser `{id}` en la ruta: eso daría siete, no nueve.
+ * `/tree` es la única sin ninguna de las dos formas, así que el complemento es exactamente ella.
+ */
+const WORKSPACE_NOT_FOUND_ROUTES = WORKSPACE_ROUTES.filter(
+  ([path]) => path !== WORKSPACE_TREE_PATH,
+);
+
+/** El complemento: la única ruta sin `404`. Anclarlo impide que el filtro de arriba se vacíe. */
+const WORKSPACE_ROUTES_SIN_NOT_FOUND = WORKSPACE_ROUTES.filter(
+  ([path]) => path === WORKSPACE_TREE_PATH,
+);
+
+/** Los cuatro DTO de salida del módulo (`plan.md` §4). */
+const WORKSPACE_RESPONSE_SCHEMAS: readonly string[] = [
+  'WorkspaceTreeResponseDto',
+  'WorkspaceDirectoryResponseDto',
+  'WorkspaceDocumentSummaryResponseDto',
+  'WorkspaceDocumentResponseDto',
+];
+
+/** Los siete DTO de entrada del módulo: seis cuerpos y una *query string*. */
+const WORKSPACE_REQUEST_SCHEMAS: readonly string[] = [
+  'CreateDirectoryRequestDto',
+  'RenameDirectoryRequestDto',
+  'MoveDirectoryRequestDto',
+  'DeleteDirectoryQueryDto',
+  'CreateDocumentRequestDto',
+  'RenameDocumentRequestDto',
+  'MoveDocumentRequestDto',
+];
+
+/**
+ * Los DTO de entrada que existen **de verdad** en `src/workspace/dto`, derivados del nombre de cada
+ * archivo (`create-directory.request.dto.ts` → `CreateDirectoryRequestDto`).
+ *
+ * Sirve para que la cifra «siete» no sea un número escrito a mano en el test: si mañana aparece un
+ * octavo DTO de entrada y nadie lo documenta, la lista de disco deja de coincidir con la esperada.
+ */
+function workspaceRequestDtoNamesOnDisk(): string[] {
+  const dir = join(__dirname, '..', 'src', 'workspace', 'dto');
+
+  return readdirSync(dir)
+    .filter((file) => file.endsWith('.request.dto.ts') || file.endsWith('.query.dto.ts'))
+    .map((file) =>
+      file
+        .replace(/\.ts$/, '')
+        .split(/[.-]/)
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(''),
+    )
+    .sort();
+}
+
+/** Campos internos del esquema que **nunca** pueden aparecer en el contrato público (AC-26). */
+const CAMPOS_INTERNOS: readonly string[] = ['nameKey', 'titleKey', 'parentScopeId', 'userId'];
 
 describe('Swagger fuera de producción (e2e) — AC-7, AC-21', () => {
   let app: INestApplication;
@@ -226,6 +319,167 @@ describe('Swagger fuera de producción (e2e) — AC-7, AC-21', () => {
 
       expect(serializado).not.toContain('passwordHash');
       expect(serializado).not.toContain('mfaSecret');
+    });
+  });
+
+  describe('AC-26: las diez rutas de workspace', () => {
+    // Ancla: si mañana alguien borra una fila de la tabla, los `it.each` de abajo seguirían en verde
+    // recorriendo menos casos. Esta cuenta es la que impide que la cobertura se encoja en silencio.
+    it('la tabla de rutas cubre las diez de plan.md §4, sin repetir método', () => {
+      expect(WORKSPACE_ROUTES).toHaveLength(10);
+      expect(new Set(WORKSPACE_ROUTES.map(([path, method]) => `${method} ${path}`)).size).toBe(10);
+    });
+
+    it.each(WORKSPACE_ROUTES)(
+      'documenta %s (%s) con operationId %s',
+      (path, method, operationId) => {
+        expect(document.paths[path]).toBeDefined();
+        expect(document.paths[path]?.[method]).toBeDefined();
+        expect(document.paths[path]?.[method]?.operationId).toBe(operationId);
+      },
+    );
+
+    it('no documenta ninguna ruta de workspace de más', () => {
+      const documentadas = Object.keys(document.paths).filter((path) =>
+        path.startsWith('/api/workspace'),
+      );
+
+      expect(documentadas.sort()).toEqual(
+        [...new Set(WORKSPACE_ROUTES.map(([path]) => path))].sort(),
+      );
+    });
+
+    it('no documenta ningún método de workspace de más', () => {
+      const operaciones = Object.entries(document.paths)
+        .filter(([path]) => path.startsWith('/api/workspace'))
+        .flatMap(([path, methods]) => Object.keys(methods).map((method) => `${method} ${path}`));
+
+      expect(operaciones.sort()).toEqual(
+        WORKSPACE_ROUTES.map(([path, method]) => `${method} ${path}`).sort(),
+      );
+    });
+  });
+
+  describe('AC-26: credenciales y errores de workspace', () => {
+    it.each(WORKSPACE_ROUTES)('%s (%s) declara security con bearer', (path, method) => {
+      const security = document.paths[path]?.[method]?.security ?? [];
+
+      expect(security.length).toBeGreaterThan(0);
+      expect(security.some((requisito) => BEARER_SCHEME in requisito)).toBe(true);
+    });
+
+    // Ancla de la partición (v0.2.2): nueve rutas con `404` + una sin él = las diez. Sin estas dos
+    // cuentas, un filtro que se quedara vacío dejaría los `it.each` de `404` sin recorrer nada.
+    it('la partición de 404 es nueve rutas con y una sin, y la que no lo tiene es /tree', () => {
+      expect(WORKSPACE_NOT_FOUND_ROUTES).toHaveLength(9);
+      expect(WORKSPACE_ROUTES_SIN_NOT_FOUND).toHaveLength(1);
+      expect(WORKSPACE_ROUTES_SIN_NOT_FOUND[0]).toEqual([
+        WORKSPACE_TREE_PATH,
+        'get',
+        expect.any(String),
+      ]);
+    });
+
+    // `401` y `429` sí van en las diez: cualquier ruta del tag puede quedarse sin token o topar con
+    // el rate limit. El `404`, en cambio, se exige aparte porque `/tree` no puede emitirlo (AC-26).
+    it.each(WORKSPACE_ROUTES)('%s (%s) documenta 401 y 429', (path, method) => {
+      const responses = document.paths[path]?.[method]?.responses ?? {};
+
+      expect(Object.keys(responses)).toEqual(expect.arrayContaining(['401', '429']));
+    });
+
+    it.each(WORKSPACE_NOT_FOUND_ROUTES)('%s (%s) documenta 404', (path, method) => {
+      const responses = document.paths[path]?.[method]?.responses ?? {};
+
+      expect(Object.keys(responses)).toEqual(expect.arrayContaining(['404']));
+    });
+
+    it.each(WORKSPACE_ROUTES)('%s (%s) apunta a ErrorResponseDto en 401 y 429', (path, method) => {
+      const responses = document.paths[path]?.[method]?.responses ?? {};
+
+      for (const code of ['401', '429']) {
+        expect(JSON.stringify(responses[code])).toContain('ErrorResponseDto');
+      }
+    });
+
+    it.each(WORKSPACE_NOT_FOUND_ROUTES)(
+      '%s (%s) apunta a ErrorResponseDto en 404',
+      (path, method) => {
+        const responses = document.paths[path]?.[method]?.responses ?? {};
+
+        expect(JSON.stringify(responses['404'])).toContain('ErrorResponseDto');
+      },
+    );
+
+    // Caso en negativo (v0.2.2). Está anclado a propósito: «no tiene la clave 404» es cierto por
+    // vacío si la operación no existe o si el path está mal escrito, así que primero se afirma que la
+    // operación está ahí y que sí declara `401` y `429`. Solo entonces la ausencia del `404` significa
+    // algo. Es lo que impide que la declaración vuelva a colarse por «uniformidad del tag».
+    it('GET /api/workspace/tree no declara 404, y no por estar vacío', () => {
+      const operacion = document.paths[WORKSPACE_TREE_PATH]?.get;
+
+      expect(operacion).toBeDefined();
+      expect(operacion?.operationId).toBe('getWorkspaceTree');
+
+      const responses = operacion?.responses ?? {};
+
+      expect(Object.keys(responses)).toEqual(expect.arrayContaining(['200', '401', '429']));
+      expect(Object.keys(responses)).not.toContain('404');
+      expect(responses['404']).toBeUndefined();
+    });
+
+    it('el DELETE de directorios documenta el query param recursive como booleano opcional', () => {
+      const parametros =
+        document.paths['/api/workspace/directories/{id}']?.delete?.parameters ?? [];
+      const recursive = parametros.find((parametro) => parametro.name === 'recursive');
+
+      expect(recursive).toBeDefined();
+      expect(recursive?.in).toBe('query');
+      expect(recursive?.required).toBe(false);
+      expect(recursive?.schema?.type).toBe('boolean');
+    });
+  });
+
+  describe('AC-26: schemas de los DTO de workspace', () => {
+    it.each(WORKSPACE_RESPONSE_SCHEMAS)('expone el schema de salida %s', (name) => {
+      expect(document.components?.schemas?.[name]).toBeDefined();
+    });
+
+    it('los DTO de entrada esperados son exactamente los siete que hay en src/workspace/dto', () => {
+      expect(WORKSPACE_REQUEST_SCHEMAS).toHaveLength(7);
+      expect([...WORKSPACE_REQUEST_SCHEMAS].sort()).toEqual(workspaceRequestDtoNamesOnDisk());
+    });
+
+    it.each(WORKSPACE_REQUEST_SCHEMAS)('expone el schema de entrada %s', (name) => {
+      expect(document.components?.schemas?.[name]).toBeDefined();
+    });
+  });
+
+  describe('AC-26: el contrato de workspace no filtra el esquema', () => {
+    // La red de «ningún schema se llama como un modelo de Prisma» solo sirve si la lista que sale
+    // del esquema real está poblada: un `schema.prisma` que la regex no supiera leer dejaría el
+    // filtro recorriendo un array vacío y el test pasaría sin comprobar nada.
+    it('la lista de modelos del schema.prisma real trae los cuatro modelos actuales', () => {
+      expect(prismaModelNames().sort()).toEqual([
+        'Directory',
+        'Document',
+        'MfaRecoveryCode',
+        'User',
+      ]);
+    });
+
+    // Y el caso concreto que motivó el prefijo `Workspace` en todos los DTO (riesgo #10 del plan):
+    // `Directory` y `Document` son nombres de modelo, así que ningún schema puede llamarse así.
+    it('ningún schema del documento se llama Directory ni Document', () => {
+      const schemas = Object.keys(document.components?.schemas ?? {});
+
+      expect(schemas.length).toBeGreaterThan(0);
+      expect(schemas).not.toContain('Directory');
+      expect(schemas).not.toContain('Document');
+    });
+
+    it.each(CAMPOS_INTERNOS)('el documento no menciona %s en ninguna parte', (campo) => {
+      expect(JSON.stringify(document)).not.toContain(campo);
     });
   });
 });

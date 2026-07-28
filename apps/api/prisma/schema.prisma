@@ -28,6 +28,8 @@ model User {
   updatedAt DateTime @updatedAt
 
   recoveryCodes MfaRecoveryCode[]
+  directories   Directory[]
+  documents     Document[]
 
   @@map("users")
 }
@@ -47,4 +49,72 @@ model MfaRecoveryCode {
 
   @@index([userId])
   @@map("mfa_recovery_codes")
+}
+
+// Modelos de la spec 002-workspace-tree (ver specs/002-workspace-tree/plan.md §5).
+
+model Directory {
+  id String @id @default(uuid()) @db.Uuid
+
+  userId   String  @db.Uuid
+  parentId String? @db.Uuid
+
+  /// Derivado y **no nulo**: `parentId ?? userId`. Existe solo para que la unicidad de nombres entre
+  /// hermanos la pueda garantizar un índice: con `parentId` nulo (raíz) PostgreSQL considera los NULL
+  /// distintos entre sí y `@@unique([userId, parentId, nameKey])` no impediría dos raíces homónimas.
+  /// Lo calcula un único helper del repositorio, y un test recorre las filas para comprobarlo.
+  parentScopeId String @db.Uuid
+
+  /// Nombre visible, con la caja que eligió el usuario (normalizado NFC + trim + espacios colapsados).
+  name String
+  /// `name` en minúsculas por `toLowerCase()` (nunca `toLocaleLowerCase()`, que depende del locale).
+  /// Es la clave de unicidad: la calcula Node y la base nunca la deriva.
+  nameKey String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent   Directory?  @relation("DirectoryTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children Directory[] @relation("DirectoryTree")
+
+  documents Document[]
+
+  @@unique([parentScopeId, nameKey])
+  @@index([userId, parentId])
+  /// La cascada busca hijos por `parentId`: PostgreSQL **no** indexa las claves ajenas por su cuenta,
+  /// y sin este índice un borrado recursivo hace un seq scan por nivel.
+  @@index([parentId])
+  @@map("directories")
+}
+
+model Document {
+  id String @id @default(uuid()) @db.Uuid
+
+  userId String @db.Uuid
+  /// Nulo = documento en la raíz del workspace.
+  directoryId String? @db.Uuid
+
+  /// Mismo papel que en `Directory`: `directoryId ?? userId`.
+  parentScopeId String @db.Uuid
+
+  title    String
+  titleKey String
+
+  /// Markdown en crudo. Editarlo es alcance de la spec 003; aquí solo se fija al crear.
+  content String @default("") @db.Text
+  /// Longitud en bytes UTF-8, persistida para que el listado del árbol no tenga que leer `content`
+  /// (en PostgreSQL ese texto puede vivir en TOAST y traerlo sería descargar todo el documento).
+  contentBytes Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  directory Directory? @relation(fields: [directoryId], references: [id], onDelete: Cascade)
+
+  @@unique([parentScopeId, titleKey])
+  @@index([userId, directoryId])
+  @@index([directoryId])
+  @@map("documents")
 }
