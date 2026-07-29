@@ -7,7 +7,7 @@ import { LoginPage } from '../features/auth/LoginPage';
 import { RegisterPage } from '../features/auth/RegisterPage';
 import { RequireAuth } from '../features/auth/RequireAuth';
 import { SecurityPage } from '../features/auth/SecurityPage';
-import { DocumentViewPage } from '../features/workspace/DocumentViewPage';
+import { DocumentEditorPage } from '../features/editor/DocumentEditorPage';
 
 /**
  * Se exporta el array de rutas (y no un router ya construido) para que los tests puedan montarlo
@@ -29,7 +29,7 @@ export const routes: RouteObject[] = [
         Component: AppShell,
         children: [
           { index: true, Component: WorkspaceEmptyState },
-          { path: 'documents/:id', Component: DocumentViewPage },
+          { path: 'documents/:id', Component: DocumentEditorPage },
           { path: '*', Component: NotFoundPage },
         ],
       },

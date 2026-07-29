@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
-import type { Page } from '@playwright/test';
+import type { APIResponse, Page } from '@playwright/test';
+import { isAuthSession, isLoginResult, type AuthSession } from '@one-markdown/shared';
 
 import { E2E_API_ORIGIN } from './dev-env';
 
@@ -71,6 +72,58 @@ export async function ensureSharedAccount(): Promise<void> {
   console.warn(`[e2e] cuenta compartida lista: ${SHARED_ACCOUNT_EMAIL}`);
 }
 
+/** La sesión que `signIn` deja abierta, con lo que hace falta para hablar con el API desde el caso. */
+export interface E2eSession {
+  readonly email: string;
+  /**
+   * Cabecera `Authorization` de **esta misma** sesión, lista para `page.request`.
+   *
+   * Sale del `accessToken` que devuelve el propio `login` que ya se hacía: no cuesta ni una petición
+   * más. Antes, quien necesitaba un `Bearer` desde un caso cargaba la aplicación y se lo tomaba
+   * prestado de la petición del árbol, lo que gastaba un arranque entero (`POST /auth/refresh` +
+   * `GET /workspace/tree`) por caso solo para leer una cabecera — y el cupo de `workspace` (120/min
+   * por IP) es justo el que aprieta en esta suite (AC-34 de la spec `003`).
+   *
+   * Sigue siendo la credencial de la **misma** sesión que usa la pestaña: pedir otra entrada gastaría
+   * cupo y estrenaría familia, y un `refresh` desde aquí rotaría la cookie que la pestaña está usando.
+   * Que el refresh silencioso del arranque rote esa cookie **no** invalida este token: el access token
+   * es un JWT que `jwt-access.strategy.ts` valida por firma, `typ` y existencia del usuario, sin
+   * consultar el `sid` en Redis.
+   */
+  readonly authorization: string;
+}
+
+function bearerOf(session: AuthSession): string {
+  return `${session.tokenType} ${session.accessToken}`;
+}
+
+/**
+ * La sesión de una respuesta de `login`. El cuerpo nunca se vuelca en el mensaje de error: lleva el
+ * access token dentro.
+ */
+async function sessionOfLogin(response: APIResponse, email: string): Promise<E2eSession> {
+  const body: unknown = await response.json();
+
+  if (!isLoginResult(body) || body.session === null) {
+    throw new Error(
+      'POST /api/auth/login respondió 200 sin sesión utilizable: la cuenta compartida no debería pedir segundo factor',
+    );
+  }
+
+  return { email, authorization: bearerOf(body.session) };
+}
+
+/** Ídem para `register`, que devuelve la sesión directamente (`AuthSessionResponseDto`). */
+async function sessionOfRegister(response: APIResponse, email: string): Promise<E2eSession> {
+  const body: unknown = await response.json();
+
+  if (!isAuthSession(body)) {
+    throw new Error('POST /api/auth/register respondió 2xx con un cuerpo que no es una sesión');
+  }
+
+  return { email, authorization: bearerOf(body) };
+}
+
 /**
  * Deja el contexto de la pestaña con sesión abierta en la cuenta compartida.
  *
@@ -86,12 +139,12 @@ export async function ensureSharedAccount(): Promise<void> {
  * `retries: 2` el primer reintento de CI se quedaba sin cupo. Ahora el alta solo ocurre si
  * `ensureSharedAccount` no pudo hacerla, que es el camino de reserva y no el normal.
  */
-export async function signIn(page: Page): Promise<string> {
+export async function signIn(page: Page): Promise<E2eSession> {
   const credentials = { email: SHARED_ACCOUNT_EMAIL, password: E2E_PASSWORD };
   const session = await page.request.post('/api/auth/login', { data: credentials });
 
   if (session.ok()) {
-    return credentials.email;
+    return await sessionOfLogin(session, credentials.email);
   }
 
   if (session.status() !== 401) {
@@ -105,7 +158,7 @@ export async function signIn(page: Page): Promise<string> {
   const created = await page.request.post('/api/auth/register', { data: credentials });
 
   if (created.ok()) {
-    return credentials.email;
+    return await sessionOfRegister(created, credentials.email);
   }
 
   if (created.status() !== 409) {
@@ -122,5 +175,5 @@ export async function signIn(page: Page): Promise<string> {
     );
   }
 
-  return credentials.email;
+  return await sessionOfLogin(retry, credentials.email);
 }

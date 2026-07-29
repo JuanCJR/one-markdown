@@ -33,10 +33,15 @@ interface OpenApiSecurityScheme {
   readonly name?: string;
 }
 
+/** Lo único que estos casos leen de un schema: sus propiedades declaradas. */
+interface OpenApiSchema {
+  readonly properties?: Record<string, unknown>;
+}
+
 interface OpenApiDocument {
   readonly paths: Record<string, Record<string, OpenApiOperation>>;
   readonly components?: {
-    readonly schemas?: Record<string, unknown>;
+    readonly schemas?: Record<string, OpenApiSchema>;
     readonly securitySchemes?: Record<string, OpenApiSecurityScheme>;
   };
 }
@@ -92,7 +97,8 @@ function prismaModelNames(): string[] {
 }
 
 /**
- * Las diez rutas de `/api/workspace/*` de `plan.md` §4, con su método y su `operationId`.
+ * Las once rutas de `/api/workspace/*` de `plan.md` §4 (diez de la `002` más el guardado de
+ * contenido de la `003`), con su método y su `operationId`.
  *
  * El `operationId` va aquí y no se comprueba solo «que exista»: es el nombre de la función en el
  * cliente generado, así que cambiarlo es un cambio incompatible que el frontend nota en compilación.
@@ -108,19 +114,20 @@ const WORKSPACE_ROUTES: ReadonlyArray<readonly [string, string, string]> = [
   ['/api/workspace/documents/{id}', 'patch', 'renameDocument'],
   ['/api/workspace/documents/{id}', 'delete', 'deleteDocument'],
   ['/api/workspace/documents/{id}/move', 'post', 'moveDocument'],
+  ['/api/workspace/documents/{id}/content', 'put', 'saveDocumentContent'],
 ];
 
 /** La única ruta de workspace que no resuelve ningún id de recurso (`plan.md` §4). */
 const WORKSPACE_TREE_PATH = '/api/workspace/tree';
 
 /**
- * Las **nueve** rutas que sí pueden emitir un `404`, derivadas por filtro de `WORKSPACE_ROUTES` y
+ * Las **diez** rutas que sí pueden emitir un `404`, derivadas por filtro de `WORKSPACE_ROUTES` y
  * **no** escritas aparte: una segunda lista a mano se desincroniza en cuanto se añada una ruta.
  *
  * El criterio es «resuelve algún id de recurso», que es lo que `plan.md` §4 enumera ruta por ruta:
- * siete lo toman de la plantilla de ruta (`{id}` → `DIRECTORY_NOT_FOUND` / `DOCUMENT_NOT_FOUND`) y los
+ * ocho lo toman de la plantilla de ruta (`{id}` → `DIRECTORY_NOT_FOUND` / `DOCUMENT_NOT_FOUND`) y los
  * dos `POST` de creación lo toman del cuerpo (`parentId` / `directoryId` → `PARENT_NOT_FOUND`, §4
- * líneas 197 y 249). Por eso el filtro **no** puede ser `{id}` en la ruta: eso daría siete, no nueve.
+ * líneas 197 y 249). Por eso el filtro **no** puede ser `{id}` en la ruta: eso daría ocho, no diez.
  * `/tree` es la única sin ninguna de las dos formas, así que el complemento es exactamente ella.
  */
 const WORKSPACE_NOT_FOUND_ROUTES = WORKSPACE_ROUTES.filter(
@@ -132,15 +139,16 @@ const WORKSPACE_ROUTES_SIN_NOT_FOUND = WORKSPACE_ROUTES.filter(
   ([path]) => path === WORKSPACE_TREE_PATH,
 );
 
-/** Los cuatro DTO de salida del módulo (`plan.md` §4). */
+/** Los cinco DTO de salida del módulo (`plan.md` §4, con el de la `003`). */
 const WORKSPACE_RESPONSE_SCHEMAS: readonly string[] = [
   'WorkspaceTreeResponseDto',
   'WorkspaceDirectoryResponseDto',
   'WorkspaceDocumentSummaryResponseDto',
   'WorkspaceDocumentResponseDto',
+  'WorkspaceDocumentContentResponseDto',
 ];
 
-/** Los siete DTO de entrada del módulo: seis cuerpos y una *query string*. */
+/** Los ocho DTO de entrada del módulo: siete cuerpos y una *query string*. */
 const WORKSPACE_REQUEST_SCHEMAS: readonly string[] = [
   'CreateDirectoryRequestDto',
   'RenameDirectoryRequestDto',
@@ -149,6 +157,7 @@ const WORKSPACE_REQUEST_SCHEMAS: readonly string[] = [
   'CreateDocumentRequestDto',
   'RenameDocumentRequestDto',
   'MoveDocumentRequestDto',
+  'SaveDocumentContentRequestDto',
 ];
 
 /**
@@ -175,6 +184,28 @@ function workspaceRequestDtoNamesOnDisk(): string[] {
 
 /** Campos internos del esquema que **nunca** pueden aparecer en el contrato público (AC-26). */
 const CAMPOS_INTERNOS: readonly string[] = ['nameKey', 'titleKey', 'parentScopeId', 'userId'];
+
+/** La ruta de guardado de contenido que añade la spec `003` (AC-12). */
+const CONTENT_PATH = '/api/workspace/documents/{id}/content';
+const CONTENT_METHOD = 'put';
+const CONTENT_OPERATION_ID = 'saveDocumentContent';
+
+/**
+ * Los **seis** códigos de error que `PUT …/content` tiene que declarar (AC-12).
+ *
+ * El que de verdad justifica la lista es el `409`: es el único que obliga al cliente a implementar
+ * una rama entera de interfaz —el diálogo de conflicto de AC-20— y el único que no aparece en
+ * ninguna otra ruta de documento por el mismo motivo (aquí choca la **versión**, no el título). Un
+ * `409` sin documentar deja al cliente creyendo que un guardado solo puede fallar por credencial o
+ * por validación, y el defecto no se nota hasta que dos pestañas escriben a la vez.
+ */
+const CONTENT_ERROR_CODES: readonly string[] = ['400', '401', '404', '409', '413', '429'];
+
+/** Los dos schemas que la ruta nueva estrena: uno de entrada y uno de salida (AC-12). */
+const CONTENT_SCHEMAS: readonly string[] = [
+  'SaveDocumentContentRequestDto',
+  'WorkspaceDocumentContentResponseDto',
+];
 
 describe('Swagger fuera de producción (e2e) — AC-7, AC-21', () => {
   let app: INestApplication;
@@ -322,12 +353,12 @@ describe('Swagger fuera de producción (e2e) — AC-7, AC-21', () => {
     });
   });
 
-  describe('AC-26: las diez rutas de workspace', () => {
+  describe('AC-26: las once rutas de workspace', () => {
     // Ancla: si mañana alguien borra una fila de la tabla, los `it.each` de abajo seguirían en verde
     // recorriendo menos casos. Esta cuenta es la que impide que la cobertura se encoja en silencio.
-    it('la tabla de rutas cubre las diez de plan.md §4, sin repetir método', () => {
-      expect(WORKSPACE_ROUTES).toHaveLength(10);
-      expect(new Set(WORKSPACE_ROUTES.map(([path, method]) => `${method} ${path}`)).size).toBe(10);
+    it('la tabla de rutas cubre las once de plan.md §4, sin repetir método', () => {
+      expect(WORKSPACE_ROUTES).toHaveLength(11);
+      expect(new Set(WORKSPACE_ROUTES.map(([path, method]) => `${method} ${path}`)).size).toBe(11);
     });
 
     it.each(WORKSPACE_ROUTES)(
@@ -368,10 +399,10 @@ describe('Swagger fuera de producción (e2e) — AC-7, AC-21', () => {
       expect(security.some((requisito) => BEARER_SCHEME in requisito)).toBe(true);
     });
 
-    // Ancla de la partición (v0.2.2): nueve rutas con `404` + una sin él = las diez. Sin estas dos
+    // Ancla de la partición (v0.2.2): diez rutas con `404` + una sin él = las once. Sin estas dos
     // cuentas, un filtro que se quedara vacío dejaría los `it.each` de `404` sin recorrer nada.
-    it('la partición de 404 es nueve rutas con y una sin, y la que no lo tiene es /tree', () => {
-      expect(WORKSPACE_NOT_FOUND_ROUTES).toHaveLength(9);
+    it('la partición de 404 es diez rutas con y una sin, y la que no lo tiene es /tree', () => {
+      expect(WORKSPACE_NOT_FOUND_ROUTES).toHaveLength(10);
       expect(WORKSPACE_ROUTES_SIN_NOT_FOUND).toHaveLength(1);
       expect(WORKSPACE_ROUTES_SIN_NOT_FOUND[0]).toEqual([
         WORKSPACE_TREE_PATH,
@@ -445,13 +476,83 @@ describe('Swagger fuera de producción (e2e) — AC-7, AC-21', () => {
       expect(document.components?.schemas?.[name]).toBeDefined();
     });
 
-    it('los DTO de entrada esperados son exactamente los siete que hay en src/workspace/dto', () => {
-      expect(WORKSPACE_REQUEST_SCHEMAS).toHaveLength(7);
+    it('los DTO de entrada esperados son exactamente los ocho que hay en src/workspace/dto', () => {
+      expect(WORKSPACE_REQUEST_SCHEMAS).toHaveLength(8);
       expect([...WORKSPACE_REQUEST_SCHEMAS].sort()).toEqual(workspaceRequestDtoNamesOnDisk());
     });
 
     it.each(WORKSPACE_REQUEST_SCHEMAS)('expone el schema de entrada %s', (name) => {
       expect(document.components?.schemas?.[name]).toBeDefined();
+    });
+  });
+
+  // Spec 003, AC-12. La ruta que estrena el guardado de contenido se afirma **aparte** de las tablas
+  // de la `002` y no solo por recuento: contarla demuestra que existe, y lo que un cliente necesita
+  // saber es qué credencial firma, qué puede salir mal y con qué forma.
+  describe('AC-12 (spec 003): PUT /api/workspace/documents/{id}/content', () => {
+    it('documenta la operación con su operationId', () => {
+      const operacion = document.paths[CONTENT_PATH]?.[CONTENT_METHOD];
+
+      expect(operacion).toBeDefined();
+      expect(operacion?.operationId).toBe(CONTENT_OPERATION_ID);
+    });
+
+    it('declara security con bearer', () => {
+      const security = document.paths[CONTENT_PATH]?.[CONTENT_METHOD]?.security ?? [];
+
+      expect(security.length).toBeGreaterThan(0);
+      expect(security.some((requisito) => BEARER_SCHEME in requisito)).toBe(true);
+    });
+
+    it.each(CONTENT_ERROR_CODES)('documenta el %s con forma de ErrorResponseDto', (code) => {
+      const responses = document.paths[CONTENT_PATH]?.[CONTENT_METHOD]?.responses ?? {};
+
+      expect(Object.keys(responses)).toEqual(expect.arrayContaining([code]));
+      expect(JSON.stringify(responses[code])).toContain('ErrorResponseDto');
+    });
+
+    // Ancla de la lista de arriba, por el mismo motivo que las cuentas de rutas: si alguien borra una
+    // fila de `CONTENT_ERROR_CODES`, el `it.each` seguiría verde recorriendo un código menos.
+    it('los códigos exigidos son los seis de AC-12, incluido el 409', () => {
+      expect([...CONTENT_ERROR_CODES].sort()).toEqual([
+        '400',
+        '401',
+        '404',
+        '409',
+        '413',
+        '429',
+      ]);
+    });
+
+    it('declara el 200 con WorkspaceDocumentContentResponseDto', () => {
+      const responses = document.paths[CONTENT_PATH]?.[CONTENT_METHOD]?.responses ?? {};
+
+      expect(Object.keys(responses)).toEqual(expect.arrayContaining(['200']));
+      expect(JSON.stringify(responses['200'])).toContain('WorkspaceDocumentContentResponseDto');
+    });
+
+    it('resuelve el :id como parámetro de ruta obligatorio', () => {
+      const parametros = document.paths[CONTENT_PATH]?.[CONTENT_METHOD]?.parameters ?? [];
+      const id = parametros.find((parametro) => parametro.name === 'id');
+
+      expect(id).toBeDefined();
+      expect(id?.in).toBe('path');
+      expect(id?.required).toBe(true);
+    });
+
+    it.each(CONTENT_SCHEMAS)('expone el schema %s', (name) => {
+      expect(document.components?.schemas?.[name]).toBeDefined();
+    });
+
+    // AC-11 de la `003` es lo que obliga a la enmienda de la `002`: sin `contentVersion` publicado,
+    // el cliente no tendría de dónde sacar el token con el que emitir su primer guardado.
+    it('WorkspaceDocumentResponseDto declara contentVersion', () => {
+      const schema = document.components?.schemas?.WorkspaceDocumentResponseDto;
+
+      expect(schema).toBeDefined();
+      expect(Object.keys(schema?.properties ?? {})).toEqual(
+        expect.arrayContaining(['contentVersion']),
+      );
     });
   });
 

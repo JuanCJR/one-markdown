@@ -8,7 +8,7 @@ import { useAuthStore } from '../features/auth/auth.store';
 import { useWorkspaceStore } from '../features/workspace/workspace.store';
 import { jsonResponse, stubApi } from '../test/api-stub';
 import { authUser } from '../test/auth-fixtures';
-import { markdownDocument, workspaceTree } from '../test/workspace-fixtures';
+import { documentSummary, markdownDocument, workspaceTree } from '../test/workspace-fixtures';
 
 function renderAt(path: string): void {
   const router = createMemoryRouter(routes, { initialEntries: [path] });
@@ -38,15 +38,21 @@ describe('Enrutado (AC-10)', () => {
     expect(screen.getByText(/selecciona un documento/i)).toBeInTheDocument();
   });
 
-  it('monta la vista de documento dentro del shell en /documents/:id (AC-31)', async () => {
+  it('monta el editor de documento dentro del shell en /documents/:id (AC-31 de la 002)', async () => {
+    // El árbol trae el documento porque el editor toma de ahí el título y la ruta: en la
+    // aplicación real el shell carga el árbol antes de que nadie abra nada.
     stubApi({
-      'GET /api/workspace/tree': () => jsonResponse(workspaceTree()),
+      'GET /api/workspace/tree': () =>
+        jsonResponse(workspaceTree({ documents: [documentSummary()] })),
       'GET /api/workspace/documents/doc-diario': () => jsonResponse(markdownDocument()),
     });
 
     renderAt('/documents/doc-diario');
 
     expect(await screen.findByRole('heading', { name: 'Diario', level: 2 })).toBeInTheDocument();
+    expect(
+      screen.getByRole('textbox', { name: 'Contenido de «Diario» en markdown' }),
+    ).toBeInTheDocument();
     expect(screen.getByRole('main')).toBeInTheDocument();
     expect(screen.queryByText(/404/)).not.toBeInTheDocument();
   });

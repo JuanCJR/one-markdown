@@ -3,6 +3,7 @@ import {
   isAuthSession,
   isAuthUser,
   isDirectoryNode,
+  isDocumentContentSaved,
   isDocumentSummary,
   isHealth,
   isLoginResult,
@@ -13,6 +14,7 @@ import {
   type AuthSession,
   type AuthUser,
   type DirectoryNode,
+  type DocumentContentSaved,
   type DocumentSummary,
   type Health,
   type LoginResult,
@@ -89,7 +91,7 @@ export function configureAuthBridge(bridge: AuthBridge): void {
 }
 
 interface JsonRequest {
-  readonly method: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+  readonly method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   /** Cuerpo a serializar como JSON. Ausente = petición sin cuerpo (y sin `Content-Type`). */
   readonly body?: unknown;
 }
@@ -472,4 +474,36 @@ export async function moveDocument(
 
 export async function deleteDocument(id: string): Promise<void> {
   return authorizedNoContent(documentPath(id), { method: 'DELETE' });
+}
+
+/**
+ * Guarda el markdown de un documento (spec `003`, AC-15).
+ *
+ * `expectedVersion` es el `contentVersion` que el cliente leyó, y viaja **en el cuerpo** y no en una
+ * cabecera (decisión 2 del plan `003`). El servidor lo exige en el `where` del update, así que dos
+ * guardados desde la misma versión no pueden pisarse: el perdedor recibe un `409` con
+ * `code: 'DOCUMENT_CONTENT_CONFLICT'`, que es el único código al que el editor reacciona con una
+ * rama de interfaz propia en vez de con el aviso genérico.
+ *
+ * El cuerpo lleva **exactamente** `content` y `expectedVersion`. Una clave de más —el `id`, el
+ * `title`, la versión ya incrementada— no se ignora: el `ValidationPipe` global va con
+ * `forbidNonWhitelisted` y responde `400`.
+ *
+ * Va por `authorizedJson` con el refresh-on-401 **por defecto**: aquí, a diferencia de
+ * `mfa/enable` y `mfa/disable`, no hay ninguna credencial en el cuerpo, así que un `401` solo puede
+ * significar que el bearer caducó y reintentar tras refrescar es lo correcto.
+ */
+export async function saveDocumentContent(
+  id: string,
+  content: string,
+  expectedVersion: number,
+): Promise<DocumentContentSaved> {
+  return expectShape(
+    await authorizedJson(`${documentPath(id)}/content`, {
+      method: 'PUT',
+      body: { content, expectedVersion },
+    }),
+    isDocumentContentSaved,
+    'PUT /api/workspace/documents/:id/content',
+  );
 }

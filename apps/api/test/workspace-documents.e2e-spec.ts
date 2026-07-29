@@ -7,6 +7,7 @@ import {
   MAX_DOCUMENT_CONTENT_CHARS,
   MAX_DOCUMENT_TITLE_LENGTH,
 } from '../src/workspace/workspace.constants';
+import { DOCUMENT_SELECT, DOCUMENT_SUMMARY_SELECT } from '../src/workspace/workspace.repository';
 import {
   createAuthApp,
   deleteAuthKeys,
@@ -29,10 +30,17 @@ import {
 
 const VALID_PASSWORD = 'contrasena-valida-1';
 
-/** Claves **exactas** de `WorkspaceDocumentResponseDto`, ordenadas para comparar sin ambigüedad. */
+/**
+ * Claves **exactas** de `WorkspaceDocumentResponseDto`, ordenadas para comparar sin ambigüedad.
+ *
+ * `contentVersion` entra aquí por la **enmienda de la spec `002` a v0.4.0** (§6 de la spec `003`),
+ * que autoriza a cambiar exactamente esta lista y la de AC-15 —las dos aserciones de claves
+ * exactas— y **nada más** de esa spec. Es el detalle y el alta los que lo traen: el resumen no.
+ */
 const DOCUMENT_KEYS = [
   'content',
   'contentBytes',
+  'contentVersion',
   'createdAt',
   'directoryId',
   'id',
@@ -156,6 +164,24 @@ describe('documentos del workspace (e2e) — AC-12…AC-16 y AC-18', () => {
     return request(app.getHttpServer())
       .delete(`/api/workspace/documents/${id}`)
       .set('Authorization', `Bearer ${actor.accessToken}`);
+  }
+
+  /** Move de documento (spec 002, AC-17). Aquí solo interesa **la forma** de su respuesta. */
+  function move(actor: Actor, id: string, directoryId: string | null): request.Test {
+    return request(app.getHttpServer())
+      .post(`/api/workspace/documents/${id}/move`)
+      .set('Authorization', `Bearer ${actor.accessToken}`)
+      .send({ directoryId });
+  }
+
+  /** Los `documents` del árbol del actor, tal cual salen por HTTP. */
+  async function fetchTreeDocuments(actor: Actor): Promise<Array<Record<string, unknown>>> {
+    const response = await request(app.getHttpServer())
+      .get('/api/workspace/tree')
+      .set('Authorization', `Bearer ${actor.accessToken}`)
+      .expect(200);
+
+    return (response.body as { documents: Array<Record<string, unknown>> }).documents;
   }
 
   /** La fila cruda, con las columnas internas que ningún DTO expone. `null` si ya no existe. */
@@ -487,6 +513,135 @@ describe('documentos del workspace (e2e) — AC-12…AC-16 y AC-18', () => {
       await request(app.getHttpServer())
         .get(`/api/workspace/documents/${String(creado['id'])}`)
         .expect(401);
+    });
+  });
+
+  /**
+   * AC-11 de la spec `003`. Dos mitades, y la segunda es la que se olvida:
+   *
+   * 1. `contentVersion` viaja en el **alta** y en el **detalle**, que son las dos respuestas que
+   *    llevan el texto, y vale `0` en un documento recién creado tenga o no contenido inicial.
+   * 2. **No** viaja en el resumen —renombrado, move y árbol—, porque un resumen sin texto no tiene
+   *    nada que versionar. Enviarlo ahí haría que la barra lateral arrastrase un token de
+   *    concurrencia que nunca puede usar, y arrastrar campos del documento hacia el resumen es
+   *    exactamente el camino por el que `content` acabaría en el árbol: en PostgreSQL ese texto vive
+   *    en TOAST y el árbol se convertiría en una descarga del workspace entero en cada recarga.
+   */
+  describe('AC-11 (spec 003): contentVersion solo donde viaja el contenido', () => {
+    it('el alta con contenido inicial responde contentVersion 0 y las claves exactas del DTO', async () => {
+      const body = await createOk(alice, {
+        title: uniqueTitle('Versión al nacer'),
+        directoryId: null,
+        content: MULTIBYTE_CONTENT,
+      });
+
+      expect(Object.keys(body).sort()).toEqual(DOCUMENT_KEYS);
+      expect(body['contentVersion']).toBe(0);
+    });
+
+    it('el alta SIN contenido responde contentVersion 0: la columna arranca igual con texto y sin él', async () => {
+      const body = await createOk(alice, {
+        title: uniqueTitle('Versión al nacer vacío'),
+        directoryId: null,
+      });
+
+      expect(Object.keys(body).sort()).toEqual(DOCUMENT_KEYS);
+      expect(body['content']).toBe('');
+      expect(body['contentVersion']).toBe(0);
+    });
+
+    it('el detalle responde contentVersion 0 y las claves exactas del DTO', async () => {
+      const creado = await createOk(alice, {
+        title: uniqueTitle('Detalle versionado'),
+        directoryId: null,
+        content: MULTIBYTE_CONTENT,
+      });
+
+      const response = await get(alice, String(creado['id'])).expect(200);
+      const body = response.body as Record<string, unknown>;
+
+      expect(Object.keys(body).sort()).toEqual(DOCUMENT_KEYS);
+      expect(body['contentVersion']).toBe(0);
+      expect(body['contentVersion']).toBe(creado['contentVersion']);
+    });
+
+    it('el renombrado devuelve el resumen: ni contentVersion ni content', async () => {
+      const creado = await createOk(alice, {
+        title: uniqueTitle('Renombrable versionado'),
+        directoryId: null,
+        content: MULTIBYTE_CONTENT,
+      });
+
+      const response = await patch(alice, String(creado['id']), {
+        title: uniqueTitle('Renombrado versionado'),
+      }).expect(200);
+      const body = response.body as Record<string, unknown>;
+
+      expect(Object.keys(body).sort()).toEqual(DOCUMENT_SUMMARY_KEYS);
+      expect(body).not.toHaveProperty('contentVersion');
+      expect(body).not.toHaveProperty('content');
+    });
+
+    it('el move devuelve el resumen: ni contentVersion ni content', async () => {
+      const directoryId = await createDirectory(alice, uniqueTitle('Destino versionado'));
+      const creado = await createOk(alice, {
+        title: uniqueTitle('Movible versionado'),
+        directoryId: null,
+        content: MULTIBYTE_CONTENT,
+      });
+
+      const response = await move(alice, String(creado['id']), directoryId).expect(200);
+      const body = response.body as Record<string, unknown>;
+
+      expect(Object.keys(body).sort()).toEqual(DOCUMENT_SUMMARY_KEYS);
+      expect(body).not.toHaveProperty('contentVersion');
+      expect(body).not.toHaveProperty('content');
+      expect(body['directoryId']).toBe(directoryId);
+    });
+
+    it('GET /tree sigue sin traer contentVersion ni content en sus documents', async () => {
+      await createOk(alice, {
+        title: uniqueTitle('En el árbol versionado'),
+        directoryId: null,
+        content: MULTIBYTE_CONTENT,
+      });
+
+      const documents = await fetchTreeDocuments(alice);
+
+      // Sin esto el bucle podría no iterar y el caso pasaría sin comprobar nada.
+      expect(documents.length).toBeGreaterThan(0);
+
+      for (const document of documents) {
+        expect(Object.keys(document).sort()).toEqual(DOCUMENT_SUMMARY_KEYS);
+        expect(document).not.toHaveProperty('contentVersion');
+        expect(document).not.toHaveProperty('content');
+      }
+    });
+
+    /**
+     * La mitad del AC que **no se puede observar por HTTP**, y por eso se afirma aquí sobre las
+     * constantes del repositorio.
+     *
+     * Los DTO se construyen campo a campo, así que una columna de más en el `select` del resumen no
+     * asomaría por ninguna respuesta: se pagaría en cada lectura del árbol, en silencio y para
+     * siempre. Es el mismo tipo de regla que `workspace-data-access.spec.ts` comprueba sobre el
+     * árbol de archivos —invisible al comportamiento, rota por el paso del tiempo—, así que se
+     * verifica donde vive: en el contrato de columnas.
+     *
+     * Se afirma el juego **exacto** y no solo la ausencia de `contentVersion`: es lo que impide que
+     * mañana se cuele `content` en el resumen, que es el mismo error con una factura mucho mayor.
+     */
+    describe('contrato de columnas del repositorio', () => {
+      it('DOCUMENT_SELECT selecciona exactamente las claves que publica el DTO completo', () => {
+        expect(Object.keys(DOCUMENT_SELECT).sort()).toEqual(DOCUMENT_KEYS);
+        expect(DOCUMENT_SELECT).toHaveProperty('contentVersion', true);
+      });
+
+      it('DOCUMENT_SUMMARY_SELECT selecciona exactamente las del resumen: ni contentVersion ni content', () => {
+        expect(Object.keys(DOCUMENT_SUMMARY_SELECT).sort()).toEqual(DOCUMENT_SUMMARY_KEYS);
+        expect(DOCUMENT_SUMMARY_SELECT).not.toHaveProperty('contentVersion');
+        expect(DOCUMENT_SUMMARY_SELECT).not.toHaveProperty('content');
+      });
     });
   });
 

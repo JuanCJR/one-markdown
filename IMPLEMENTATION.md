@@ -30,8 +30,34 @@ Leyenda: `[ ]` pendiente · `[~]` en curso o bloqueado (con motivo) · `[x]` hec
       26 criterios de aceptación y 26 tareas TDD en 7 bloques; la implementación es la Fase 3.
       Versiones de las dependencias nuevas fijadas contra npm y APIs verificadas con `context7`
       (`otplib` 13.x cambió de API respecto de la 12.x; `@nestjs/throttler` 6.x).
-- [x] **spec 002-workspace-tree** — `specs/002-workspace-tree/` (`spec.md` **v0.3.1** + `plan.md` + `tasks.md` + `CHANGELOG.md`),
-      estado **complete** (2026-07-25): **35/35 AC** y **27/27 tareas** verificadas. La **v0.3.1** (patch)
+- [x] **spec 002-workspace-tree** — `specs/002-workspace-tree/` (`spec.md` **v0.4.1** + `plan.md` + `tasks.md` + `CHANGELOG.md`),
+      estado **complete, con la enmienda de la v0.4.0 pendiente de implementar** (2026-07-28).
+      La **v0.4.1** es un patch que **solo toca `CHANGELOG.md`**: dos **bytes de control** en bruto (un
+      `U+0000` y un `U+007F`) hacían que `grep` clasificara el archivo como **binario** y saliera con
+      exit 1 aunque el patrón estuviera. Se detectó verificando el `DONE` de `T-000`, que es justamente un
+      `grep` sobre ese archivo: la comprobación fallaba y **el archivo estaba bien**. Los bytes venían de
+      la entrada de la v0.3.1 que **documentaba este mismo problema** en `tasks.md` — la frase prometía
+      «sustituidos por … escapados» e incrustaba los bytes en bruto. Verificado con una comprobación que
+      falla si el arreglo no funcionó: `grep -c` → exit **0** (antes 1), `grep` sin `-a` encuentra la
+      línea, y un barrido de bytes de control sobre **los 21 `.md` de `specs/`** → **cero**, sin ningún
+      otro archivo afectado. `git diff` nunca estuvo roto: el que se rompía era `grep`.
+      La **v0.4.0** (minor) **no la pide esta spec sino la `003`**, aprobada el 2026-07-28, y la aplicó su
+      `T-000`: `WorkspaceDocumentResponseDto` gana `contentVersion` (token de concurrencia optimista del
+      guardado) y el recuento de rutas del tag `workspace` pasa de **diez a once**. Es aditivo —ningún
+      campo desaparece ni cambia de tipo— pero obliga a cambiar aserciones de tests **verdes**, así que no
+      podía ser un patch. Toca cinco AC: **AC-12**, **AC-15**, **AC-26**, **AC-31** y **AC-32**.
+      **Consecuencia asumida y escrita en los tres sitios donde se lee** (el `Estado` de la spec, el aviso
+      que abre su §6 de trazabilidad, y cada uno de los cinco AC): desde el 2026-07-28 **esos cinco AC van
+      por delante del código**. Los implementan `T-007`, `T-009` y `T-013` de la `003`. Dejar «35/35
+      verificados» a secas habría sido más cómodo y falso.
+      **Lo que la v0.4.0 NO tocó**, aunque estaba cerca: `PATCH /api/workspace/documents/{id}` sigue
+      aceptando solo `title` y sigue rechazando `content` con un `400` de `forbidNonWhitelisted`.
+      **Y por qué la columna y no `updatedAt`**, que es lo que el riesgo #12 de esta misma spec había
+      apuntado: renombrar y mover **también** mueven `updatedAt`, así que renombrar desde la barra lateral
+      haría fallar un guardado pendiente del editor con un conflicto que no existe. No fue un error de la
+      `002` — su riesgo #12 pedía expresamente no adelantar el mecanismo sin datos, y se decidió cuando
+      hubo con qué decidirlo.
+      Lo anterior, intacto: la **v0.3.1** (patch)
       cierra `T-026` y `T-027`, con lo que AC-34 y AC-35 quedan cubiertos, y **corrige dos decisiones que
       había escrito el orchestrator**: el reset de AC-35 necesitaba también `throttle:login:*`, y
       `global-setup.ts` tenía que estar en la lista de archivos de `T-027`. Ver el cierre de la Fase 4.
@@ -59,18 +85,80 @@ Leyenda: `[ ]` pendiente · `[~]` en curso o bloqueado (con motivo) · `[x]` hec
       `?recursive=true` explícito · árbol completo, plano y sin contenidos · renombrar y mover en endpoints
       separados · `code?: string` aditivo en `ErrorResponseDto` · quinto throttler `workspace` (cierra el
       punto que el CHANGELOG de `001` dejó para esta spec).
-- [ ] **spec 003-editor** — vista texto/preview, guardado, sanitización del preview.
-      **Es lo siguiente.** Con `002` cerrada al 100 %, no queda nada bloqueando su especificación: el
-      contrato de documentos (`GET /api/workspace/documents/:id`, `MarkdownDocument` en
-      `packages/shared`) y la ruta `/documents/:id` con la vista en crudo existen y están verdes, y esa
-      vista se escribió explícitamente como **andamio para que `003` la sustituya**. Lo que hereda ya
-      escrito, para no redescubrirlo: (a) `002` §4 deja fuera de alcance **editar `content`** —no hay
-      ningún endpoint que lo modifique, así que `003` empieza por ahí—; (b) el **riesgo #15** de `002`
-      («el aviso genérico del árbol oculta los fallos del cliente»), que quedó **a propósito sin tarea**
-      porque distinguir «el servidor dijo que no» de «el cliente se rompió» es producto, y `003` es la
-      primera candidata a heredarlo, con el caso real ya documentado; (c) el preview **siempre
-      sanitizado**, que es regla de `CLAUDE.md` y todavía no tiene ni una línea de código porque `002`
-      no renderiza HTML.
+- [x] **spec 003-editor** — `specs/003-editor/` (`spec.md` **v0.1.1** + `plan.md` + `tasks.md` +
+      `CHANGELOG.md`), estado **approved** (2026-07-28), **sin cambios de alcance**. — 2026-07-28
+      **34 criterios de aceptación** (todos con al menos un test automatizado declarado, y cada AC dice
+      con qué mecanismo se verifica) y **16 tareas** TDD en 7 bloques (0 enmienda de la `002` · A esquema
+      y dominio puro · B repositorio y throttler · C endpoint · D cliente y renderizador · E estado e
+      interfaz · F navegador). **`T-000` hecha y verificada; las 15 restantes, pendientes de despacho.**
+      La implementación será la Fase 5.
+      **Las cinco decisiones de `spec.md` §5 quedaron resueltas el 2026-07-28**, todas en la opción que
+      el plan recomendaba: (A) `PUT /api/workspace/documents/:id/content` como **ruta nueva**, con el
+      `PATCH` intacto; (B) columna **`contentVersion`** y enmienda de la `002` a v0.4.0 como minor;
+      (C) `react-markdown` + `remark-gfm` + `rehypeRawAsText` + `rehype-sanitize`, con la postura de
+      producto aprobada **explícitamente** —el HTML embebido se muestra como **texto literal y no se
+      renderiza nunca**—; (D) **`<textarea>` plano**, sin CodeMirror ni Monaco; (E) **«split view» =
+      texto y preview lado a lado del MISMO documento**, no dos documentos distintos.
+      Las filas A…E de §5 se **conservan con su razonamiento íntegro** y se marcan como resueltas: el
+      motivo de una decisión es lo que hace falta el día que alguien quiera revisarla.
+      **Convenio de versionado al aprobar, por consistencia con `001` y `002`**: aprobar **no** salta a
+      1.0.0 — lo que cambia es el `Estado`. La versión sube a **v0.1.1** solo porque el contenido de §5
+      cambió.
+      **Tres dependencias nuevas**, todas en `apps/web` y todas instaladas por una sola tarea (`T-011`):
+      `react-markdown` **10.1.0** (peer `react >=18`, satisfecho por React 19.2.8), `remark-gfm`
+      **4.0.1** y `rehype-sanitize` **6.0.0**. Versiones fijadas contra npm y API verificada con
+      `context7` el 2026-07-28. `rehype-raw` **no** se instala, y eso es parte del diseño.
+      La cadena del preview se decidió **midiendo**, no leyendo documentación: se instalaron las tres
+      librerías fuera del repositorio y se renderizó un corpus de cargas comparando salidas
+      (`plan.md` §1.3). Salieron dos cosas que no eran obvias: (1) `react-markdown` **sin** sanitizador
+      ya escapa el HTML del markdown como texto, así que es seguro con esas cargas —pero solo mientras
+      nadie añada un plugin—; (2) `rehype-sanitize` **a secas borra prosa del usuario**
+      (`<!-- oculto -->visible` se queda en nada). De ahí el paso propio `rehypeRawAsText` de ~12 líneas:
+      seguro **y** sin pérdida.
+      Los dos puntos que la `002` dejó anotados sin tarea quedan resueltos por escrito: el **riesgo #15**
+      entra **acotado al editor** (AC-19, tres estados de error distinguibles) y la barra lateral no se
+      toca; y el **AC-34** de la `002` **no necesita análogo** —aquel agujero era específico de un paquete
+      enlazado del workspace, y estas tres dependencias son de npm, así que el lockfile las cubre—, pero
+      sí hacía falta otra cosa: **AC-26**, que repite el corpus de XSS en Chromium real, porque una
+      afirmación de seguridad verificada solo en jsdom no es una afirmación sobre navegadores.
+      **`T-000` — enmienda de la `002` a v0.4.0 — hecha el 2026-07-28.** Aplicada la tabla de
+      `003/spec.md` §6 sobre `specs/002-workspace-tree/` (`spec.md`: encabezado, `Estado`, AC-12, AC-15,
+      AC-26, AC-31, AC-32 y el aviso que abre su §6; `plan.md`: §4, §5, §7; `CHANGELOG.md`: entrada
+      `## v0.4.0 — 2026-07-28`), más `specs/README.md`, este archivo y `CLAUDE.md`.
+      **Sin tocar una línea de código**, que era la regla: los cambios de test los harán `T-007`, `T-009`
+      y `T-013`, cada uno junto a la implementación que los provoca.
+      Verificado: `pnpm test` → **exit 0** · shared **65** · web 12 archivos / **188** · api 19 suites /
+      **264**. Son las cifras exactas del cierre de la `002`, y se corrieron **antes y después** de la
+      enmienda con resultado idéntico — que es justamente lo que demuestra que no se tocó código, junto
+      con un `git status` sin un solo archivo modificado en `apps/**` ni `packages/**`.
+      **`CLAUDE.md`**: la frase «tabs tipo VS Code al abrir documentos y split view» era ambigua y la
+      `005` se iba a apoyar en ella. Corregida con la edición mínima que quita la ambigüedad.
+      **Tres dependencias nuevas**, todas en `apps/web` y todas instaladas por una sola tarea (`T-011`):
+      `react-markdown` **10.1.0** (peer `react >=18`, satisfecho por React 19.2.8), `remark-gfm`
+      **4.0.1** y `rehype-sanitize` **6.0.0**. Versiones fijadas contra npm y API verificada con
+      `context7` el 2026-07-28. `rehype-raw` **no** se instala, y eso es parte del diseño.
+      Decisiones de más impacto, con su evidencia: **`PUT /api/workspace/documents/:id/content`** como
+      ruta nueva en vez de ampliar el `PATCH` (ampliarlo rompería un comportamiento verificado de la
+      `002` y metería el guardado automático en el camino del `409 DOCUMENT_TITLE_TAKEN`) · columna
+      **`contentVersion`** como token de concurrencia en vez de `updatedAt` (que renombrar y mover
+      también mueven, lo que produciría conflictos falsos) · sexto throttler **`documentContent`**
+      120/min declarado a nivel de método (verificado en `throttle.ts` que `getAllAndOverride` hace ganar
+      al método sobre la clase) · preview con **cuatro capas** y nunca `dangerouslySetInnerHTML`.
+      La cadena del preview se decidió **midiendo**, no leyendo documentación: se instalaron las tres
+      librerías fuera del repositorio y se renderizó un corpus de cargas comparando salidas
+      (`plan.md` §1.3). Salieron dos cosas que no eran obvias: (1) `react-markdown` **sin** sanitizador
+      ya escapa el HTML del markdown como texto, así que es seguro con esas cargas —pero solo mientras
+      nadie añada un plugin—; (2) `rehype-sanitize` **a secas borra prosa del usuario**
+      (`<!-- oculto -->visible` se queda en nada). De ahí el paso propio `rehypeRawAsText` de ~12 líneas:
+      seguro **y** sin pérdida.
+      Los dos puntos que la `002` dejó anotados sin tarea quedan resueltos por escrito: el **riesgo #15**
+      entra **acotado al editor** (AC-19, tres estados de error distinguibles) y la barra lateral no se
+      toca; y el **AC-34** de la `002` **no necesita análogo** —aquel agujero era específico de un paquete
+      enlazado del workspace, y estas tres dependencias son de npm, así que el lockfile las cubre—, pero
+      sí hacía falta otra cosa: **AC-26**, que repite el corpus de XSS en Chromium real, porque una
+      afirmación de seguridad verificada solo en jsdom no es una afirmación sobre navegadores.
+      Verificado: los cuatro archivos existen en `specs/003-editor/`; `specs/README.md` actualizado.
+      **Sin comandos de test que correr todavía** — no hay código de esta spec.
 - [ ] **spec 004-markdown-palette** — listado de elementos markdown insertables.
 - [ ] **spec 005-tabs-split-view** — tabs tipo VS Code y vista dividida.
 
@@ -1172,6 +1260,226 @@ más arriba, y el cierre de spec en la **v0.3.1**.
 **Con esto la Fase 4 no deja trabajo abierto.** Lo único que queda vivo del ciclo `002` es la salvedad de
 cobertura de AC-34 —manual, invisible para CI— y está escrita arriba y en la spec, que es donde toca.
 
+## Fase 5 — Implementación de `003-editor`
+
+Detalle en `specs/003-editor/tasks.md`. **17 de 17 tareas verificadas** — spec **complete** el 2026-07-28. Cada línea lleva el
+comando corrido y su salida real.
+
+**Estado: cerrada.** `shared` **81** · `apps/web` 16 archivos / **321** · API unit 21 suites / **305** ·
+API e2e 22 suites / **511** (40,2 s) · `pnpm test:e2e` **8** · `--retries=2 --repeat-each=3` **24**, sin
+un solo `429` · `typecheck` y `lint` en **0** en los tres paquetes.
+
+Dos cifras se movieron desde el registro parcial y conviene no arrastrar las viejas: **API unit son 305 y
+no 304** (`T-016` añadió uno), y **la suite e2e del API baja de ~108 s a 40 s** por el realineamiento de
+`workspace-document-content-throttle`, que sustituyó la espera del `ttl` por resets en los hooks.
+
+_(Los tres rojos de `swagger.e2e-spec.ts` que este apartado anunciaba mientras `T-009` estaba pendiente
+quedaron cerrados por esa tarea. Resultaron ser **cuatro** cambios de recuento y no tres; ver `T-009`.)_
+
+- [x] **T-000** · `orchestrator` · Enmienda de la spec `002` a v0.4.0 — 2026-07-28
+      Aplicada la tabla de `003/spec.md` §6 sobre `specs/002-workspace-tree/`, más `specs/README.md`,
+      este archivo y `CLAUDE.md`. **Sin tocar una línea de código.**
+      Verificado: `pnpm test` → exit 0 · shared **65** · web 12/**188** · api 19/**264**, corrido **antes
+      y después** con resultado idéntico, y `git status` sin un solo archivo modificado en `apps/**` ni
+      `packages/**`. Después salieron dos patches de la propia enmienda: **v0.4.1** (dos bytes de control
+      que hacían que `grep` tratara el `CHANGELOG.md` como binario) y **v0.4.2** (la lista de §6 se quedó
+      corta; ver `T-007`).
+
+- [x] **T-001** · `backend` · `setup` · Columna `contentVersion` y migración — 2026-07-28
+      Verificado: `prisma migrate dev --name document_content_version` → 0 · `prisma generate` → 0 ·
+      `prisma migrate status` sin pendientes · columna comprobada en el esquema **real** con el MCP
+      `postgres` (`integer NOT NULL`, `DEFAULT 0`).
+      Nombre real de la migración: **`20260728202008_document_content_version`**. Es la primera vez en el
+      proyecto que la predicción del plan **acierta** — en `001` y `002` no coincidió.
+
+- [x] **T-002** · `backend` · Dominio puro `contentBytesOf` — 2026-07-28
+      Verificado: `pnpm --filter @one-markdown/api test document-content`. Cubre el multibyte (`ñ`→2,
+      `🙂`→4), el vacío y el `\r\n` sin normalizar, y comprueba que el archivo no importa nada de Nest ni
+      de Prisma.
+
+- [x] **T-003** · `backend` · `WorkspaceRepository.saveDocumentContent` — 2026-07-28
+      Verificado: `pnpm --filter @one-markdown/api test workspace.repository` → **27**.
+      `updateMany` condicional con `userId` **y** `contentVersion` en el mismo `where`; versión rancia no
+      escribe nada, `updatedAt` incluido; `createDocument` pasa a usar `contentBytesOf`.
+
+- [x] **T-004** · `backend` · Throttler `documentContent` — 2026-07-28
+      Verificado: `pnpm --filter @one-markdown/api test throttle` → **26** ·
+      `pnpm --filter @one-markdown/api test throttle-coverage` → **9**.
+      Confirmado por test lo que el plan había verificado leyendo el código: `getAllAndOverride` hace que
+      el `@Throttled` de **método** gane al de **clase**, así que no hizo falta partir el controlador.
+
+- [x] **T-005** · `backend` · `PUT /api/workspace/documents/:id/content` — 2026-07-28
+      Verificado: `pnpm --filter @one-markdown/api test:e2e workspace-document-content` → **23**.
+      Cubre AC-1…AC-9 y AC-13: feliz, vaciado, validación con la fila intacta, 200.000 caracteres,
+      conflicto de versión, concurrencia con `Promise.all`, propiedad y credencial (`404` **también** con
+      versión incorrecta, nunca `409` sobre documento ajeno), idempotencia por versión, ortogonalidad con
+      renombrar/mover, y `413` por encima de 2 MiB.
+
+- [x] **T-006** · `backend` · Contrato compartido — 2026-07-28
+      Verificado: `pnpm --filter @one-markdown/shared test` → **81** (antes 65).
+      **Dejó deuda, y está registrada**: `plan.md` §3 prometía que `MAX_DOCUMENT_CONTENT_CHARS` «se
+      reexporta y no se duplica a mano», pero `packages/shared` **no puede importar de `apps/api`** —la
+      dependencia va al revés—, así que se implementó como **valor espejo**. El `200_000` está escrito dos
+      veces y el test de `shared` solo fija **su propio** literal, o sea que una divergencia no la
+      detectaría nadie. Se cierra con **`T-016`**, añadida el 2026-07-28.
+
+- [x] **T-007** · `backend` · `contentVersion` en las respuestas de documento — 2026-07-28
+      Verificado: `pnpm --filter @one-markdown/api test:e2e workspace-documents` → **62** ·
+      `pnpm --filter @one-markdown/api test:e2e workspace-tree` → **15** · api unit → **304**.
+      **Paró y reportó, que es lo que había que hacer**: cae una **tercera** aserción de claves exactas
+      que §6 no autorizaba (`workspace.repository.spec.ts:334`). Antes de reportar verificó con
+      `git show HEAD` que era código de la `002` y no una rotura de `T-003`. Se autorizó, se añadió a §6 y
+      la `002` subió a **v0.4.2**.
+      **Y midió algo que cambia la spec**: coló un `content: true` en `DOCUMENT_SUMMARY_SELECT` y **los 76
+      casos HTTP siguieron verdes** mientras el árbol descargaba de TOAST el texto de todos los
+      documentos. Como los DTO se construyen **campo a campo**, una columna de más en un `select` no puede
+      llegar a la respuesta y **ninguna aserción HTTP la verá jamás**. Por eso AC-11 pasa a verificarse
+      también sobre el juego exacto de claves de los dos `select` exportados. Es el hallazgo más valioso
+      de la fase: un defecto real, de coste de lectura, invisible por el único canal que la spec miraba.
+
+- [x] **T-008** · `backend` · Cupo propio del guardado — 2026-07-28
+      Verificado: `pnpm --filter @one-markdown/api test:e2e workspace-document-content-throttle` → **3**.
+      Comprueba AC-10 en los dos sentidos: agotar `documentContent` no agota `workspace` ni al revés.
+      **Deuda abierta, por culpa de una regla que el orchestrator escribió mal.** `tasks.md` prohibía
+      llevar resets de contadores «a la suite del API», lo cual **es falso**:
+      `workspace-throttle.e2e-spec.ts` ya resetea en sus tres hooks **y aun así exige `429` nueve veces**,
+      y el idioma está en **17** archivos e2e con **39** puntos de llamada. La regla real es sobre el
+      **momento** (en los límites sí, a mitad de una secuencia de agotamiento no), no sobre el lugar.
+      `T-008` cumplió la letra de la regla equivocada y resolvió la limpieza **esperando a que venza la
+      ventana del `ttl`**: funciona, pero cuesta **~60 s de espera pura por corrida** —de ~65 s totales,
+      solo ~5 s son las ~248 peticiones HTTP— y usa un idioma distinto del de los otros 17 archivos. Se
+      realinea en cuanto la base quede libre; no cambia ningún AC. Regla corregida en `T-015` y en el
+      CHANGELOG de la `003` v0.1.2.
+
+- [x] **T-009** · `backend` · OpenAPI de la ruta nueva — 2026-07-28
+      Verificado: `pnpm --filter @one-markdown/api test:e2e swagger` en verde, y con él **la suite e2e
+      del API completa: 511/511 en 22 suites**.
+      **Fueron cuatro recuentos, no tres.** El que faltaba en la lista de §6:
+      `WorkspaceDocumentContentResponseDto` en `WORKSPACE_RESPONSE_SCHEMAS`. **No provocó rojo** porque
+      esa lista no tiene `toHaveLength` —solo alimenta un `it.each`—, así que dejarla corta habría
+      significado que el DTO de salida nuevo **no tenía aserción de existencia** por esa vía. Un hueco
+      silencioso, que es peor que un rojo.
+
+- [x] **T-010** · `frontend` · `saveDocumentContent` en el cliente HTTP — 2026-07-28
+      Verificado: `pnpm --filter @one-markdown/web test http` → **61**.
+
+- [x] **T-011** · `frontend` · `MarkdownPreview`, `rehypeRawAsText` y el corpus de XSS — 2026-07-28
+      Verificado: `MarkdownPreview` → **51** · `rehype-raw-as-text` → **6** · `no-dangerous-html` → **4**.
+      Instaló las tres dependencias con las versiones exactas del plan; `vite.config.ts` **no necesitó
+      nada** y no se tocó.
+      **Tres cosas medidas que valen más que el verde**, todas ya escritas en la spec:
+      1. **La mutación M3 destapó que AC-25 contradecía la decisión 7.** Las librerías permiten `irc:`,
+         `ircs:` y `xmpp:` en `href` (`react-markdown/lib/index.js:124`,
+         `hast-util-sanitize/lib/schema.js:143`) y el AC decía «`http`, `https`, `mailto`». Era un
+         **descuido de redacción, no un agujero**: ninguna carga pasaba sin ser vista. El usuario eligió
+         ampliar el AC a la lista real; `003` → v0.1.3.
+      2. **`rehype-sanitize` es redundante hoy**: quitándolo, los 51 siguen verdes; quitando **además**
+         `urlTransform` caen 3. Sujetan la capa 1 (no haber instalado `rehype-raw`) y la 4. **Eso es el
+         objetivo, no un defecto del test**, y está escrito en `plan.md` §2.2.1 con la regla derivada —
+         una capa no se retira porque ningún test la eche de menos.
+      3. **Coste en el bundle: +255 módulos, +160,7 kB (+48 kB gzip)**. Hubo que importar
+         `MarkdownPreview` temporalmente desde `main.tsx` para medirlo: hoy nadie lo importa y el build lo
+         *tree-shakeaba*, así que la comprobación habría dado **cero**.
+
+- [x] **T-012** · `frontend` · Store del editor — 2026-07-28
+      Verificado: `pnpm --filter @one-markdown/web test editor.store` → **28**, y `apps/web` completa en
+      **290/290**.
+      **Volvió a quedarse corta la lista de §6, y van dos**: `apps/web/src/test/workspace-fixtures.ts`
+      —código intacto de la `002` (`168b840`)— construye un `MarkdownDocument` a mano y no ponía
+      `contentVersion`. **14 tests en rojo en 5 suites** más un error de `tsc`; arreglo de una línea.
+      Mismo procedimiento que `T-007`: paró, verificó, se autorizó, se registró. `002` → v0.4.3.
+      **Añadió un séptimo campo a `EditorEntry` que el plan no declaraba**, `serverVersion`, y es un error
+      de diseño del plan y no una licencia: con solo `serverContent`, `resolveTakeServer` deja el editor
+      limpio pero con el `contentVersion` viejo, así que la primera tecla siguiente vuelve al **mismo
+      `409`**.
+      Dos decisiones suyas quedan como contrato en `plan.md` §7: `open(id)` **propaga** el error (si no,
+      la página no puede conservar el `loading`/`missing`/`error` que AC-31 obliga a heredar), y si tras
+      un `409` **falla la relectura** el estado es `unreachable` y **no** `conflict` — un conflicto que no
+      puede enseñar contra qué no se puede ofrecer a resolver.
+
+- [x] **T-016** · `backend` · El espejo de `MAX_DOCUMENT_CONTENT_CHARS` no puede divergir en silencio —
+      2026-07-28
+      Verificado: `pnpm --filter @one-markdown/api test document-content` → **20**.
+      Tarea **nueva** del 2026-07-28, salida de la deuda de `T-006`. Cerrada con un test de acoplamiento
+      en `apps/api` y **no** con una reexportación: hoy la dependencia de `apps/api` sobre
+      `packages/shared` es solo de **tipos**, y reexportar pondría un límite de dominio del servidor
+      detrás de `packages/shared/dist` — la clase de defecto de AC-34 de la `002`, pero saliendo como un
+      `400` inexplicable en producción.
+
+- [x] **Realineamiento de `workspace-document-content-throttle`** — 2026-07-28
+      La deuda que abrió `T-008` por cumplir al pie de la letra una regla que el orchestrator había
+      escrito mal. Sustituida la espera del `ttl` por `resetThrottleCounters` en los hooks de ciclo de
+      vida, que es el idioma de los otros 17 archivos: **de 65 s a 6,3 s**.
+      **Y se comprobó que no se cambió un test que medía por uno que no mide**: con la mutación aplicada
+      vuelven a caer **los mismos dos casos**. Sin esa comprobación, «ahora tarda diez veces menos» es
+      indistinguible de «ahora no comprueba nada».
+
+- [x] **T-013** · `frontend` · `DocumentEditorPage` y retirada del andamio de la `002` — 2026-07-28
+      Verificado: `apps/web` **290 → 313**.
+      Se le amplió el alcance con **`setViewMode`**, que `plan.md` §7 declaraba como acción del store pero
+      que no pedía el RED de `T-012` ni incluían las ARCHIVOS de `T-013`: **no era de nadie**, y es un
+      fallo de reparto del orchestrator. Va **al store** y no a un `useState` local, porque con «split
+      view = texto y preview del mismo documento» el modo activo es estado **por documento** y la `005`
+      tiene que conservarlo al cambiar de pestaña.
+      **Retiró el andamio** (`DocumentViewPage` borrado) trasladando **11 de 12** casos. Y **los tres de
+      navegación no estaban en el encargo**: los portó tras comprobar que `WorkspaceTreeView.test.tsx`
+      solo afirma `selectedId`/`aria-selected` y **nunca la ruta**, así que eran la **única** cobertura de
+      «activar un documento abre `/documents/:id`» en todo el proyecto. Borrarlos la habría hecho
+      desaparecer **sin que ningún test se pusiera rojo**: la misma clase de hueco silencioso que el
+      `WORKSPACE_RESPONSE_SCHEMAS` sin `toHaveLength` de `T-009`, y encontrado por el mismo método —
+      preguntarse quién más cubre esto antes de borrar.
+
+- [x] **T-014** · `frontend` · e2e de navegador — 2026-07-28
+      Verificado: `pnpm --filter @one-markdown/web exec playwright test editor` → **3 passed**.
+      **Los tres casos pasaron a la primera, así que hizo cinco mutaciones de control**, que es la única
+      forma de distinguir «funciona» de «no mide». Dos valen doble:
+      1. El centinela `window.__xssTripped` se dispara **independientemente** del manejador de `dialog`:
+         son **dos redes**, no una con dos nombres.
+      2. La rama de `src` —que con el corpus real **nunca** se activa, porque el saneado vacía el atributo
+         antes— **existe y etiqueta bien**, comprobado con una carga de control. Sin eso sería código
+         muerto del que nadie sabría si funciona, en el test que sostiene una afirmación de seguridad.
+
+- [x] **T-015** · `frontend` · Presupuesto de la suite de navegador — 2026-07-28
+      Verificado (AC-34): `playwright test --retries=2 --repeat-each=3` → **24 passed**, **ningún `429`**.
+      **RED real**, y con una lección: el caso que cayó **no fue el del editor sino el del árbol**. El cupo
+      es **por IP y global de la suite**, así que lo paga quien pasa por ahí, no quien gasta — que es
+      exactamente lo que la `002` aprendió con su AC-35 y lo que hace que este AC no se pueda deducir
+      leyendo el archivo que más consume.
+      **GREEN en dos pasos**: primero gastar menos (pico **98/120**); después, como AC-34 exige el
+      escenario **con reintentos** y 22 de margen no cubren uno, resetear **`workspace` únicamente** (pico
+      **20/120**). **`documentContent` NO se resetea**: la suite gasta **4 de 120**, así que neutralizarlo
+      restaría cobertura a cambio de nada. Dejó entrada en el CHANGELOG de la `001` (**v0.1.2**) por tocar
+      `apps/web/e2e/support/*`, y el orchestrator cerró la cabecera de versión de esa spec y su fila en
+      `specs/README.md`, que son suyas.
+      **Evaluó y NO tocó** el `GET …/documents/:id` duplicado por `StrictMode` (8 de 21 peticiones):
+      correctamente, porque las tres salidas quedaban fuera de su alcance. Queda como deuda con
+      destinatario en `003/spec.md` §8.1 → spec `005`.
+
+**La Fase 5 cierra la spec `003` en `complete`: 34/34 AC y 17/17 tareas**, sin ninguna salvedad de
+verificación manual —a diferencia de la `002`, cuyo AC-34 no lo caza CI—. Cifras finales, corridas de una
+vez: `shared` **81** · `apps/web` 16 archivos / **321** · api unit 21 suites / **305** · api e2e 22 suites
+/ **511** (40,2 s) · `pnpm test:e2e` **8** · `--retries=2 --repeat-each=3` **24** · `typecheck` y `lint`
+en **0** en los tres paquetes.
+
+**Dos deudas quedan vivas, las dos con destinatario y razón escritos** (`003/spec.md` §8): la
+deduplicación de `open(id)` es de la **`005`** —que tiene que tocar ese método de todas formas y que es
+quien convierte el problema en real de producción—, y el caso de conflicto de AC-33 **no se estabiliza
+preventivamente**: corrió 13 veces sin parpadear y lo que se deja escrito es **la causa**, para que un rojo
+futuro no se diagnostique como un problema de cupo.
+
+**Y dos afirmaciones de la propia spec que la implementación obligó a corregir**, que es lo que más vale
+de esta fase:
+
+1. **La lista cerrada de artefactos tocables (§6) se quedó corta dos veces** —`workspace.repository.spec.ts`
+   (`T-007`) y `apps/web/src/test/workspace-fixtures.ts` (`T-012`, 14 tests en rojo)—, las dos por el mismo
+   motivo: el radio de un cambio de contrato incluye **todo lo que construye un valor del tipo**, fixtures
+   de test incluidos, no solo los DTO. Las dos veces el agente **paró y reportó**, que es lo único que
+   hace que una lista cerrada sirva de algo.
+2. **`rehype-sanitize` pasó de «redundante» a tener un agujero propio con nombre.** La v0.1.2 afirmaba,
+   con medición, que quitarlo no rompía nada. Al añadir la carga de imagen con `irc:` cae **exactamente**
+   esa carga: es la **única** capa que defiende los protocolos de `src`. Estaba **predicho por escrito** en
+   §2.3 y se confirmó añadiendo la carga.
+
 ### Plan de despacho de la Fase 4 (2026-07-25)
 
 Reparto por **archivos**, no solo por tarea: en la Fase 3 dos agentes coincidieron en un mismo archivo
@@ -1646,25 +1954,55 @@ que hay que volver a leer la próxima vez que aparezca la misma disyuntiva.
 | Spec | Versión | Estado |
 |---|---|---|
 | `000-foundation` | 0.1.7 | implemented — 14/14 AC |
-| `001-auth` | 0.1.1 | implemented — 26/26 AC (su `T-026` solo espera un run verde de CI, que necesita `git push`) |
-| `002-workspace-tree` | 0.3.1 | **complete** — 35/35 AC, 27/27 tareas |
+| `001-auth` | **0.1.2** | implemented — 26/26 AC (su `T-026` solo espera un run verde de CI, que necesita `git push`) |
+| `002-workspace-tree` | **0.4.3** | **complete** — 35/35 AC; la enmienda de la v0.4.0 quedó **implementada** por `T-007`, `T-009` y `T-013` de la `003` |
+| `003-editor` | 0.1.4 | **complete** — 34/34 AC, 17/17 tareas |
 
-**Lo siguiente es la spec `003-editor`**: vista texto/preview, guardado y sanitización del preview. No hay
-nada que la bloquee, y llega con tres cosas ya escritas que conviene no redescubrir:
+**La spec `003-editor` está cerrada** (`specs/003-editor/`, v0.1.4, **complete**): 34/34 AC y 17/17
+tareas. Detalle con comandos y salidas en la Fase 5. **No queda trabajo abierto de las cinco fases.**
 
-1. **`002` dejó fuera de alcance editar `content` a propósito**, y con ello el bucle de guardado entero
-   (debounce, estado sucio, conflicto entre dos pestañas). Hoy **no existe ningún endpoint que modifique el
-   contenido de un documento**: un documento solo tiene el texto con el que nació. Ése es el primer
-   contrato que `003` tiene que cerrar.
-2. **La vista `/documents/:id` es un andamio declarado**, no una implementación provisional que se coló:
-   muestra el markdown en crudo dentro de un `<pre>` y `002` §4 dice explícitamente que `003` la sustituye.
-   El título sale del `GET` y no del árbol —para que entrar por URL directa funcione aunque el árbol no
-   haya llegado—, y esa decisión conviene conservarla.
-3. **El riesgo #15 de `002` se hereda con caso real ya documentado**: «Ocurrió un error inesperado» es lo
-   que se le enseña a la persona tanto si el servidor devolvió un `5xx` como si el código del navegador
-   reventó por su cuenta — que es exactamente lo que pasó con la caché rancia de AC-34, con la petición
-   respondiendo `200`. Se dejó **a propósito sin tarea** porque distinguir los dos casos es producto, no
-   corrección de un defecto, y `003` es la primera candidata a decidirlo.
+Cifras del cierre: `shared` **81** · `apps/web` 16 archivos / **321** · api unit 21 suites / **305** ·
+api e2e 22 suites / **511** (40,2 s) · `pnpm test:e2e` **8** · `--retries=2 --repeat-each=3` **24** sin
+un solo `429` · `typecheck` y `lint` en **0** en los tres paquetes.
+
+**Lo siguiente es la spec `004-markdown-palette`**, y llega con el contrato ya cerrado por la `003`: el
+modo texto es **un solo `<textarea>`** (así que `selectionStart`/`setRangeText` están disponibles sin API
+de terceros) y **todo** cambio de contenido entra por `setDraft(id, texto)`, así que la paleta solo tiene
+que calcular la cadena nueva y llamarla — el estado sucio, el debounce y la coalescencia reaccionan
+solos. GFM ya está en el parser, así que tablas, listas de tareas y tachado no necesitan un plugin nuevo.
+
+**Lo que la `005` hereda con nombre y razón**, para no redescubrirlo:
+
+- **«Split view» ya está definido** en `CLAUDE.md`: texto y preview lado a lado del **mismo** documento.
+  Con esa lectura el split es un cambio de **disposición** sobre los paneles de la `003`, no un segundo
+  estado: los dos leen el mismo `draft` de la misma entrada del store.
+- **El estado del editor ya está indexado por documento** (`Record<string, EditorEntry>`), así que lo que
+  la `005` tiene que decidir es la **política de desalojo**, no la forma.
+- **`003/spec.md` §8.1 le deja una deuda con recomendación**: deduplicar el `GET …/documents/:id` en
+  vuelo dentro de `open(id)`, con el mismo idiom *single-flight* que `http.ts` ya usa en
+  `refreshSession()`. Hoy `StrictMode` lo duplica **solo en desarrollo**; con tabs pasa a ser un problema
+  **real de producción**, y la `005` tiene que tocar `open(id)` de todas formas.
+
+**Tres cosas que costaron descubrir y que no se deducen leyendo el código:**
+
+1. **`plan.md` §2.2.1 de la `003`** — `rehype-sanitize` **empezó siendo redundante y dejó de serlo**: es
+   la única capa que defiende los protocolos de `src`, demostrado añadiendo una carga de imagen con
+   `irc:` y viéndola caer al quitarlo. La regla que queda escrita sigue valiendo para las capas 1 y 2,
+   que **siguen sin tener un rojo propio**: una capa no se retira porque ningún test la eche de menos.
+2. **§6 de la `003`** — la lista cerrada de artefactos tocables se quedó corta **dos veces**, las dos por
+   el mismo motivo: el radio de un cambio de contrato incluye **todo lo que construye un valor del
+   tipo**, fixtures de test de los dos paquetes incluidos, no solo los DTO. La regla para la próxima
+   spec que amplíe un tipo de `packages/shared` está escrita ahí: es un `grep` por el nombre del **tipo**,
+   no por el del endpoint.
+3. **La regla de los resets de contadores** (`003/tasks.md`, `T-015`) — la redacción original era
+   **incorrecta** y costó ~60 s por corrida en `T-008`. Lo que importa es el **momento** (en los límites
+   sí, a mitad de una secuencia de agotamiento no), **no el lugar**.
+
+Y un riesgo conocido que conviene reconocer antes de diagnosticarlo mal: si el caso de conflicto de
+**AC-33** parpadea alguna vez en CI, la causa es la ventana de **decenas de milisegundos** entre el `PUT`
+externo y el vencimiento del debounce de 1.500 ms — **no** el cupo del throttler, que es donde mira todo
+el mundo después de `T-015`. Corrió 13 veces sin fallar y **no se estabilizó a propósito**
+(`003/spec.md` §8.2).
 
 Y una regla operativa que las cuatro fases han pagado por aprender, por si se lee esto antes de empezar:
 **los comandos `DONE` se corren desde estado limpio** (`rm -rf packages/shared/dist` y dejar que el flujo lo

@@ -1,6 +1,43 @@
 # Spec 002 — Workspace tree: directorios, subdirectorios y documentos markdown
 
-- **Versión**: 0.3.1 — la versión es de la **spec completa** (los cuatro artefactos). La v0.3.1 es un
+- **Versión**: 0.4.4 — la versión es de la **spec completa** (los cuatro artefactos). La **v0.4.4** es un
+  **patch de estado**: los **cinco AC que la v0.4.0 dejó por delante del código** (AC-12, AC-15, AC-26,
+  AC-31, AC-32) quedan **implementados y verificados** por `T-007`, `T-009` y `T-013` de la spec `003`,
+  cerrada el mismo día. La spec vuelve a estar **alineada con el código** y el aviso que abría §6 se
+  retira. Ningún AC cambia de significado. La **v0.4.3** es un
+  **patch que amplía el alcance registrado de la enmienda por segunda vez**: `T-012` de la spec `003`
+  encontró que `apps/web/src/test/workspace-fixtures.ts` construye un `MarkdownDocument` a mano y no
+  ponía `contentVersion` (**14 tests en rojo en 5 suites** más un error de `tsc`; arreglo de una línea).
+  Mismo procedimiento que `T-007` y **mismo motivo**: la lista cerrada pensaba el radio de un cambio de
+  contrato como «DTO y tests de respuestas HTTP», y el radio real incluye **los fixtures de test de los
+  dos paquetes**. Ningún AC cambia. Detalle en `CHANGELOG.md`.
+  La **v0.4.2** es un
+  **patch que solo amplía el alcance registrado de la enmienda**: `T-007` de la spec `003` encontró una
+  **tercera** aserción de claves exactas que la lista cerrada no contemplaba
+  (`workspace.repository.spec.ts`, «no deja salir del repositorio las columnas internas de un
+  documento»), **paró y reportó** en vez de ampliarla por su cuenta, y verificó con `git show HEAD` que
+  era código de esta spec y no una rotura nueva. Se autorizó y se registró antes de aplicarlo. Ningún AC
+  cambia de significado. Detalle en `CHANGELOG.md`.
+  La **v0.4.1** es un
+  **patch que solo toca `CHANGELOG.md`**: sustituye dos **bytes de control** en bruto (un `U+0000` y un
+  `U+007F`, dentro de la entrada de la v0.3.1) por el nombre de su punto de código. Con ellos dentro,
+  `grep` clasificaba el archivo como **binario** y salía con exit 1 aunque el patrón estuviera —lo que
+  hacía fallar la verificación del `DONE` de `T-000` de la spec `003` sobre un archivo que estaba bien—.
+  Ningún AC, contrato, límite ni línea de código cambia. Irónicamente los bytes venían de la entrada que
+  **documentaba este mismo problema** en `tasks.md`. Detalle y verificación en `CHANGELOG.md`.
+  La **v0.4.0** es un
+  **minor** que **no lo pide esta spec sino la `003-editor`**, aprobada el 2026-07-28: el editor necesita
+  un token de concurrencia optimista para guardar contenido sin pisar el trabajo de otra pestaña, y la
+  columna elegida (`contentVersion`) viaja en la respuesta del documento. Es **aditivo** —ningún campo
+  desaparece ni cambia de tipo, ningún consumidor se rompe— pero obliga a cambiar aserciones de tests
+  **verdes**, así que no puede ser un patch. Toca cinco AC (**AC-12**, **AC-15**, **AC-26**, **AC-31**,
+  **AC-32**) y tres secciones de `plan.md`; el detalle y el porqué de cada uno están en el `CHANGELOG.md`
+  y en `specs/003-editor/spec.md` §6, que es la lista cerrada de lo que se podía tocar.
+  **Aviso de honestidad, porque es lo que se pierde si solo vive en el seguimiento**: desde la v0.4.0
+  esos cinco AC describen un contrato que **todavía no está implementado**. Lo implementan `T-007`,
+  `T-009` y `T-013` de la spec `003`. Hasta entonces la spec va **por delante del código**, a propósito y
+  por escrito. Todo lo demás de esta spec sigue verificado tal cual.
+  La v0.3.1 fue un
   **patch** que **cierra la spec entera**: `T-026` y `T-027` implementadas y verificadas, con lo que
   **AC-34 y AC-35 quedan cubiertos** y la spec pasa a **35/35 AC · 27/27 tareas**. No añade alcance ni
   cambia ninguna respuesta HTTP; lo que sí hace es **corregir dos decisiones que el orchestrator había
@@ -44,7 +81,16 @@
   cierra ese AC —verificado— y deja escrita la regla de detección (rango `4xx` **cerrado**, registro por
   estado y no por origen, `code` nunca copiado de un error ajeno). Ningún AC cambia de significado,
   ningún límite cambia y ningún contrato se rompe (ver `CHANGELOG.md`)
-- **Estado**: **complete** (2026-07-25) — **35/35 AC** verificados y **27/27 tareas** cerradas
+- **Estado**: **complete** (2026-07-28), **con la enmienda de la v0.4.0 ya implementada y verificada**.
+  Las **27/27 tareas** de esta spec siguen cerradas y sus **35 AC** verificados. Los **cinco AC** que la
+  v0.4.0 dejó **por delante del código** (AC-12, AC-15, AC-26, AC-31, AC-32) los cerró la spec `003` con
+  `T-007` (`contentVersion` en el alta y el detalle), `T-009` (los cuatro recuentos de OpenAPI) y `T-013`
+  (retirada del andamio `DocumentViewPage`, con **11 de 12** casos trasladados al editor). Verificado en
+  el cierre de la `003`: api e2e 22 suites / **511** · api unit 21 suites / **305** · `apps/web`
+  **321** · `pnpm test:e2e` **8**.
+  No se abrió ninguna tarea **en esta spec**: la enmienda la pidió la `003` y la pagó la `003`, que es
+  donde estaba el trabajo y donde se verificó. Lo de la v0.3.1, intacto: — **35/35 AC** verificados y
+  **27/27 tareas** cerradas
   (`T-001`…`T-016`, `T-024`, `T-025` de backend; `T-017`…`T-023`, `T-026`, `T-027` de frontend), todas
   comprobadas por el orchestrator con el comando corrido y su salida real. **Ningún AC queda sin
   cobertura**, con la salvedad —escrita, no escondida— de que el rojo de **AC-34 es manual y CI no lo
@@ -181,11 +227,17 @@ Todo AC debe ser verificable por un test automatizado. Las constantes que aparec
 
 - **AC-12** — Dado un usuario autenticado, cuando hace `POST /api/workspace/documents` con
   `{ "title": "Ideas", "directoryId": null, "content": "# Hola ñ" }`, entonces responde `201` con
-  `WorkspaceDocumentResponseDto` (`id`, `title`, `directoryId`, `contentBytes`, `createdAt`,
-  `updatedAt`, `content`) sin propiedades adicionales, con el `content` exactamente como se envió y
-  `contentBytes` igual a la longitud en **bytes UTF-8** (el carácter multibyte lo hace distinto de la
-  longitud en caracteres); y cuando se crea **sin** `content`, entonces `content` es `""` y
-  `contentBytes` es `0`.
+  `WorkspaceDocumentResponseDto` (`id`, `title`, `directoryId`, `contentBytes`, `contentVersion`,
+  `createdAt`, `updatedAt`, `content`) sin propiedades adicionales, con el `content` exactamente como se
+  envió, `contentBytes` igual a la longitud en **bytes UTF-8** (el carácter multibyte lo hace distinto de
+  la longitud en caracteres) y `contentVersion` igual a `0`; y cuando se crea **sin** `content`, entonces
+  `content` es `""`, `contentBytes` es `0` y `contentVersion` sigue siendo `0`.
+
+  _`contentVersion` se añade en la v0.4.0, a petición de la spec `003`._ Es el token de concurrencia
+  optimista del guardado de contenido, y nace en `0` **con o sin contenido inicial**: fijar el texto al
+  crear no es un guardado, así que no incrementa nada. Solo lo mueve
+  `PUT /api/workspace/documents/:id/content`, que es de la `003`. **Todavía no está implementado**: lo
+  hace `T-007` de esa spec.
 
 - **AC-13** — Dado un cuerpo con `title` vacío, de 201 caracteres o con caracteres prohibidos (los
   mismos que en AC-4), o con `directoryId` ausente, cuando se hace `POST /api/workspace/documents`,
@@ -199,7 +251,13 @@ Todo AC debe ser verificable por un test automatizado. Las constantes que aparec
   en el mismo ámbito conviven: el segundo responde `201`.
 
 - **AC-15** — Dado un documento propio, cuando se hace `GET /api/workspace/documents/:id`, entonces
-  responde `200` con `content` incluido; y con el `id` de un documento de otro usuario responde `404`.
+  responde `200` con las claves **exactas** de `WorkspaceDocumentResponseDto` —`content` y
+  `contentVersion` incluidos— y sin propiedades adicionales; y con el `id` de un documento de otro
+  usuario responde `404`.
+
+  _`contentVersion` y la exigencia de claves exactas se añaden en la v0.4.0, a petición de la spec `003`:_
+  el editor lee el documento por aquí y necesita el token con el que después va a guardar. **Todavía no
+  está implementado**: lo hace `T-007` de esa spec.
 
 - **AC-16** — Dado un documento propio, cuando se hace `PATCH /api/workspace/documents/:id` con un título
   nuevo, entonces responde `200` con `WorkspaceDocumentSummaryResponseDto` — que **no** incluye
@@ -256,8 +314,8 @@ Todo AC debe ser verificable por un test automatizado. Las constantes que aparec
   borrar, responde `404` y el sujeto no queda huérfano ni con un `parentId` inexistente.
 
 - **AC-26** — Dado el API en entorno no productivo, cuando se hace `GET /api/docs-json`, entonces el
-  documento incluye las **diez** rutas de `/api/workspace/*` con su método, todas declaran `security` con
-  `bearer` y documentan `401` y `429`, y las **nueve** que resuelven un `:id` documentan además `404`;
+  documento incluye las **once** rutas de `/api/workspace/*` con su método, todas declaran `security` con
+  `bearer` y documentan `401` y `429`, y las **diez** que resuelven un `:id` documentan además `404`;
   `GET /api/workspace/tree` **no** declara `404` y se comprueba explícitamente que no lo declara, porque
   es la única ruta que no puede emitirlo —no resuelve ningún `:id` y un workspace vacío responde `200`
   con las dos listas vacías (`plan.md` §4, que ya lo enumeraba así)—; incluye los schemas
@@ -266,6 +324,14 @@ Todo AC debe ser verificable por un test automatizado. Las constantes que aparec
   `WorkspaceDocumentResponseDto` y los DTO de entrada; **ningún** schema se llama como un modelo de
   Prisma (la lista se lee del `schema.prisma` real, así que `Directory` y `Document` entran solos en esa
   red); y el documento **no** menciona `nameKey`, `titleKey`, `parentScopeId` ni `userId`.
+
+  _Los recuentos pasan de «diez/nueve» a «once/diez» en la v0.4.0._ La ruta que entra es
+  `PUT /api/workspace/documents/{id}/content`, de la spec `003`. La decisión de fondo de este AC **no
+  cambia**: `GET /api/workspace/tree` sigue siendo **la única** ruta del tag que no declara `404`, y se
+  sigue afirmando en negativo. Esta enmienda solo mueve dos números; lo que se fijó en la v0.2.2 —por qué
+  esa ruta no puede emitir un `404`— sigue siendo el criterio con el que se deriva la lista. Los schemas
+  del endpoint nuevo (`SaveDocumentContentRequestDto`, `WorkspaceDocumentContentResponseDto`) los exige
+  AC-12 de la spec `003`, no este AC. **Todavía no está implementado**: lo hace `T-009` de esa spec.
 
 ### Contrato compartido
 
@@ -293,9 +359,18 @@ Todo AC debe ser verificable por un test automatizado. Las constantes que aparec
   vuelve a cargar.
 
 - **AC-31** — Dado un documento en el árbol, cuando el usuario lo activa (clic o `Enter`), entonces la
-  aplicación navega a `/documents/:id` y muestra su título, su ruta dentro del árbol y su markdown **en
-  crudo**; y si el servidor responde `404`, muestra un estado de «este documento ya no existe» y recarga
-  el árbol.
+  aplicación navega a `/documents/:id` y muestra su título y su ruta dentro del árbol; y si el servidor
+  responde `404`, muestra un estado de «este documento ya no existe» y recarga el árbol.
+
+  _Enmendado en la v0.4.0._ Hasta aquí este AC decía además «y su markdown **en crudo**», que era la
+  descripción del **andamio** que esta misma spec declaró como tal en su §4 («la vista de `/documents/:id`
+  que entra aquí muestra el markdown en crudo, dentro de un `<pre>`, y es explícitamente un andamio para
+  que `003` lo sustituya»). La spec `003` lo sustituye por el editor, así que la frase se retira en vez de
+  quedarse describiendo algo que va a dejar de existir. **Lo que este AC sigue exigiendo no se toca**: la
+  navegación, el título, el breadcrumb y el estado de documento inexistente con recarga del árbol siguen
+  siendo suyos y siguen verificándose — la spec `003` los **traslada** a los tests del editor en `T-013`
+  en lugar de borrarlos, que es la diferencia entre mover cobertura y perderla. **Todavía no está
+  implementado**: lo hace `T-013` de esa spec.
 
 - **AC-32** — Dado el navegador real con web y api corriendo, cuando Playwright registra un usuario, crea
   un directorio, crea un subdirectorio dentro, crea un documento en el subdirectorio, lo renombra, lo
@@ -320,9 +395,18 @@ Todo AC debe ser verificable por un test automatizado. Las constantes que aparec
     esta spec solo acepta `title` —escribir contenido es la spec `003`, ver §4—. Lo que se comprueba al
     abrirlo es, por tanto: la URL `/documents/:uuid`, el `aria-selected` de su fila en el árbol, el `h2`
     con su título, el breadcrumb **de un solo paso** (que es la prueba de que la mudanza a la raíz llegó
-    al servidor y no solo al estado del cliente) y la región `Markdown en crudo` **visible y vacía**. La
-    región tiene que existir y verse: un hueco ausente y un contenido vacío se distinguen, y solo el
+    al servidor y no solo al estado del cliente) y **el panel de texto del editor, visible y vacío**. El
+    panel tiene que existir y verse: un hueco ausente y un contenido vacío se distinguen, y solo el
     primero sería un defecto.
+
+    _Enmendado en la v0.4.0._ Hasta aquí esa última comprobación era «la región `Markdown en crudo`
+    **visible y vacía**», que es el `pre[aria-label="Markdown en crudo"]` del andamio. Al sustituirlo el
+    editor de la spec `003`, la aserción pasa a ser sobre su `<textarea>`, **con el mismo criterio y la
+    misma razón de ser**: lo que este recorrido demuestra es que el documento se abre y su hueco de
+    contenido está ahí y vacío, no cómo se llama el elemento que lo pinta. Lo que **no** cambia es nada
+    más de AC-32 —el árbol con un solo `treeitem`, el breadcrumb de un paso, la ausencia de errores de
+    consola—, y `T-013` de la spec `003` tiene prohibido tocar otra cosa de este recorrido. **Todavía no
+    está implementado**: lo hace `T-013`.
   - **El `role="tree"` vacío se comprueba con `toBeAttached()`, no con `toBeVisible()`.** Sin filas, el
     contenedor no ocupa un solo píxel y un navegador real lo da por oculto; quien cuenta que no hay nada
     es el texto «Todavía no hay directorios ni documentos.», que vive **fuera** del árbol y sí es
@@ -489,6 +573,28 @@ andamiaje de la suite e2e.)_
 | 16 | La caché de `optimizeDeps` y el presupuesto de altas de la suite e2e son **infraestructura compartida entre specs**: la primera vive en `vite.config.ts` (spec `000`) y el segundo en `apps/web/e2e/support/session.ts` (spec `001`). Arreglarlos desde esta spec toca andamiaje que no es suyo. Añadido en la v0.3.0 | Bajo, pero es el patrón que ya obligó a `T-004` y `T-024` a pararse | Mismas reglas que `T-004` y `T-024`, que ya tocaron contrato de la spec `000`: la tarea lo declara por adelantado, y **si algún test de `000` o de `001` se pone en rojo se para y se reporta**, no se ajusta el test de otra spec por cuenta propia. Las dos tareas (`T-026`, `T-027`) dejan entrada de cierre en el CHANGELOG de la spec dueña del archivo, igual que `T-024` la dejó en `000` v0.1.6. **Cerrado en la v0.3.1 y salió bien**: ningún test de `000` ni de `001` cayó, y las entradas están escritas — `000` **v0.1.7** (`vite.config.ts`) y `001` **v0.1.1** (andamiaje e2e). El riesgo era real y el procedimiento lo contuvo: `T-027` **sí** tuvo que ampliar lo que tocaba (el reset de `login` y `global-setup.ts`), y lo reportó en vez de resolverlo en silencio |
 
 ## 6. Trazabilidad
+
+**Nota de la v0.4.4: la enmienda ya está implementada y esta tabla vuelve a estar al día.** Entre la
+v0.4.0 y la v0.4.3 hubo un periodo —de horas— en que **cinco filas** (**AC-12**, **AC-15**, **AC-26**,
+**AC-31**, **AC-32**) describían un comportamiento **más amplio que el que sus tests comprobaban**. Lo
+cerró la spec `003` el mismo día, y así quedó cada una:
+
+- **AC-12 y AC-15** — `apps/api/test/workspace-documents.e2e-spec.ts` afirma ya `contentVersion` en el
+  juego exacto de claves (`T-007`).
+- **AC-26** — `apps/api/test/swagger.e2e-spec.ts` cuenta ya **once** rutas y **diez** con `404` (`T-009`).
+  Resultaron ser **cuatro** recuentos y no tres: el cuarto, los DTO de **salida**, no daba rojo porque su
+  lista no tiene `toHaveLength`.
+- **AC-31** — `DocumentViewPage.test.tsx` **se borró** y `T-013` **trasladó 11 de 12** casos a
+  `apps/web/src/features/editor/DocumentEditorPage.test.tsx`. Los **tres de navegación** se portaron tras
+  comprobar que `WorkspaceTreeView.test.tsx` solo afirma `selectedId`/`aria-selected` y **nunca la ruta**:
+  eran la única cobertura de «activar un documento abre `/documents/:id`» en todo el proyecto, y borrarlos
+  la habría hecho desaparecer **sin poner ningún test en rojo**. Traslado, no pérdida.
+- **AC-32** — `apps/web/e2e/workspace.spec.ts` afirma ahora sobre el `<textarea>` del editor en vez de
+  sobre el `<pre>` del andamio; el resto del recorrido, intacto.
+
+Se deja escrito el episodio en vez de borrarlo: **una spec puede ir por delante de su código durante un
+rato, pero solo si está dicho**, y esta tabla era el sitio donde alguien podía leer «35/35 verificados» y
+llevarse una idea equivocada.
 
 **Cobertura al cerrar la v0.3.1: 35/35 AC, ninguno sin verificación.** Los 33 del alcance aprobado, con
 test automatizado; AC-34 y AC-35 con lo que se describe abajo — AC-35 con un comando automatizado

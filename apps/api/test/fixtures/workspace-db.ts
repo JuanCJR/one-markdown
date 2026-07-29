@@ -31,7 +31,14 @@ export interface DirectoryDbRow {
   readonly nameKey: string;
 }
 
-/** Fila cruda de `documents`. */
+/**
+ * Fila cruda de `documents`.
+ *
+ * Trae `content`, `contentVersion` y `updatedAt` además de las columnas derivadas porque el guardado
+ * de contenido (spec 003, AC-5) afirma algo más fuerte que «no se guardó»: afirma que con una versión
+ * rancia —o con el `scope` de otro usuario— la fila **no cambia en absoluto**. Sin `updatedAt` aquí,
+ * un `updateMany` que sí tocara la fila y solo acertara a dejar el mismo `content` pasaría inadvertido.
+ */
 export interface DocumentDbRow {
   readonly id: string;
   readonly userId: string;
@@ -39,7 +46,10 @@ export interface DocumentDbRow {
   readonly parentScopeId: string;
   readonly title: string;
   readonly titleKey: string;
+  readonly content: string;
   readonly contentBytes: number;
+  readonly contentVersion: number;
+  readonly updatedAt: Date;
 }
 
 export interface WorkspaceDbContext {
@@ -110,7 +120,10 @@ export async function createWorkspaceDbContext(): Promise<WorkspaceDbContext> {
             parentScopeId: true,
             title: true,
             titleKey: true,
+            content: true,
             contentBytes: true,
+            contentVersion: true,
+            updatedAt: true,
           },
           orderBy: { id: 'asc' },
         }),
