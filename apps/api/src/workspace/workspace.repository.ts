@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { contentBytesOf } from './document-content';
 
 /**
  * Único punto del módulo `workspace` que conoce Prisma (decisión 14 del plan de la spec 002, y
@@ -63,8 +64,18 @@ const DIRECTORY_SELECT = {
   updatedAt: true,
 } as const;
 
-/** Resumen de documento **sin** `content`: en PostgreSQL ese texto vive en TOAST y traerlo cuesta. */
-const DOCUMENT_SUMMARY_SELECT = {
+/**
+ * Resumen de documento **sin** `content`: en PostgreSQL ese texto vive en TOAST y traerlo cuesta.
+ *
+ * Tampoco lleva `contentVersion` (spec `003`, AC-11): un resumen sin texto no tiene nada que
+ * versionar, y el árbol no debe arrastrar un token de concurrencia que nunca va a usar.
+ *
+ * Se exporta —igual que `DOCUMENT_SELECT`— porque **qué columnas se leen no se puede observar por
+ * HTTP**: los DTO se construyen campo a campo, así que una columna de más aquí no asomaría por
+ * ninguna respuesta y solo se pagaría en cada lectura del árbol, en silencio. La única forma de
+ * clavarlo con un test es afirmarlo sobre la constante.
+ */
+export const DOCUMENT_SUMMARY_SELECT = {
   id: true,
   directoryId: true,
   title: true,
@@ -73,7 +84,33 @@ const DOCUMENT_SUMMARY_SELECT = {
   updatedAt: true,
 } as const;
 
-const DOCUMENT_SELECT = { ...DOCUMENT_SUMMARY_SELECT, content: true } as const;
+/**
+ * El resumen **más** el texto y su token de concurrencia: lo que devuelven el alta y el detalle.
+ *
+ * `contentVersion` va aquí y no en el resumen (spec `003`, AC-11) porque solo sirve para volver a
+ * escribir el texto, y el resumen no lo lleva. Son exactamente las claves que publica
+ * `WorkspaceDocumentResponseDto`: ni una columna más.
+ */
+export const DOCUMENT_SELECT = {
+  ...DOCUMENT_SUMMARY_SELECT,
+  content: true,
+  contentVersion: true,
+} as const;
+
+/**
+ * Lo que devuelve un guardado de contenido, y **nada más**.
+ *
+ * No es `DOCUMENT_SUMMARY_SELECT`: guardar no toca `title` ni `directoryId` (AC-9), así que traerlos
+ * solo daría al servicio campos que su DTO tiene prohibido devolver. Y no incluye `content` a
+ * propósito: devolver el texto duplicaría hasta ~800 kB en cada guardado automático. Estas cuatro
+ * columnas son exactamente las claves de `WorkspaceDocumentContentResponseDto` (`plan.md` §4).
+ */
+const DOCUMENT_CONTENT_SAVED_SELECT = {
+  id: true,
+  contentBytes: true,
+  contentVersion: true,
+  updatedAt: true,
+} as const;
 
 export interface DirectoryRow {
   readonly id: string;
@@ -103,6 +140,12 @@ export interface DocumentSummaryRow {
 
 export interface DocumentRow extends DocumentSummaryRow {
   readonly content: string;
+  /**
+   * Token de concurrencia del guardado. Arranca en `0` (`@default(0)` del esquema) y **solo** lo
+   * incrementa `saveDocumentContent`: renombrar y mover no lo mencionan, que es justo la propiedad
+   * que justifica una columna propia en vez de usar `updatedAt` (spec `003`, AC-9).
+   */
+  readonly contentVersion: number;
 }
 
 export interface CreateDirectoryData {
@@ -147,6 +190,25 @@ export interface CreateDocumentData {
 export interface UpdateDocumentData {
   readonly title: string;
   readonly titleKey: string;
+}
+
+/**
+ * Un guardado de contenido: el texto completo **más** el token de concurrencia que el cliente leyó.
+ *
+ * `expectedVersion` no es opcional y no tiene valor por defecto: sin él la operación degeneraría en
+ * «el último gana», que es exactamente la pérdida silenciosa que este mecanismo existe para evitar.
+ */
+export interface SaveDocumentContentData {
+  readonly content: string;
+  readonly expectedVersion: number;
+}
+
+/** Resultado de un guardado que sí entró. `contentVersion` es ya la versión **nueva**. */
+export interface DocumentContentSavedRow {
+  readonly id: string;
+  readonly contentBytes: number;
+  readonly contentVersion: number;
+  readonly updatedAt: Date;
 }
 
 @Injectable()
@@ -344,8 +406,11 @@ export class WorkspaceRepository {
         titleKey: data.titleKey,
         content: data.content,
         // Se persiste al escribir para que el listado del árbol nunca tenga que leer `content`.
-        // En bytes UTF-8 y no en caracteres: es el tamaño real de lo guardado.
-        contentBytes: Buffer.byteLength(data.content, 'utf8'),
+        // En bytes UTF-8 y no en caracteres: es el tamaño real de lo guardado. Pasa por
+        // `contentBytesOf` —y no por un `Buffer.byteLength` copiado— porque desde la spec 003 hay
+        // dos caminos que escriben esta columna derivada y, si cada uno la calculara por su cuenta,
+        // el día que uno cambie el otro rompería el invariante en silencio (decisión 4 del plan).
+        contentBytes: contentBytesOf(data.content),
       },
       select: DOCUMENT_SELECT,
     });
@@ -376,6 +441,23 @@ export class WorkspaceRepository {
       where: { id, userId: scope.userId },
       select: DOCUMENT_SELECT,
     });
+  }
+
+  /**
+   * `1` si el documento existe **y es del usuario**, `0` en cualquier otro caso.
+   *
+   * Su única razón de ser es desambiguar el `null` de `saveDocumentContent`, que es ambiguo entre
+   * tres causas a propósito (spec 003, riesgo #3): `0` → `404`, `1` → `409`. Un documento ajeno no
+   * puede llegar nunca a la rama del `409`, porque el `userId` va en este `where` igual que en todos
+   * los demás — y un `409` sobre un id ajeno confirmaría que ese documento existe **y** cuál es su
+   * versión.
+   *
+   * Es un `count` y no `findDocument` porque `DOCUMENT_SELECT` trae el `content`: leer hasta ~800 kB
+   * de TOAST para decidir entre dos códigos de estado, en el camino de error de un endpoint de alta
+   * frecuencia, sería pagar el texto entero por un booleano.
+   */
+  async countDocument(scope: WorkspaceScope, id: string): Promise<number> {
+    return this.prisma.document.count({ where: { id, userId: scope.userId } });
   }
 
   /** Lanza `P2025` si el documento no existe **o no es del usuario del `scope`**. */
@@ -416,6 +498,62 @@ export class WorkspaceRepository {
         parentScopeId: parentScopeIdFor({ userId: scope.userId, parentId: directoryId }),
       },
       select: DOCUMENT_SUMMARY_SELECT,
+    });
+  }
+
+  /**
+   * Guarda el contenido de un documento **solo si** sigue en la versión que el cliente leyó.
+   *
+   * Devuelve la fila resultante si el guardado entró, y `null` si no entró. Ese `null` es
+   * deliberadamente **ambiguo** entre tres causas —el documento no existe, no es del usuario, o su
+   * `contentVersion` ya no es la esperada— porque las tres son la misma consulta: las tres
+   * condiciones viajan en el **mismo** `where`. Desambiguar es cosa del servicio, con un `count`
+   * acotado por `{ id, userId }`, y ese reparto es lo que impide que un documento ajeno llegue nunca
+   * a la rama del `409` (spec 003, riesgo #3): un conflicto de versión sobre un id que no es tuyo
+   * confirmaría que ese id existe.
+   *
+   * **Un solo `updateMany` condicional, sin lectura previa.** Un `findFirst` seguido de un `update`
+   * dejaría una ventana entre comprobar y escribir, que es justamente lo que la concurrencia
+   * optimista existe para cerrar: dos guardados desde la misma versión pasarían los dos la
+   * comprobación y el segundo pisaría al primero sin que nadie se enterase. Aquí la condición viaja
+   * dentro del `where`, así que PostgreSQL la resuelve de forma atómica sobre una sola fila y en
+   * `READ COMMITTED` —no hace falta `Serializable`: la decisión no depende de una foto del árbol—.
+   * El incremento va en el mismo `data`, de modo que no hay ningún estado intermedio en el que la
+   * fila tenga el texto nuevo y la versión vieja.
+   *
+   * Cuando el `where` no casa, `updateMany` **no toca la fila**: ni `content`, ni `contentBytes`, ni
+   * `contentVersion`, ni `updatedAt`. El guardado perdedor es, literalmente, una operación sin
+   * efectos (AC-5).
+   *
+   * `contentVersion` **solo** la incrementa este método. Renombrar y mover no la mencionan, y ese es
+   * el motivo de que el token sea una columna propia y no `updatedAt`: esas dos operaciones sí mueven
+   * la marca de tiempo, así que con `updatedAt` de token renombrar desde la barra lateral haría
+   * fallar un guardado pendiente con un conflicto que no existe (AC-9).
+   *
+   * La relectura posterior es una consulta aparte a propósito: `updateMany` devuelve un recuento y no
+   * filas. Va acotada por `{ id, userId }`, como todo en este archivo.
+   */
+  async saveDocumentContent(
+    scope: WorkspaceScope,
+    id: string,
+    data: SaveDocumentContentData,
+  ): Promise<DocumentContentSavedRow | null> {
+    const { count } = await this.prisma.document.updateMany({
+      where: { id, userId: scope.userId, contentVersion: data.expectedVersion },
+      data: {
+        content: data.content,
+        contentBytes: contentBytesOf(data.content),
+        contentVersion: { increment: 1 },
+      },
+    });
+
+    if (count === 0) {
+      return null;
+    }
+
+    return this.prisma.document.findFirst({
+      where: { id, userId: scope.userId },
+      select: DOCUMENT_CONTENT_SAVED_SELECT,
     });
   }
 

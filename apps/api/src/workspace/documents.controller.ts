@@ -9,6 +9,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -21,6 +22,7 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiPayloadTooLargeResponse,
   ApiTags,
   ApiTooManyRequestsResponse,
   ApiUnauthorizedResponse,
@@ -34,6 +36,8 @@ import { DocumentsService } from './documents.service';
 import { CreateDocumentRequestDto } from './dto/create-document.request.dto';
 import { MoveDocumentRequestDto } from './dto/move-document.request.dto';
 import { RenameDocumentRequestDto } from './dto/rename-document.request.dto';
+import { SaveDocumentContentRequestDto } from './dto/save-document-content.request.dto';
+import { WorkspaceDocumentContentResponseDto } from './dto/workspace-document-content.response.dto';
 import { WorkspaceDocumentSummaryResponseDto } from './dto/workspace-document-summary.response.dto';
 import { WorkspaceDocumentResponseDto } from './dto/workspace-document.response.dto';
 
@@ -179,6 +183,69 @@ export class DocumentsController {
     @Body() dto: MoveDocumentRequestDto,
   ): Promise<WorkspaceDocumentSummaryResponseDto> {
     return this.documents.moveDocument({ userId: user.id }, id, dto);
+  }
+
+  /**
+   * Guardar el contenido (spec 003, `plan.md` §4). Ruta propia y no una ampliación del `PATCH /:id`
+   * (decisión 1 del plan): los modos de fallo son distintos —renombrar puede chocar con un hermano,
+   * guardar solo puede chocar con una versión—, las frecuencias son incomparables (decenas por
+   * minuto frente a una vez al mes) y un DTO combinado haría que el guardado automático reenviara el
+   * título cada segundo y medio.
+   *
+   * `PUT` y no `PATCH` porque el cuerpo **reemplaza** el subrecurso entero, y la operación es
+   * idempotente respecto de su token: reenviar el mismo cuerpo con la misma versión ya consumida da
+   * `409` y no un segundo cambio (AC-8), que es justo lo que hace seguro reintentar un guardado.
+   *
+   * `@Throttled('documentContent')` **a nivel de método**: `declaredThrottler` resuelve la metadata
+   * con `getAllAndOverride([getHandler(), getClass()])`, donde el primer elemento gana, así que este
+   * decorador anula el `@Throttled('workspace')` de la clase. Es lo que evita que escribir agote el
+   * cupo con el que se navega el árbol —y al revés— sin tener que partir el controlador (AC-10, y
+   * `throttle.spec.ts` lo mide con un `ExecutionContext` real).
+   */
+  @Put(':id/content')
+  @Throttled('documentContent')
+  @ApiOperation({
+    summary: 'Guarda el contenido de un documento',
+    operationId: 'saveDocumentContent',
+    description:
+      'Reemplaza el markdown completo del documento **solo si** su `contentVersion` sigue siendo la que envía el cliente. Concurrencia optimista: no hay última escritura que gane en silencio.',
+  })
+  @ApiParam({ name: 'id', type: String, format: 'uuid', description: 'Documento a guardar' })
+  @ApiOkResponse({
+    type: WorkspaceDocumentContentResponseDto,
+    description:
+      'Contenido guardado. Devuelve la `contentVersion` **nueva**, que el cliente debe adoptar para su próximo guardado, y **no** devuelve el texto',
+  })
+  @ApiBadRequestResponse({
+    type: ErrorResponseDto,
+    description:
+      '`content` o `expectedVersion` inválidos (incluido el contenido demasiado largo), o `:id` que no es uuid',
+  })
+  @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: 'Sin token válido' })
+  @ApiNotFoundResponse({
+    type: ErrorResponseDto,
+    description:
+      'El documento no existe o no es tuyo (`DOCUMENT_NOT_FOUND`). También con una `expectedVersion` incorrecta: un `409` sobre un documento ajeno confirmaría que existe',
+  })
+  @ApiConflictResponse({
+    type: ErrorResponseDto,
+    description:
+      'La `contentVersion` real no es la esperada (`DOCUMENT_CONTENT_CONFLICT`): alguien guardó antes y **no** se ha escrito nada',
+  })
+  @ApiPayloadTooLargeResponse({
+    type: ErrorResponseDto,
+    description: 'El cuerpo JSON supera el límite global de 2 MiB',
+  })
+  @ApiTooManyRequestsResponse({
+    type: ErrorResponseDto,
+    description: 'Cupo de guardados por IP agotado (`documentContent`)',
+  })
+  async saveContent(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SaveDocumentContentRequestDto,
+  ): Promise<WorkspaceDocumentContentResponseDto> {
+    return this.documents.saveDocumentContent({ userId: user.id }, id, dto);
   }
 
   /**

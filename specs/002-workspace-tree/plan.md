@@ -160,8 +160,12 @@ DTOs de respuesta compartidos por varios endpoints:
 - `WorkspaceDirectoryResponseDto` — `id: string` (uuid) · `name: string` · `parentId: string | null` ·
   `depth: number` · `createdAt: string` (ISO-8601) · `updatedAt: string` (ISO-8601)
 - `WorkspaceDocumentSummaryResponseDto` — `id: string` · `title: string` ·
-  `directoryId: string | null` · `contentBytes: number` · `createdAt: string` · `updatedAt: string`
-- `WorkspaceDocumentResponseDto` **extends** `WorkspaceDocumentSummaryResponseDto` — `+ content: string`
+  `directoryId: string | null` · `contentBytes: number` · `createdAt: string` · `updatedAt: string`.
+  **No gana `contentVersion` en la v0.4.0**, y es deliberado: el resumen es lo que viaja en el árbol, que
+  no lleva contenido y por tanto no tiene nada que versionar. Añadírselo engordaría la única respuesta
+  cuyo tamaño esta spec se molestó en acotar (decisión 4)
+- `WorkspaceDocumentResponseDto` **extends** `WorkspaceDocumentSummaryResponseDto` —
+  `+ content: string` · `+ contentVersion: number` **(v0.4.0)**
 
 Ninguno expone `userId`, `nameKey`, `titleKey` ni `parentScopeId` (AC-26).
 
@@ -296,7 +300,7 @@ Ninguno expone `userId`, `nameKey`, `titleKey` ni `parentScopeId` (AC-26).
   a diferencia del `logout` de `001`, cuyo objetivo es «asegurar que no hay sesión»; aquí un `404` le dice
   al cliente que su árbol está desactualizado) · `429`
 
-### Resumen: diez rutas
+### Resumen: once rutas
 
 | Ruta | Método |
 |---|---|
@@ -307,6 +311,15 @@ Ninguno expone `userId`, `nameKey`, `titleKey` ni `parentScopeId` (AC-26).
 | `/api/workspace/documents` | `POST` |
 | `/api/workspace/documents/{id}` | `GET`, `PATCH`, `DELETE` |
 | `/api/workspace/documents/{id}/move` | `POST` |
+| `/api/workspace/documents/{id}/content` | `PUT` **(v0.4.0 — la define y la implementa la spec `003`)** |
+
+La undécima ruta se lista aquí **solo** para que el recuento de AC-26 cuadre y para que nadie la busque
+en esta spec y concluya que falta. **Su contrato completo —DTO de entrada y salida, el `409`
+`DOCUMENT_CONTENT_CONFLICT`, el throttler propio `documentContent`— vive en `specs/003-editor/plan.md`
+§4**, y no se duplica aquí: un contrato escrito en dos sitios es un contrato que acaba diciendo dos cosas.
+El `PATCH /api/workspace/documents/{id}` de esta spec **no cambia**: sigue aceptando solo `title` y
+seguirá rechazando `content` con un `400` de `forbidNonWhitelisted`, que es comportamiento verificado y
+que la spec `003` decidió expresamente **no** tocar.
 
 ## 5. Esquema / migración Prisma
 
@@ -375,6 +388,10 @@ model Document {
   /// Longitud en bytes UTF-8, persistida para que el listado del árbol no tenga que leer `content`
   /// (en PostgreSQL ese texto puede vivir en TOAST y traerlo sería descargar todo el documento).
   contentBytes Int @default(0)
+  /// v0.4.0 — lo añade la spec 003, que es quien lo usa y quien corre la migración (su `T-001`).
+  /// Contador monótono que **solo** incrementa el guardado de contenido; renombrar y mover no lo
+  /// tocan, y ése es justo el motivo de que sea una columna propia y no `updatedAt`.
+  contentVersion Int @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -539,6 +556,13 @@ deliberadamente cruda. **No** entra editor, preview, paleta, tabs, split view ni
   - `DocumentViewPage` — título, ruta (`breadcrumb` derivado del store) y el markdown en un `<pre>`
     con `white-space: pre-wrap`. **Andamio explícito** de `003`: no renderiza HTML, así que no hay nada
     que sanitizar.
+    **v0.4.0 — este componente desaparece.** La spec `003` lo sustituye por
+    `apps/web/src/features/editor/DocumentEditorPage.tsx` en su `T-013`, que **borra**
+    `DocumentViewPage.tsx` y su test y **traslada** los casos que siguen valiendo (navegación, título,
+    breadcrumb, «este documento ya no existe» con recarga del árbol). Se cumple así lo que esta spec
+    prometió al declararlo andamio, y se cumple **borrándolo**: dejarlo vivo junto al editor sería la
+    forma clásica de que un andamio se quede diez años. La ruta `documents/:id` y todo lo demás de §7
+    —árbol, diálogos, store— no cambian.
 - **Tipos compartidos** (`packages/shared`): `DirectoryNode`, `DocumentSummary`, `MarkdownDocument`,
   `WorkspaceTree` y sus guards (`isDirectoryNode`, `isDocumentSummary`, `isMarkdownDocument`,
   `isWorkspaceTree`). Ninguno se llama `Document` ni `Directory` (riesgo #10). `ApiErrorShape` gana

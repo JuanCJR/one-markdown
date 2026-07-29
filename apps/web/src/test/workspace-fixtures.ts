@@ -49,6 +49,7 @@ export function markdownDocument(overrides: Partial<MarkdownDocument> = {}): Mar
   return {
     ...documentSummary(),
     content: '# Diario\n',
+    contentVersion: 0,
     ...overrides,
   };
 }

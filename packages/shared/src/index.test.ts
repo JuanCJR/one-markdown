@@ -5,6 +5,7 @@ import {
   isAuthSession,
   isAuthUser,
   isDirectoryNode,
+  isDocumentContentSaved,
   isDocumentSummary,
   isHealth,
   isLoginResult,
@@ -13,9 +14,11 @@ import {
   isMfaSetup,
   isReadiness,
   isWorkspaceTree,
+  MAX_DOCUMENT_CONTENT_CHARS,
   type AuthSession,
   type AuthUser,
   type DirectoryNode,
+  type DocumentContentSaved,
   type DocumentSummary,
   type Health,
   type LoginResult,
@@ -339,7 +342,7 @@ const validSummary: DocumentSummary = {
   updatedAt: '2026-07-25T00:00:00.000Z',
 };
 
-const validDocument: MarkdownDocument = { ...validSummary, content: '# Hola' };
+const validDocument: MarkdownDocument = { ...validSummary, content: '# Hola', contentVersion: 0 };
 
 const validTree: WorkspaceTree = {
   directories: [validRootDirectory, validChildDirectory],
@@ -412,6 +415,24 @@ describe('isDocumentSummary (AC-27)', () => {
     expect(isDocumentSummary(null)).toBe(false);
     expect(isDocumentSummary('Ideas')).toBe(false);
   });
+
+  it('sigue aceptando un resumen SIN contentVersion (spec 003, AC-14)', () => {
+    // El árbol no trae `contentVersion` y no debe empezar a exigirlo: el resumen no lleva contenido,
+    // así que no tiene nada que versionar (plan 003 §4). Esta aserción es la que protege al árbol de
+    // la `002` de que el guard del detalle se copie sobre el del resumen, que viven en el mismo
+    // archivo y a dos funciones de distancia.
+    expect('contentVersion' in validSummary).toBe(false);
+    expect(isDocumentSummary(validSummary)).toBe(true);
+  });
+
+  it('sigue aceptando cada resumen del árbol tal cual lo sirve GET /tree (spec 003, AC-14)', () => {
+    for (const summary of validTree.documents) {
+      expect('contentVersion' in summary).toBe(false);
+      expect(isDocumentSummary(summary)).toBe(true);
+    }
+
+    expect(isWorkspaceTree(validTree)).toBe(true);
+  });
 });
 
 describe('isMarkdownDocument (AC-27)', () => {
@@ -436,6 +457,22 @@ describe('isMarkdownDocument (AC-27)', () => {
     const { directoryId: _omitted, ...withoutDirectoryId } = validDocument;
     expect(isMarkdownDocument(withoutDirectoryId)).toBe(false);
     expect(isMarkdownDocument({ ...validDocument, contentBytes: '6' })).toBe(false);
+  });
+
+  it('acepta el detalle con contentVersion recién creado y ya guardado (spec 003, AC-14)', () => {
+    expect(isMarkdownDocument({ ...validDocument, contentVersion: 0 })).toBe(true);
+    expect(isMarkdownDocument({ ...validDocument, contentVersion: 7 })).toBe(true);
+  });
+
+  it('rechaza contentVersion ausente: sin token de concurrencia no se puede guardar', () => {
+    const { contentVersion: _omitted, ...withoutContentVersion } = validDocument;
+    expect(isMarkdownDocument(withoutContentVersion)).toBe(false);
+  });
+
+  it('rechaza contentVersion no numérico, incluido null y la versión en texto', () => {
+    expect(isMarkdownDocument({ ...validDocument, contentVersion: '0' })).toBe(false);
+    expect(isMarkdownDocument({ ...validDocument, contentVersion: null })).toBe(false);
+    expect(isMarkdownDocument({ ...validDocument, contentVersion: undefined })).toBe(false);
   });
 });
 
@@ -483,5 +520,85 @@ describe('isWorkspaceTree (AC-27)', () => {
   it('rechaza null y primitivos', () => {
     expect(isWorkspaceTree(null)).toBe(false);
     expect(isWorkspaceTree([])).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+// Editor (specs/003-editor/plan.md §3 y §4)
+// ---------------------------------------------------------------------------------------------
+
+const validContentSaved: DocumentContentSaved = {
+  id: validSummary.id,
+  contentBytes: 12,
+  contentVersion: 1,
+  updatedAt: '2026-07-28T10:00:00.000Z',
+};
+
+describe('isDocumentContentSaved (AC-14)', () => {
+  it('acepta el cuerpo exacto del 200 de PUT /api/workspace/documents/:id/content', () => {
+    expect(isDocumentContentSaved(validContentSaved)).toBe(true);
+  });
+
+  it('acepta el guardado que deja el documento vacío, con contentBytes 0', () => {
+    expect(isDocumentContentSaved({ ...validContentSaved, contentBytes: 0 })).toBe(true);
+  });
+
+  it('rechaza id ausente o no textual', () => {
+    const { id: _omitted, ...withoutId } = validContentSaved;
+    expect(isDocumentContentSaved(withoutId)).toBe(false);
+    expect(isDocumentContentSaved({ ...validContentSaved, id: 7 })).toBe(false);
+  });
+
+  it('rechaza contentBytes ausente o no numérico', () => {
+    const { contentBytes: _omitted, ...withoutContentBytes } = validContentSaved;
+    expect(isDocumentContentSaved(withoutContentBytes)).toBe(false);
+    expect(isDocumentContentSaved({ ...validContentSaved, contentBytes: '12' })).toBe(false);
+  });
+
+  it('rechaza contentVersion ausente: sin él el cliente no puede encadenar el guardado siguiente', () => {
+    const { contentVersion: _omitted, ...withoutContentVersion } = validContentSaved;
+    expect(isDocumentContentSaved(withoutContentVersion)).toBe(false);
+  });
+
+  it('rechaza contentVersion no numérico, incluido null y la versión en texto', () => {
+    expect(isDocumentContentSaved({ ...validContentSaved, contentVersion: '1' })).toBe(false);
+    expect(isDocumentContentSaved({ ...validContentSaved, contentVersion: null })).toBe(false);
+    expect(isDocumentContentSaved({ ...validContentSaved, contentVersion: undefined })).toBe(false);
+  });
+
+  it('rechaza updatedAt ausente o no textual: el DTO lo serializa como ISO-8601', () => {
+    const { updatedAt: _omitted, ...withoutUpdatedAt } = validContentSaved;
+    expect(isDocumentContentSaved(withoutUpdatedAt)).toBe(false);
+    expect(isDocumentContentSaved({ ...validContentSaved, updatedAt: 1_785_240_000_000 })).toBe(
+      false,
+    );
+  });
+
+  it('rechaza null, primitivos y un array', () => {
+    expect(isDocumentContentSaved(null)).toBe(false);
+    expect(isDocumentContentSaved('1')).toBe(false);
+    expect(isDocumentContentSaved([])).toBe(false);
+  });
+
+  it('no acepta un resumen del árbol como respuesta de guardado', () => {
+    // El resumen trae `id`, `contentBytes` y `updatedAt`, así que tres de las cuatro claves cuadran;
+    // lo único que lo descarta es el `contentVersion` que no lleva. Si el guard dejara de exigirlo,
+    // el cliente adoptaría como versión nueva un `undefined` y el guardado siguiente daría un `400`.
+    expect(isDocumentContentSaved(validSummary)).toBe(false);
+  });
+});
+
+describe('MAX_DOCUMENT_CONTENT_CHARS (plan 003 §3)', () => {
+  it('vale 200.000, el mismo límite que @MaxLength aplica en el backend', () => {
+    // El backend es la fuente de verdad (`apps/api/src/workspace/workspace.constants.ts`). Esta
+    // aserción no prueba una constante contra sí misma: fija el valor **espejo** que consume el
+    // frontend, para que una subida del límite en el backend que se olvide de este paquete se vea
+    // aquí en vez de convertirse en un `400` que el cliente no supo prever.
+    expect(MAX_DOCUMENT_CONTENT_CHARS).toBe(200_000);
+  });
+
+  it('el frontend no necesita duplicar el literal: la constante viaja en el contrato', () => {
+    expect(typeof MAX_DOCUMENT_CONTENT_CHARS).toBe('number');
+    expect(Number.isInteger(MAX_DOCUMENT_CONTENT_CHARS)).toBe(true);
   });
 });

@@ -107,6 +107,16 @@ model Document {
   /// (en PostgreSQL ese texto puede vivir en TOAST y traerlo sería descargar todo el documento).
   contentBytes Int @default(0)
 
+  /// Contador monótono que **solo** incrementa el guardado de contenido
+  /// (`PUT /api/workspace/documents/:id/content`). Es el token de concurrencia optimista de la
+  /// spec 003: el cliente devuelve el que leyó y el `where` del update lo exige, así que dos
+  /// guardados desde la misma versión no pueden pisarse en silencio.
+  ///
+  /// **No** lo tocan renombrar ni mover, y ese es justo el motivo de que sea una columna propia y
+  /// no `updatedAt`: renombrar desde la barra lateral movería `updatedAt` y haría fallar un
+  /// guardado pendiente con un conflicto que no existe (spec 003, AC-9).
+  contentVersion Int @default(0)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

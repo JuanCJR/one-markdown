@@ -6,9 +6,10 @@ import {
   WorkspaceDocumentSummaryResponseDto,
 } from './workspace-document-summary.response.dto';
 
-/** El resumen más el texto: lo que devuelven el alta y el detalle. */
+/** El resumen más el texto y su token de concurrencia: lo que devuelven el alta y el detalle. */
 export interface DocumentProjection extends DocumentSummaryProjection {
   readonly content: string;
+  readonly contentVersion: number;
 }
 
 /**
@@ -35,8 +36,19 @@ export class WorkspaceDocumentResponseDto
   })
   readonly content: string;
 
+  @ApiProperty({
+    type: Number,
+    example: 0,
+    description:
+      'Token de concurrencia optimista del guardado: se devuelve tal cual en `expectedVersion` al hacer `PUT /api/workspace/documents/{id}/content`. Vale `0` en un documento recién creado y solo lo incrementa ese guardado — renombrar y mover no lo tocan',
+  })
+  readonly contentVersion: number;
+
   constructor(document: DocumentProjection) {
     super(document);
     this.content = document.content;
+    // Campo a campo, como el resumen: el DTO es la única superficie de la respuesta y ninguna fila
+    // de Prisma se devuelve entera.
+    this.contentVersion = document.contentVersion;
   }
 }

@@ -13,7 +13,14 @@ import { seconds, SkipThrottle, type ThrottlerOptions } from '@nestjs/throttler'
  * recuperación) solo están protegidos por éste.
  */
 
-export const THROTTLE_NAMES = ['register', 'login', 'mfa', 'refresh', 'workspace'] as const;
+export const THROTTLE_NAMES = [
+  'register',
+  'login',
+  'mfa',
+  'refresh',
+  'workspace',
+  'documentContent',
+] as const;
 
 export type ThrottleName = (typeof THROTTLE_NAMES)[number];
 
@@ -41,6 +48,13 @@ export const THROTTLE_LIMITS: Record<ThrottleName, ThrottleLimit> = {
   // interactivo —una mutación más la recarga del árbol son 2 peticiones— y muy por debajo de lo
   // que hace un script. La cobertura completa y sus tests son de la tarea T-014.
   workspace: { limit: 120, ttlSeconds: 60 },
+  // Guardado de contenido (spec 003, AC-10). Cupo **propio**, separado del de `workspace`: el
+  // guardado automático del editor emite decenas de peticiones por minuto —el techo real es ~30/min
+  // por la coalescencia— y meterlas en el mismo cubo que el árbol dejaría a un usuario que escribe
+  // sin poder navegar. Los 120/min de aquí son ese techo con margen para varias pestañas abiertas, y
+  // siguen muy por debajo de lo que hace un script. Lo declara **el manejador**
+  // `PUT /documents/:id/content`, que gana al `@Throttled('workspace')` de su controlador.
+  documentContent: { limit: 120, ttlSeconds: 60 },
 };
 
 /** Mensaje del `429`. Genérico a propósito: no dice qué límite se alcanzó ni cuántos quedaban. */

@@ -2,6 +2,171 @@
 
 Formato: `## vX.Y.Z — YYYY-MM-DD` + motivo del cambio.
 
+## v0.4.4 — 2026-07-28
+
+**Patch de estado: la enmienda de la v0.4.0 queda implementada y la spec vuelve a estar alineada con el
+código.** Ningún AC cambia de significado.
+
+Los **cinco AC** que la v0.4.0 dejó **por delante del código** los cerró la spec `003` el mismo día:
+
+| AC | Quién lo cerró | Qué quedó |
+|---|---|---|
+| AC-12, AC-15 | `T-007` | `contentVersion` en el juego exacto de claves del alta y el detalle |
+| AC-26 | `T-009` | **once** rutas y **diez** con `404`. Fueron **cuatro** recuentos y no tres: el cuarto —DTO de **salida**— no dio rojo porque su lista no tiene `toHaveLength`, o sea que era un hueco silencioso |
+| AC-31 | `T-013` | `DocumentViewPage.test.tsx` borrado y **11 de 12** casos trasladados al editor |
+| AC-32 | `T-013` | La aserción pasa del `<pre>` del andamio al `<textarea>` del editor; el resto del recorrido, intacto |
+
+**El detalle de AC-31 que merece sobrevivir a esta entrada.** `T-013` portó **tres casos que no estaban en
+su encargo** —los de navegación— tras comprobar que `WorkspaceTreeView.test.tsx` solo afirma
+`selectedId`/`aria-selected` y **nunca la ruta**. Eran la **única** cobertura de «activar un documento
+abre `/documents/:id`» en todo el proyecto: borrarlos con el resto del andamio la habría hecho desaparecer
+**sin que ningún test se pusiera rojo**. Es la misma clase de hueco silencioso que el cuarto recuento de
+`T-009`, y se encontró con el mismo método — preguntarse **quién más cubre esto** antes de borrar.
+
+**Se deja escrito que la spec estuvo por delante de su código durante unas horas**, en el `Estado` y en el
+aviso de §6, en vez de borrar el episodio ahora que está resuelto. Una spec puede ir por delante del
+código si está **dicho**; lo que no puede es decir «35/35 verificados» mientras cinco de esos AC describen
+algo que nadie ha implementado.
+
+Verificado en el cierre de la `003`: api e2e 22 suites / **511** · api unit 21 suites / **305** ·
+`apps/web` 16 archivos / **321** · `pnpm test:e2e` **8** · `typecheck` y `lint` en 0.
+
+## v0.4.3 — 2026-07-28
+
+**Patch. La enmienda alcanza a un archivo más, y van dos.** Ningún AC cambia de significado, ningún
+contrato cambia: lo que crece otra vez es **el alcance registrado**.
+
+`T-012` de la spec `003` encontró que **`apps/web/src/test/workspace-fixtures.ts`** —código intacto de
+esta spec, commit `168b840`— construye un `MarkdownDocument` a mano y no ponía `contentVersion`, que el
+tipo pasó a exigir. **Coste medido: 14 tests en rojo en 5 suites**, más un error de `tsc`. El arreglo es
+una línea (`contentVersion: 0`). Mismo procedimiento que `T-007`: parar, verificar que era código de esta
+spec, autorizar, registrar en `specs/003-editor/spec.md` §6, y después aplicar.
+
+**Por qué se repite, que es lo único que evita una tercera vez.** Las dos veces la lista cerrada falló por
+el mismo sitio: se pensó el radio de un cambio de contrato como «los DTO y los tests que afirman
+respuestas HTTP», y el radio real es **todo lo que construye un valor de ese tipo**, incluidos los
+**fixtures de test de los dos paquetes**. Un tipo compartido con un campo requerido nuevo es un *tripwire*
+que alcanza a cualquier archivo que fabrique uno a mano, y esos archivos no aparecen buscando el nombre
+del endpoint — aparecen buscando el nombre del **tipo**. La regla queda escrita en §6 de la `003`.
+
+**Cobertura**: no se pierde nada. El fixture sigue siendo un `MarkdownDocument` válido; ahora lo es de
+verdad.
+
+## v0.4.2 — 2026-07-28
+
+**Patch. La enmienda de la v0.4.0 tocó un archivo más de lo que su lista autorizaba.** Ningún AC de esta
+spec cambia de significado, ningún contrato cambia y ningún límite cambia: lo que cambia es **el alcance
+registrado** de la enmienda.
+
+**Qué pasó.** `T-007` de la spec `003` encontró una **tercera** aserción de claves exactas que la lista
+cerrada de `specs/003-editor/spec.md` §6 no contemplaba:
+
+- `apps/api/src/workspace/workspace.repository.spec.ts`, caso **«no deja salir del repositorio las
+  columnas internas de un documento»** (línea ~334). La lista de claves que ese test afirma sobre lo que
+  devuelve `createDocument` gana `contentVersion`.
+
+**Es inevitable y correcta**: AC-11 de la `003` obliga a que `createDocument` devuelva `contentVersion`,
+así que el test que enumera exactamente lo que sale del repositorio tenía que crecer con él. Es una línea.
+
+**Lo que hay que retener no es el cambio, es cómo apareció.** `T-007` **paró y reportó** en vez de
+ampliar la lista por su cuenta, y antes de reportar verificó con `git show HEAD` que la aserción era
+código **de esta spec** y no algo que hubiera roto `T-003` de la `003`. Esa distinción es la que separa
+«la enmienda alcanza a un test que no habíamos previsto» de «acabamos de romper la `002`», y es
+exactamente lo que el procedimiento de `T-024`/`T-026`/`T-027` existe para provocar. La lista cerrada
+**estaba corta** —la escribió el orchestrator— y el mecanismo lo cazó. Se autorizó y se añadió a §6
+**antes** de aplicarlo.
+
+**Cobertura**: no se pierde nada. El test sigue afirmando el juego **exacto** de claves; solo enumera una
+más. Y la `003` refuerza esa red en su AC-11, después de **medir** que una columna de más en
+`DOCUMENT_SUMMARY_SELECT` es **indetectable por HTTP** —los DTO se construyen campo a campo, así que
+jamás llega a la respuesta— mientras el árbol descargaba de TOAST el texto de todos los documentos.
+
+## v0.4.1 — 2026-07-28
+
+**Patch de corrección de este mismo archivo. No toca ningún AC, ningún contrato, ningún límite ni una
+línea de código.** Se sustituyen **dos bytes de control** —un `U+0000` y un `U+007F` en bruto, en la
+entrada de la v0.3.1— por el nombre de su punto de código.
+
+**Por qué importaba.** Con esos dos bytes dentro, `grep` clasificaba el archivo como **binario** y salía
+con **exit 1** aunque el patrón estuviera presente: `grep -n "^## v0.4.0" CHANGELOG.md` → sin salida,
+exit 1, mientras `grep -a` sobre lo mismo → `5:## v0.4.0 — 2026-07-28`, exit 0. Se descubrió al verificar
+el `DONE` de `T-000` de la spec `003`, que es precisamente un `grep` sobre este archivo: la comprobación
+fallaba y **el archivo estaba bien**. Un `DONE` que no puede distinguir «no está» de «grep no lo ve» no
+verifica nada.
+
+**Precisión sobre el alcance del defecto**, porque el primer diagnóstico lo dijo de más: el que se rompía
+era **`grep`**. `git diff` funcionaba con normalidad sobre el archivo.
+
+**De dónde salieron.** De la propia entrada de la v0.3.1 que **documentaba este mismo problema** en
+`tasks.md`: al escribir «Sustituidos por `…` y `…` escapados» se incrustaron los bytes en bruto en lugar
+de su representación. La frase prometía una cosa y contenía la contraria, así que la corrección hace que
+por fin afirme lo que dice.
+
+**Por qué `U+0000`/`U+007F` y no una secuencia con barra invertida.** Es la notación que ya usa §3 de
+`spec.md` para estos mismos caracteres («contiene un carácter de control (`U+0000`–`U+001F`, `U+007F`)»),
+así que no introduce vocabulario nuevo. Y es la única que **no se puede volver a romper en tránsito**: al
+aplicar el arreglo, dos herramientas distintas reinterpretaron una secuencia con barra invertida y
+devolvieron los bytes crudos al archivo. Una notación que no lleva barras invertidas no tiene esa
+superficie.
+
+**Verificación, elegida para que falle si el arreglo no funcionó**: `grep -c` sobre este archivo → exit
+**0** (antes exit 1); `grep -n "^## v0.4.0"` **sin `-a`** → encuentra la línea 5; y un barrido de bytes de
+control sobre **los 21 archivos `.md` de `specs/`** → **cero**. Ningún otro archivo estaba afectado.
+
+**Regla que se refuerza, ya que la v0.3.1 la había escrito y aun así cayó**: un carácter de control nunca
+se escribe literal en un documento; se escribe su nombre.
+
+## v0.4.0 — 2026-07-28
+
+**Minor pedido desde fuera: lo pide la spec `003-editor`, aprobada hoy, y lo paga ella.** Aditivo —ningún
+campo desaparece ni cambia de tipo, ningún consumidor se rompe— pero obliga a cambiar aserciones de tests
+**verdes**, así que no puede ser un patch. Aplicado por `T-000` de la `003`, cuya lista cerrada de
+artefactos tocables está en `specs/003-editor/spec.md` §6. **No se tocó ni una línea de código**: los
+cambios de test los harán `T-007`, `T-009` y `T-013` de la `003`, cada uno junto a la implementación que
+los provoca.
+
+### Qué cambia y por qué
+
+El editor necesita guardar contenido sin pisar el trabajo de otra pestaña, y para eso hace falta un token
+de concurrencia optimista. La `003` eligió una **columna dedicada**, `contentVersion Int @default(0)`, que
+viaja en la respuesta del documento. De ahí salen los cinco AC tocados:
+
+- **AC-12** y **AC-15** — `WorkspaceDocumentResponseDto` gana `contentVersion`, así que el juego **exacto**
+  de claves que los dos afirman cambia. Nace en `0` con o sin contenido inicial: fijar el texto al crear
+  no es un guardado.
+- **AC-26** — «diez rutas» pasa a **once** y «las nueve que resuelven un `:id`» a **diez**, por
+  `PUT /api/workspace/documents/{id}/content`. **La decisión de fondo no cambia**: `GET /tree` sigue siendo
+  la única ruta del tag que no declara `404`, y se sigue afirmando en negativo. Esta entrada mueve dos
+  números, no el criterio que la v0.2.2 fijó para derivar la lista.
+- **AC-31** y **AC-32** — se retira la descripción del **andamio** (`Markdown en crudo` en un `<pre>`), que
+  esta misma spec declaró como tal en su §4 y que la `003` sustituye por el editor.
+
+### Por qué una columna y no `updatedAt`, que es lo que esta spec había apuntado
+
+El riesgo #12 de esta spec decía: «`WorkspaceDocumentResponseDto` ya lleva `updatedAt`, que es lo que
+`003` necesita para una comprobación optimista […]. **No** se añade una columna `version` por adelantado:
+sería especular sobre un mecanismo que `003` todavía no ha decidido». La `003` lo ha decidido, y ha
+decidido lo contrario, por un motivo que solo se ve al escribirlo: **renombrar y mover también mueven
+`updatedAt`**. Con `updatedAt` como token, renombrar un documento desde la barra lateral haría fallar un
+guardado pendiente del editor con un **conflicto que no existe**. La `003` tiene un AC (su AC-9) dedicado a
+clavar que las tres operaciones son ortogonales, y con `updatedAt` sería imposible de cumplir.
+
+No fue un error de esta spec: fue exactamente lo que su riesgo #12 pedía —no adelantar un mecanismo sin
+datos— y el mecanismo se decidió cuando hubo con qué decidirlo.
+
+### Lo que esta enmienda cuesta, escrito donde se lea
+
+**Desde hoy, cinco AC de esta spec describen un contrato que el código todavía no cumple.** La spec va
+**por delante** del código, a propósito. Las 27 tareas siguen cerradas y los 35 AC siguen verificados
+contra el código de la v0.3.1; la diferencia la implementan `T-007`, `T-009` y `T-013` de la `003`. Se
+anota en el `Estado` de la spec, en §6 (trazabilidad) y en cada uno de los cinco AC, en vez de dejar que
+«35/35 verificados» diga algo que ya no es del todo cierto.
+
+**Lo que NO se tocó**, aunque estaba cerca: `PATCH /api/workspace/documents/{id}` sigue aceptando solo
+`title` y sigue rechazando `content` con un `400` de `forbidNonWhitelisted`. La `003` evaluó ampliarlo y lo
+descartó — habría metido el guardado automático en el camino del `409 DOCUMENT_TITLE_TAKEN` y habría
+convertido esta entrada en un **major**.
+
 ## v0.3.1 — 2026-07-25
 
 **Patch de cierre definitivo.** `T-026` y `T-027` implementadas y verificadas: **AC-34 y AC-35 quedan
@@ -555,7 +720,7 @@ apuntando al mismo sitio.
 - Corrección de higiene del propio artefacto, sin cambio de contenido: la descripción del RED de `T-002`
   llevaba un **byte NUL (0x00) y un DEL (0x7f) literales** al enumerar los caracteres de control que
   `assertWorkspaceName` debe rechazar, lo que convertía `tasks.md` en binario para `grep` y `git diff`.
-  Sustituidos por ` ` y `` escapados. **Regla que sale de aquí**: los caracteres de control se
+  Sustituidos por el nombre de su punto de código, `U+0000` y `U+007F` (corregido en la v0.4.1). **Regla que sale de aquí**: los caracteres de control se
   escriben escapados en los artefactos de la spec, y el test que los necesite los construye con
   `String.fromCharCode`, nunca como literales en el archivo.
 - Spec inicial (**draft**). Alcance: modelo de árbol (directorios anidables + documentos markdown en un

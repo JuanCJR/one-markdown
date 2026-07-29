@@ -47,6 +47,12 @@ async function createSubject(nodeCount: number) {
         title: data.title,
         content: data.content,
         contentBytes: Buffer.byteLength(data.content, 'utf8'),
+        // Literal y no `contentBytesOf(...)` ni una constante de producción, por el mismo motivo por
+        // el que `contentBytes` se calcula aquí a mano (spec 003, T-003): un doble que llama a lo
+        // que llama el sujeto deja de ser un oráculo independiente y pasa a comprobar el mock. Un
+        // documento recién creado arranca en `0` por el `@default(0)` del esquema, así que `0` es la
+        // respuesta correcta escrita sin mirar la implementación.
+        contentVersion: 0,
         createdAt: FIXED_DATE,
         updatedAt: FIXED_DATE,
       }),

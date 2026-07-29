@@ -153,13 +153,19 @@ test.describe('Recorrido del árbol en el navegador (AC-32)', () => {
     // La ruta del documento es un único paso: acaba de mudarse a la raíz.
     await expect(page.getByRole('navigation', { name: 'Ruta del documento' })).toHaveText(DOCUMENT);
 
-    // El markdown se lee en crudo. Está vacío porque un documento nace sin texto y hasta la spec
-    // 003 no hay editor: lo que se comprueba aquí es que la vista trae **el contenido del
-    // servidor**, no un hueco sin pedir —de ahí que la región tenga que existir y estar visible—.
-    const raw = page.getByRole('region', { name: 'Markdown en crudo' });
+    // El hueco de contenido está a la vista y vacío, porque un documento nace sin texto. Lo que se
+    // comprueba aquí es que la vista trae **el contenido del servidor**, no un hueco sin pedir —de
+    // ahí que el área tenga que existir y estar visible—.
+    //
+    // Enmienda de la spec `002` a la v0.4.0 (su AC-32): hasta la spec `003` esto era la región
+    // `Markdown en crudo` del andamio, que ya no existe; el criterio y su razón de ser son los
+    // mismos, y lo único que cambia es el elemento que pinta el contenido.
+    const content = page.getByRole('textbox', {
+      name: `Contenido de «${DOCUMENT}» en markdown`,
+    });
 
-    await expect(raw).toBeVisible();
-    await expect(raw).toHaveText('');
+    await expect(content).toBeVisible();
+    await expect(content).toHaveValue('');
 
     // 8. Borrar el directorio, que sigue teniendo dentro el subdirectorio: la confirmación dice
     //    cuánto se lleva por delante y solo entonces el borrado sale en recursivo.

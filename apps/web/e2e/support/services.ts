@@ -146,12 +146,14 @@ async function resetThrottleCounters(): Promise<void> {
  * navegador.
  *
  * **No lleves este reset a la suite del API.** Es el atajo obvio el día que aquella suite moleste,
- * y allí destruiría la única prueba de que los límites existen.
+ * y allí destruiría la única prueba de que los límites existen. La regla es sobre el **momento**:
+ * poner el contador a cero en los **límites** de un caso hace la prueba determinista; hacerlo a
+ * mitad de una secuencia de agotamiento hace que el `429` no llegue nunca. Aquí siempre es lo
+ * primero.
  *
- * Solo `register` y `login`: los contadores de `mfa`, `refresh` y `workspace` se quedan intactos, y
- * la suite los sigue gastando de verdad.
+ * `mfa` y `refresh` se quedan intactos, y la suite los sigue gastando de verdad.
  */
-async function resetThrottleCounter(name: 'register' | 'login'): Promise<void> {
+async function resetThrottleCounter(name: 'register' | 'login' | 'workspace'): Promise<void> {
   try {
     await redisCommand(['EVAL', DELETE_BY_PATTERN, '0', `throttle:${name}:*`]);
   } catch (cause) {
@@ -171,6 +173,39 @@ export async function resetRegisterThrottleCounter(): Promise<void> {
 /** Cupo de entradas (`login`: 10 por IP cada minuto). Ver `resetThrottleCounter`. */
 export async function resetLoginThrottleCounter(): Promise<void> {
   await resetThrottleCounter('login');
+}
+
+/**
+ * Cupo de la superficie del workspace (`workspace`: 120 peticiones por IP cada minuto), a cero antes
+ * de un caso que va a gastarlo (AC-34 de la spec `003`).
+ *
+ * **Las cifras que lo obligan, medidas el 2026-07-28.** Con la suite entera en verde —24 casos,
+ * `--repeat-each=3`, sin un solo reintento— el contador de `workspace` llegaba a **98 de 120** en
+ * poco menos de veinte segundos, o sea dentro de **una sola** ventana. El margen eran 22 peticiones:
+ * menos de lo que cuesta **un** reintento del recorrido del árbol (~13). Y la corrida anterior, con
+ * el gasto de antes, ya moría en el tercer repeat con la interfaz enseñando «Demasiadas peticiones
+ * desde esta dirección» — un `429` que no tenía nada que ver con lo que el caso medía. Con el
+ * contador a cero en los límites de cada caso del editor, el número de reintentos deja de decidir si
+ * la suite pasa, que es exactamente lo que ya se hizo con `register` y `login` en la `002`.
+ *
+ * **Primero se gastó menos, y esto vino después.** Antes de tocar ningún contador se quitó el
+ * arranque de la aplicación que dos casos de `editor.spec.ts` hacían solo para tomar prestada la
+ * cabecera `Authorization` (ver `session.ts`). Lo que queda por encima del presupuesto es, en su
+ * mayor parte, el `GET /api/workspace/documents/:id` **duplicado** que `StrictMode` provoca en cada
+ * apertura —el `webServer` de Playwright levanta `pnpm dev`—, y eso no se arregla desde esta suite.
+ *
+ * **Lo que esto cuesta, escrito aquí a propósito**: la suite de navegador **deja de poder detectar**
+ * el límite de la superficie del workspace. Se acepta porque quien lo verifica es
+ * `apps/api/test/workspace-throttle.e2e-spec.ts` (AC-24 de la spec `002`), que agota las 120
+ * peticiones y exige el `429` —con su forma de `ErrorResponseDto`— en cuatro casos, y que además
+ * comprueba que agotar `workspace` no agota `login` ni `documentContent`. Es su sitio: un límite
+ * **por IP** se prueba contra el API, no a través de un navegador.
+ *
+ * **El cupo de `documentContent` NO se resetea**, y es deliberado: la suite entera gasta 4 de sus
+ * 120 por corrida, así que neutralizarlo solo restaría cobertura a cambio de nada.
+ */
+export async function resetWorkspaceThrottleCounter(): Promise<void> {
+  await resetThrottleCounter('workspace');
 }
 
 interface E2eAccount {

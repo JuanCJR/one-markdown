@@ -1,4 +1,4 @@
-import type { AuthSession } from '@one-markdown/shared';
+import type { AuthSession, DocumentContentSaved } from '@one-markdown/shared';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 
 import {
@@ -23,6 +23,7 @@ import {
   register,
   renameDirectory,
   renameDocument,
+  saveDocumentContent,
   verifyMfa,
 } from './http';
 import { apiErrorResponse, noContentResponse, stubApi } from '../../test/api-stub';
@@ -749,5 +750,252 @@ describe('cliente de workspace (T-017: habilita AC-28…AC-32)', () => {
       expect(error.code).toBe('DOCUMENT_NOT_FOUND');
       expect(api.calls).toHaveLength(1);
     });
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+// T-010 · AC-15: PUT /api/workspace/documents/:id/content
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * Espejo de `WorkspaceDocumentContentResponseDto`: las **cuatro** claves del `200` del guardado.
+ *
+ * Vive aquí y no en `test/workspace-fixtures.ts` porque `T-010` solo puede tocar `http.ts` y
+ * `http.test.ts` (`tasks.md`, §ARCHIVOS).
+ */
+function documentContentSaved(overrides: Partial<DocumentContentSaved> = {}): DocumentContentSaved {
+  return {
+    id: 'doc-diario',
+    contentBytes: 9,
+    contentVersion: 1,
+    updatedAt: '2026-07-25T00:10:00.000Z',
+    ...overrides,
+  };
+}
+
+/**
+ * `id` que **de verdad** mide `encodeURIComponent`: con el espacio y la barra, la forma codificada
+ * (`doc%20a%2Fb`) no se parece a la cruda. Un `id` que fuese igual codificado y sin codificar dejaría
+ * pasar la ausencia de la codificación sin que ningún caso lo notara.
+ */
+const AWKWARD_ID = 'doc a/b';
+const AWKWARD_ID_ENCODED = 'doc%20a%2Fb';
+
+describe('saveDocumentContent (AC-15, T-010)', () => {
+  let accessToken: string | null;
+
+  beforeEach(() => {
+    accessToken = 'access-token-1';
+
+    configureAuthBridge({
+      getAccessToken: () => accessToken,
+      onSessionRenewed: (session) => {
+        accessToken = session.accessToken;
+      },
+      onSessionLost: () => {
+        accessToken = null;
+      },
+    });
+  });
+
+  it('emite un PUT a /api/workspace/documents/:id/content', async () => {
+    const api = stubApi({
+      'PUT /api/workspace/documents/doc-diario/content': () => jsonResponse(documentContentSaved()),
+    });
+
+    await saveDocumentContent('doc-diario', '# Diario\n', 0);
+
+    expect(api.calls).toHaveLength(1);
+    expect(api.calls[0]?.method).toBe('PUT');
+    expect(api.calls[0]?.path).toBe('/api/workspace/documents/doc-diario/content');
+  });
+
+  it('manda el cuerpo EXACTO { content, expectedVersion }, sin una clave de más', async () => {
+    const api = stubApi({
+      'PUT /api/workspace/documents/doc-diario/content': () => jsonResponse(documentContentSaved()),
+    });
+
+    await saveDocumentContent('doc-diario', '# Diario\n', 3);
+
+    // El `ValidationPipe` del backend va con `forbidNonWhitelisted`: una clave de más (`id`,
+    // `title`, `contentVersion`…) no es un detalle cosmético, es un 400. Por eso se afirma el juego
+    // exacto de claves y no que el cuerpo "contenga" las dos.
+    expect(api.calls[0]?.body).toEqual({ content: '# Diario\n', expectedVersion: 3 });
+    expect(Object.keys(api.calls[0]?.body as object).sort()).toEqual([
+      'content',
+      'expectedVersion',
+    ]);
+  });
+
+  it('manda Authorization: Bearer, el Content-Type de JSON y credentials: include', async () => {
+    const api = stubApi({
+      'PUT /api/workspace/documents/doc-diario/content': () => jsonResponse(documentContentSaved()),
+    });
+
+    await saveDocumentContent('doc-diario', '', 0);
+
+    expect(api.calls[0]?.headers['authorization']).toBe('Bearer access-token-1');
+    expect(api.calls[0]?.headers['content-type']).toBe('application/json');
+    expect(api.calls[0]?.credentials).toBe('include');
+  });
+
+  it('guardar contenido vacío es legítimo: manda content: "" y no lo omite', async () => {
+    const api = stubApi({
+      'PUT /api/workspace/documents/doc-diario/content': () =>
+        jsonResponse(documentContentSaved({ contentBytes: 0, contentVersion: 4 })),
+    });
+
+    const saved = await saveDocumentContent('doc-diario', '', 3);
+
+    expect(api.calls[0]?.body).toEqual({ content: '', expectedVersion: 3 });
+    expect(saved.contentBytes).toBe(0);
+  });
+
+  it('devuelve las cuatro claves del guardado, con la contentVersion ya incrementada', async () => {
+    stubApi({
+      'PUT /api/workspace/documents/doc-diario/content': () =>
+        jsonResponse(
+          documentContentSaved({
+            contentBytes: 10,
+            contentVersion: 1,
+            updatedAt: '2026-07-28T09:00:00.000Z',
+          }),
+        ),
+    });
+
+    const saved = await saveDocumentContent('doc-diario', '# Hola ñ', 0);
+
+    expect(saved).toEqual({
+      id: 'doc-diario',
+      contentBytes: 10,
+      contentVersion: 1,
+      updatedAt: '2026-07-28T09:00:00.000Z',
+    });
+  });
+
+  it('codifica el id en la ruta con encodeURIComponent', async () => {
+    // Las dos rutas están simuladas a propósito: si la codificación desapareciera, la petición
+    // seguiría respondiendo 200 y el caso caería en la aserción sobre la ruta —que es lo que se está
+    // midiendo— en vez de en un "ruta no simulada", que sería un rojo por otro motivo.
+    const api = stubApi({
+      [`PUT /api/workspace/documents/${AWKWARD_ID_ENCODED}/content`]: () =>
+        jsonResponse(documentContentSaved({ id: AWKWARD_ID })),
+      [`PUT /api/workspace/documents/${AWKWARD_ID}/content`]: () =>
+        jsonResponse(documentContentSaved({ id: AWKWARD_ID })),
+    });
+
+    await saveDocumentContent(AWKWARD_ID, 'texto', 0);
+
+    expect(api.calls[0]?.path).toBe(`/api/workspace/documents/${AWKWARD_ID_ENCODED}/content`);
+    expect(api.calls[0]?.path).not.toContain(AWKWARD_ID);
+  });
+
+  it('lanza ApiError cuando la respuesta no cumple isDocumentContentSaved', async () => {
+    const { contentVersion: _ignored, ...sinContentVersion } = documentContentSaved();
+    stubApi({
+      'PUT /api/workspace/documents/doc-diario/content': () => jsonResponse(sinContentVersion),
+    });
+
+    const error = (await saveDocumentContent('doc-diario', 'texto', 0).catch(
+      (caught: unknown) => caught,
+    )) as ApiError;
+
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error.statusCode).toBe(0);
+  });
+
+  it('lanza ApiError cuando el contentVersion de la respuesta no es numérico', async () => {
+    stubApi({
+      'PUT /api/workspace/documents/doc-diario/content': () =>
+        jsonResponse({ ...documentContentSaved(), contentVersion: '1' }),
+    });
+
+    await expect(saveDocumentContent('doc-diario', 'texto', 0)).rejects.toBeInstanceOf(ApiError);
+  });
+
+  it('un 409 propaga un ApiError cuyo code es exactamente DOCUMENT_CONTENT_CONFLICT', async () => {
+    stubApi({
+      'PUT /api/workspace/documents/doc-diario/content': () =>
+        apiErrorResponse(409, 'El documento cambió desde que lo abriste', {
+          code: 'DOCUMENT_CONTENT_CONFLICT',
+        }),
+    });
+
+    const error = (await saveDocumentContent('doc-diario', 'texto', 0).catch(
+      (caught: unknown) => caught,
+    )) as ApiError;
+
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error.statusCode).toBe(409);
+    // Exactamente este código, no "un error". Es el único que obliga al editor (T-013) a una rama de
+    // interfaz entera; degradado a genérico, el usuario pierde su texto sin que nadie se entere.
+    expect(error.code).toBe('DOCUMENT_CONTENT_CONFLICT');
+    expect(error.message).toContain('El documento cambió desde que lo abriste');
+  });
+
+  it('un 404 de documento ajeno o inexistente conserva su code y no se reintenta', async () => {
+    const api = stubApi({
+      'PUT /api/workspace/documents/doc-diario/content': () =>
+        apiErrorResponse(404, 'El documento no existe', { code: 'DOCUMENT_NOT_FOUND' }),
+    });
+
+    const error = (await saveDocumentContent('doc-diario', 'texto', 0).catch(
+      (caught: unknown) => caught,
+    )) as ApiError;
+
+    expect(error.statusCode).toBe(404);
+    expect(error.code).toBe('DOCUMENT_NOT_FOUND');
+    expect(api.calls).toHaveLength(1);
+  });
+
+  it('un 400 llega con el mensaje del servidor, que es el que verá el usuario', async () => {
+    stubApi({
+      'PUT /api/workspace/documents/doc-diario/content': () =>
+        apiErrorResponse(400, ['content no puede superar los 200000 caracteres']),
+    });
+
+    const error = (await saveDocumentContent('doc-diario', 'x', 0).catch(
+      (caught: unknown) => caught,
+    )) as ApiError;
+
+    expect(error.statusCode).toBe(400);
+    expect(error.messages).toEqual(['content no puede superar los 200000 caracteres']);
+  });
+
+  it('un 429 llega tal cual, sin reintento del cliente HTTP', async () => {
+    const api = stubApi({
+      'PUT /api/workspace/documents/doc-diario/content': () =>
+        apiErrorResponse(429, 'Demasiados guardados, prueba en un momento'),
+    });
+
+    const error = (await saveDocumentContent('doc-diario', 'texto', 0).catch(
+      (caught: unknown) => caught,
+    )) as ApiError;
+
+    expect(error.statusCode).toBe(429);
+    expect(api.calls).toHaveLength(1);
+  });
+
+  it('un 401 SÍ dispara un refresh y un reintento: aquí el 401 es el bearer caducado', async () => {
+    let saveCalls = 0;
+    const api = stubApi({
+      'PUT /api/workspace/documents/doc-diario/content': () => {
+        saveCalls += 1;
+
+        return saveCalls === 1
+          ? apiErrorResponse(401, 'Token expirado')
+          : jsonResponse(documentContentSaved({ contentVersion: 2 }));
+      },
+      'POST /api/auth/refresh': () => jsonResponse(authSession({ accessToken: 'access-token-2' })),
+    });
+
+    const saved = await saveDocumentContent('doc-diario', 'texto', 1);
+
+    expect(saved.contentVersion).toBe(2);
+    expect(api.calls).toHaveLength(3);
+    expect(api.callsTo('POST /api/auth/refresh')).toHaveLength(1);
+    expect(
+      api.callsTo('PUT /api/workspace/documents/doc-diario/content')[1]?.headers['authorization'],
+    ).toBe('Bearer access-token-2');
   });
 });

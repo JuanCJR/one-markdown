@@ -1,6 +1,11 @@
 # Spec 001 — Auth: registro, login, JWT access+refresh, bcrypt, MFA TOTP, Redis, rate limit
 
-- **Versión**: 0.1.1 — patch. Ningún AC cambia y ningún límite de producción se toca: la v0.1.1 registra
+- **Versión**: 0.1.2 — patch. Ningún AC cambia y ningún límite de producción se toca. La **v0.1.2**
+  registra que el andamiaje e2e volvió a cambiar, esta vez por `T-015` de la spec `003`: la suite de
+  navegador pasa a resetear también el contador **`throttle:workspace:*`**, porque el escenario con
+  reintentos de AC-34 de la `003` no cabía en el cupo. **`throttle:documentContent:*` NO se resetea** —la
+  suite gasta 4 de 120 y neutralizarlo restaría cobertura a cambio de nada—, y los de `mfa` y `refresh`
+  siguen intactos. Detalle en `CHANGELOG.md`. La v0.1.1 registró
   que el **andamiaje e2e** de esta spec (`apps/web/e2e/**`) cambió por `T-027` de la spec `002`, con dos
   consecuencias que hay que conocer antes de tocarlo — la suite de navegador **neutraliza a propósito** los
   contadores de `register` y `login`, y ese reset **no debe llevarse a la suite del API**, donde destruiría

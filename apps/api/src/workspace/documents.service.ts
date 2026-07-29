@@ -4,6 +4,8 @@ import { toWorkspaceDomainHttpException } from './domain-error';
 import { CreateDocumentRequestDto } from './dto/create-document.request.dto';
 import { MoveDocumentRequestDto } from './dto/move-document.request.dto';
 import { RenameDocumentRequestDto } from './dto/rename-document.request.dto';
+import { SaveDocumentContentRequestDto } from './dto/save-document-content.request.dto';
+import { WorkspaceDocumentContentResponseDto } from './dto/workspace-document-content.response.dto';
 import { WorkspaceDocumentSummaryResponseDto } from './dto/workspace-document-summary.response.dto';
 import { WorkspaceDocumentResponseDto } from './dto/workspace-document.response.dto';
 import { toWorkspaceHttpException } from './prisma-error';
@@ -29,6 +31,24 @@ const parentNotFound = (): NotFoundException =>
   new NotFoundException({
     message: 'El directorio de destino no existe o no es tuyo.',
     code: 'PARENT_NOT_FOUND',
+  });
+
+/**
+ * Conflicto de versión del contenido (spec 003, AC-5).
+ *
+ * `409` y no `412`: la comprobación no viaja en una precondición HTTP sino en el cuerpo, por la
+ * regla dura del proyecto —toda entrada por un DTO explícito— y porque los guards de
+ * `packages/shared` validan cuerpos y no cabeceras (decisión 2 del plan).
+ *
+ * El mensaje **no** dice cuál es la versión real, y no es una omisión: este error también lo ve
+ * quien acierta el id de otro por casualidad… salvo que no, precisamente porque un documento ajeno
+ * nunca llega hasta aquí (ver `saveDocumentContent`). Aun así el `code` es lo que la interfaz
+ * empareja para ofrecer las dos resoluciones del conflicto, y el texto puede cambiar sin romperla.
+ */
+const documentContentConflict = (): ConflictException =>
+  new ConflictException({
+    message: 'El documento cambió desde la última vez que lo leíste.',
+    code: 'DOCUMENT_CONTENT_CONFLICT',
   });
 
 /**
@@ -175,6 +195,52 @@ export class DocumentsService {
       // está usado en el destino.
       toWorkspaceHttpException(error);
     }
+  }
+
+  /**
+   * Guardado de contenido con concurrencia optimista (spec 003, AC-1…AC-9).
+   *
+   * **No hay lectura previa.** El repositorio hace un único `updateMany` cuyo `where` lleva a la vez
+   * el `id`, el `userId` del token y la `contentVersion` esperada, así que la comprobación y la
+   * escritura son la misma operación y no cabe otra petición entre ellas. Comprobar antes de
+   * escribir es exactamente el patrón que este mecanismo existe para no usar.
+   *
+   * **La desambiguación es lo delicado de este método.** El `null` del repositorio significa tres
+   * cosas a la vez —el documento no existe, no es del usuario, o su versión ya no es la esperada—
+   * porque las tres condiciones viajan en el mismo `where`. Para separarlas se cuenta **después**, y
+   * el `count` va acotado por `{ id, userId }`:
+   *
+   * - `0` → el documento no existe **o no es tuyo** → `404 DOCUMENT_NOT_FOUND`, exactamente el mismo
+   *   error que devuelven el detalle, el renombrado y el borrado.
+   * - `≥1` → es tuyo y sigue ahí, luego lo que falló fue la versión → `409`.
+   *
+   * El orden importa y es el que impide la fuga del riesgo #3 de la spec: **un documento ajeno no
+   * puede llegar nunca a la rama del `409`**, ni con la versión correcta ni con una incorrecta,
+   * porque el `count` lo devuelve como `0` en los dos casos. Un `409` ahí confirmaría que ese id
+   * existe y, además, revelaría cuál **no** es su versión. AC-7 lo mide con los dos casos.
+   *
+   * La carrera que queda es benigna: si el documento se borra entre el `updateMany` y el `count`, el
+   * resultado es `404`, que es la verdad en ese instante.
+   */
+  async saveDocumentContent(
+    scope: WorkspaceScope,
+    id: string,
+    dto: SaveDocumentContentRequestDto,
+  ): Promise<WorkspaceDocumentContentResponseDto> {
+    const saved = await this.repository.saveDocumentContent(scope, id, {
+      content: dto.content,
+      expectedVersion: dto.expectedVersion,
+    });
+
+    if (saved === null) {
+      if ((await this.repository.countDocument(scope, id)) === 0) {
+        throw documentNotFound();
+      }
+
+      throw documentContentConflict();
+    }
+
+    return new WorkspaceDocumentContentResponseDto(saved);
   }
 
   /**

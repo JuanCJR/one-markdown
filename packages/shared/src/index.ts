@@ -171,6 +171,32 @@ export interface DocumentSummary {
 export interface MarkdownDocument extends DocumentSummary {
   /** Markdown en crudo. Cadena vacía si el documento está en blanco. */
   readonly content: string;
+  /**
+   * Token de concurrencia optimista del guardado (spec `003`). El cliente devuelve el que leyó en
+   * `expectedVersion` y el servidor lo exige en el `where` del update, así que dos guardados desde
+   * la misma versión no pueden pisarse en silencio.
+   *
+   * Vive aquí y **no** en `DocumentSummary` a propósito: el resumen no lleva contenido, así que no
+   * tiene nada que versionar, y el árbol no lo trae (plan `003` §4).
+   */
+  readonly contentVersion: number;
+}
+
+/**
+ * Espejo de `WorkspaceDocumentContentResponseDto`: el `200` de
+ * `PUT /api/workspace/documents/:id/content`. Cuatro claves y ninguna más.
+ *
+ * **No** devuelve `content` (sería duplicar hasta 800 kB en cada guardado automático) ni
+ * `title`/`directoryId`: guardar contenido no los toca.
+ */
+export interface DocumentContentSaved {
+  readonly id: string;
+  /** Tamaño del contenido recién guardado, en **bytes UTF-8**. */
+  readonly contentBytes: number;
+  /** La versión **ya incrementada**: es la que hay que enviar en el guardado siguiente. */
+  readonly contentVersion: number;
+  /** ISO-8601. */
+  readonly updatedAt: string;
 }
 
 /** Espejo de `WorkspaceTreeResponseDto` (GET /api/workspace/tree): plano, dos listas y la foto. */
@@ -180,6 +206,16 @@ export interface WorkspaceTree {
   /** ISO-8601. Sirve para descartar una respuesta que llegue tarde y pise un estado más nuevo. */
   readonly generatedAt: string;
 }
+
+/**
+ * Tamaño máximo del markdown de un documento, en **caracteres** (unidades UTF-16): lo mismo que
+ * cuenta el `@MaxLength` del backend, para que el cliente pueda comprobarlo con idéntico criterio.
+ *
+ * Reexportado del valor de `apps/api/src/workspace/workspace.constants.ts`, que sigue siendo la
+ * fuente de verdad. Vive en el contrato para que el frontend **no** lo duplique a mano: dos
+ * literales iguales en dos paquetes es exactamente cómo divergen los límites (plan `003` §3).
+ */
+export const MAX_DOCUMENT_CONTENT_CHARS = 200_000;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -339,10 +375,30 @@ export function isDocumentSummary(value: unknown): value is DocumentSummary {
 }
 
 export function isMarkdownDocument(value: unknown): value is MarkdownDocument {
-  // Un `MarkdownDocument` es un `DocumentSummary` con texto, así que el detalle se valida con el
-  // guard del resumen más el `content`. Al revés no vale: el resumen del árbol **no** lo trae, y
-  // aceptarlo como detalle dejaría al visor pintando `undefined`.
-  return isRecord(value) && isDocumentSummary(value) && typeof value['content'] === 'string';
+  // Un `MarkdownDocument` es un `DocumentSummary` con texto y versión, así que el detalle se valida
+  // con el guard del resumen más `content` y `contentVersion`. Al revés no vale: el resumen del
+  // árbol **no** trae ninguno de los dos, y aceptarlo como detalle dejaría al editor pintando
+  // `undefined` y enviando ese `undefined` como `expectedVersion` en el primer guardado.
+  return (
+    isRecord(value) &&
+    isDocumentSummary(value) &&
+    typeof value['content'] === 'string' &&
+    typeof value['contentVersion'] === 'number'
+  );
+}
+
+/**
+ * Guard del `200` del guardado de contenido. Exige las cuatro claves; `contentVersion` es la que de
+ * verdad no puede faltar, porque es la que el cliente adopta para encadenar el guardado siguiente.
+ */
+export function isDocumentContentSaved(value: unknown): value is DocumentContentSaved {
+  return (
+    isRecord(value) &&
+    typeof value['id'] === 'string' &&
+    typeof value['contentBytes'] === 'number' &&
+    typeof value['contentVersion'] === 'number' &&
+    typeof value['updatedAt'] === 'string'
+  );
 }
 
 export function isWorkspaceTree(value: unknown): value is WorkspaceTree {

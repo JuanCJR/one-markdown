@@ -1,6 +1,6 @@
 # One Markdown
 
-App web para gestionar archivos markdown organizados en categorías/directorios y subdirectorios: crear, editar, eliminar y visualizar. Visualización en modo texto o preview, paleta de elementos markdown para usuarios que no dominan la sintaxis, tabs tipo VS Code al abrir documentos y split view.
+App web para gestionar archivos markdown organizados en categorías/directorios y subdirectorios: crear, editar, eliminar y visualizar. Visualización en modo texto o preview, paleta de elementos markdown para usuarios que no dominan la sintaxis, tabs tipo VS Code al abrir documentos y **split view: texto y preview lado a lado del mismo documento** (no dos documentos distintos).
 
 ## Estructura
 

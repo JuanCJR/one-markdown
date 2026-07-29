@@ -2,6 +2,59 @@
 
 Formato: `## vX.Y.Z — YYYY-MM-DD` + motivo del cambio.
 
+## v0.1.2 — 2026-07-28
+
+**Patch. Vuelve a cambiar el andamiaje e2e de esta spec; sus 26 AC y todos sus límites de producción, no.**
+Lo trae `T-015` de la spec `003` (su **AC-34**), que toca `apps/web/e2e/support/**` por ser contrato de
+`001`, igual que hizo `T-027`. **No se modificó `THROTTLE_LIMITS` ni ningún umbral de seguridad.**
+
+- **El problema, con las cifras medidas.** La spec `003` añade `apps/web/e2e/editor.spec.ts`, con su
+  `login` por caso y un consumo nuevo de la superficie del workspace. El RED de `T-015`
+  (`playwright test --retries=2 --repeat-each=3`) murió en el tercer repeat con **1 failed / 23 passed**:
+  el `error-context.md` enseña la aplicación con `alert: Demasiadas peticiones desde esta dirección`,
+  es decir un **`429` de `workspace`**. Y el caso que caía era el del árbol (`workspace.spec.ts`), no el
+  del editor: el cupo es **por IP y global de la suite**, así que lo paga quien pasa por ahí, no quien
+  gasta. Instrumentado con un muestreo de los contadores de Redis durante la corrida, el pico de
+  `throttle:workspace:*` era **98 de 120** en una corrida **verde y sin un solo reintento**, toda ella
+  dentro de una sola ventana de 60 s. Margen: 22 peticiones, **menos de lo que cuesta un reintento** del
+  recorrido del árbol.
+- **Primero se gastó menos** (`support/session.ts`, `editor.spec.ts`): `signIn` pasa a devolver un
+  `E2eSession { email, authorization }`, con la cabecera construida a partir del `accessToken` que el
+  propio `login` ya devolvía. Dos casos del editor arrancaban la aplicación entera en `/` solo para tomar
+  prestada esa cabecera de la petición del árbol —un `POST /auth/refresh` + un `GET /workspace/tree` por
+  caso, para leer una cabecera—; ese arranque desaparece. Es la **misma** credencial de la **misma**
+  sesión: que el refresh silencioso rote la cookie no invalida el access token, porque
+  `jwt-access.strategy.ts` lo valida por firma, `typ` y existencia del usuario, **sin** consultar el `sid`
+  en Redis.
+- **Y solo después se neutralizó** (`support/services.ts`): se añade
+  `resetWorkspaceThrottleCounter()`, que pone a cero `throttle:workspace:*` **en los límites** de cada
+  caso de `editor.spec.ts` —en el *fixture* de sesión, antes de entrar—, nunca a mitad de una secuencia.
+  Mismo camino RESP-sobre-TCP que ya usaban `register` y `login`, **sin dependencias nuevas**. El cupo de
+  **`documentContent` NO se resetea**: la suite entera gasta 4 de sus 120 por corrida y neutralizarlo
+  restaría cobertura a cambio de nada.
+- **Qué cobertura se pierde y dónde vive ahora**: la suite de navegador **deja de poder detectar** el
+  límite de la superficie del workspace (120/min por IP). Quien lo verifica es
+  `apps/api/test/workspace-throttle.e2e-spec.ts` (**AC-24** de la spec `002`), que agota las 120
+  peticiones y exige el `429` con forma de `ErrorResponseDto` en cuatro casos, y que además comprueba que
+  agotar `workspace` **no** agota `login` ni `documentContent`. Es su sitio: un límite **por IP** se
+  prueba contra el API, no a través de un navegador. La cobertura de AC-24 se comprobó **antes** de
+  neutralizar nada.
+- **LA PROHIBICIÓN SIGUE EN PIE, y es sobre el momento.** Resetear en los **límites** de un caso hace la
+  prueba determinista; a mitad de una secuencia de agotamiento hace que el `429` no llegue nunca. **No se
+  tocó ni un archivo de `apps/api/test/`** en esta tarea.
+- **Deuda que esta entrada deja escrita, porque no se arregla desde aquí**: de las peticiones de
+  `workspace` que gasta el editor, la mitad son el `GET /api/workspace/documents/:id` **duplicado** que
+  `StrictMode` provoca en cada apertura, porque el `webServer` de Playwright levanta `pnpm dev`. No es un
+  defecto del editor y no se puede quitar sin tocar `playwright.config.ts` / `vite.config.ts` (contrato de
+  la `000`) o el propio `main.tsx` / `editor.store.ts` (fuera del alcance de `T-015`). Se reporta al
+  orchestrator en vez de tocarlo por cuenta propia.
+- **Verificado** (comandos corridos y salida real): RED
+  `pnpm --filter @one-markdown/web exec playwright test --retries=2 --repeat-each=3` → **1 failed /
+  23 passed**, con el `429` a la vista en el contexto de error; tras el cambio, el mismo comando →
+  **24 passed** (19,5 s), EXIT=0, con el pico de `throttle:workspace:*` bajando de **98** a **20** de 120 ·
+  `pnpm test:e2e` → **8 passed**, EXIT=0 · `pnpm --filter @one-markdown/web test` → 16 archivos /
+  **321** · `typecheck` y `lint` en **0**. **Ningún test de `001` se puso en rojo.**
+
 ## v0.1.1 — 2026-07-25
 
 **Patch. El andamiaje e2e de esta spec cambia; sus 26 AC y todos sus límites de producción, no.** Lo trae
