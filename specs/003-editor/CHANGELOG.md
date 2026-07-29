@@ -2,6 +2,37 @@
 
 Formato: `## vX.Y.Z — YYYY-MM-DD` + motivo del cambio.
 
+## v0.1.5 — 2026-07-29
+
+**Patch de precisión escrito desde la `004`, sin tocar una línea de código, ningún AC y ningún
+contrato.** La spec sigue **complete: 34/34 AC · 17/17 tareas**. Se abre por un hallazgo de `T-010`
+de la `004`, y se escribe aquí en vez de dejar solo constancia allí porque la `005` va a leer estas
+notas de cierre para dimensionar su propio presupuesto de cupo.
+
+**El defecto: una cifra de cupo sin ventana.** La v0.1.4 y las notas de `T-015` dan «la suite gasta
+**4 de 120**» de `documentContent`. Es cierto **por corrida**, y está escrito junto al comando de
+verificación de AC-34 —`--retries=2 --repeat-each=3`—, que **no** mide eso: la suite entera dura
+~23 s, así que las tres repeticiones caen **dentro de la misma ventana de 60 s** del throttler y sus
+gastos **se suman**. Medido desde la `004` con sondeo de Redis cada 300 ms sobre
+`throttle:documentContent:{sha256(ip)}`, y comprobado con `--grep-invert` para aislar los casos de
+esta spec: **12 de 120** bajo ese comando (4 × 3), frente a **4** por corrida.
+
+**AC-34 no cambia, y esto no es un descuido.** No lleva número: afirma que la suite pasa entera y que
+ninguna llamada recibe un `429`. Con 12 de 120 eso es cierto, lo era cuando se cerró y lo sigue
+siendo. Lo único que se añade es una nota de precisión debajo del AC.
+
+**Por qué importa entonces.** Porque la `004` heredó esa cifra y la metió **dentro de un criterio que
+sí llevaba número**: su AC-33 exigía «< 10 de 120» y mandaba verificarlo con el comando que triplica
+el gasto. Resultado: un criterio **cierto por corrida y falso bajo su propio comando de
+verificación**, que además ya estaba roto (en 12) antes de que la `004` escribiera una línea. Se
+corrigió allí partiendo el AC en dos ventanas con dos comandos (`004/CHANGELOG.md` v0.2.1).
+
+**La regla que queda, para la `005` y las siguientes**: **toda cifra de cupo lleva pegada su ventana
+(«por corrida», «por ventana de 60 s») y el comando con el que se mide**. Un número sin ventana no es
+verificable, aunque sea el dato más concreto del criterio — y es especialmente traicionero cuando el
+comando de verificación multiplica el escenario, que es justo lo que hacen `--repeat-each` y
+`--retries`.
+
 ## v0.1.4 — 2026-07-28
 
 **Patch de cierre. La spec pasa a `complete`: 34/34 AC y 17/17 tareas.** No añade alcance, no cambia

@@ -51,6 +51,14 @@ const ALLOWED_SRC_PROTOCOLS = ['http:', 'https:'] as const;
  */
 const PROVOKED_CONFLICT_RESPONSE = /status of 409 \(Conflict\)/;
 
+/**
+ * El nombre accesible de la región viva del guardado (`004`: AC-27). La paleta monta la **suya**
+ * desde el primer render, así que `getByRole('status')` a secas resuelve a dos elementos y entra en
+ * violación de modo estricto: aquí se pide por nombre, que es también como las distingue quien
+ * recorre la página con un lector de pantalla.
+ */
+const SAVE_REGION_NAME = 'Estado del guardado';
+
 declare global {
   interface Window {
     /**
@@ -116,7 +124,7 @@ test.describe('Editor en el navegador (AC-26, AC-32, AC-33)', () => {
     await row.getByText(title, { exact: true }).click();
     await expect(page).toHaveURL(/\/documents\/[0-9a-f-]{36}$/);
 
-    const saveStatus = page.getByRole('status');
+    const saveStatus = page.getByRole('status', { name: SAVE_REGION_NAME });
 
     await expect(textarea(page, title)).toHaveValue('');
     await expect(saveStatus).toHaveText('Guardado');
@@ -165,7 +173,7 @@ test.describe('Editor en el navegador (AC-26, AC-32, AC-33)', () => {
     await page.goto(`/documents/${documentId}`);
     await expect(page.getByRole('heading', { level: 2, name: title })).toBeVisible();
 
-    const saveStatus = page.getByRole('status');
+    const saveStatus = page.getByRole('status', { name: SAVE_REGION_NAME });
 
     await textarea(page, title).fill(mine);
     await expect(saveStatus).toHaveText('Cambios sin guardar');
@@ -257,7 +265,7 @@ test.describe('Editor en el navegador (AC-26, AC-32, AC-33)', () => {
     // Guardia contra el corpus podado o vacío: sin ella el bucle de abajo no ejercitaría nada y el
     // caso pasaría con nota. Es la misma que hace `MarkdownPreview.test.tsx`, y aquí importa más:
     // este archivo **importa** el corpus justo para no poder quedarse corto respecto de aquél.
-    expect(MARKDOWN_XSS_CORPUS.length).toBeGreaterThanOrEqual(10);
+    expect(MARKDOWN_XSS_CORPUS.length).toBeGreaterThanOrEqual(15);
 
     const preview = page.getByRole('tabpanel');
 

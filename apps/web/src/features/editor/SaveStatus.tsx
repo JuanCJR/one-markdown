@@ -9,6 +9,12 @@ import type { SaveStatus as SaveStatusValue } from './editor.store';
  * sí hay que interrumpir. Unificarlas en un nodo las anunciaría con la misma urgencia, y esa
  * distinción es la mitad del AC — es también, en pequeño, el riesgo #15 de la spec `002`: un aviso
  * único presenta igual cosas que piden acciones distintas.
+ *
+ * El `role="status"` lleva **nombre accesible** (`004`: AC-27). No es cosmética: la página del editor
+ * tiene desde la `004` una segunda región viva —la de la paleta— y la `005` traerá otra con la vista
+ * dividida. Una región viva sin nombre no es identificable en la lista de regiones de un lector de
+ * pantalla, y tampoco lo es para quien la consulta desde un test. El `role="alert"` no lo lleva: es
+ * único en la página y su contenido **es** el mensaje.
  */
 
 const LABELS: Readonly<Record<SaveStatusValue, string>> = {
@@ -37,7 +43,7 @@ export function SaveStatus({
 }: SaveStatusProps): React.JSX.Element {
   return (
     <div className="flex flex-wrap items-center gap-3 text-sm">
-      <p role="status" className="text-slate-500">
+      <p role="status" aria-label="Estado del guardado" className="text-slate-500">
         {LABELS[status]}
       </p>
 

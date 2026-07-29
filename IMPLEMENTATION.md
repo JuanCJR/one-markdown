@@ -159,11 +159,110 @@ Leyenda: `[ ]` pendiente · `[~]` en curso o bloqueado (con motivo) · `[x]` hec
       afirmación de seguridad verificada solo en jsdom no es una afirmación sobre navegadores.
       Verificado: los cuatro archivos existen en `specs/003-editor/`; `specs/README.md` actualizado.
       **Sin comandos de test que correr todavía** — no hay código de esta spec.
-- [x] **spec 004-markdown-palette** — `specs/004-markdown-palette/` (`spec.md` **v0.1.1** + `plan.md` + `tasks.md` +
-      `CHANGELOG.md`), estado **approved** (aprobada por el usuario el 2026-07-28). — 2026-07-28
+- [x] **spec 004-markdown-palette** — `specs/004-markdown-palette/` (`spec.md` **v0.2.1** + `plan.md` + `tasks.md` +
+      `CHANGELOG.md`), estado **approved · en implementación** (aprobada por el usuario el 2026-07-28;
+      **v0.1.2, v0.2.0 y v0.2.1 el 2026-07-29**). — 2026-07-29
+      **La v0.2.1 es un patch que no mueve el recuento —siguen 36 AC y 11 tareas— y que corrige un AC
+      que era cierto por corrida y falso bajo su propio comando de verificación.** **AC-33** exigía
+      que el pico de `documentContent` quedara **< 10 de 120** y mandaba medirlo con
+      `--retries=2 --repeat-each=3`; ese comando **triplica el gasto dentro de la misma ventana de
+      60 s** del throttler, porque la suite entera dura ~23 s y las tres repeticiones **se suman** en
+      vez de sucederse. Medido con sondeo de Redis cada 300 ms sobre
+      `throttle:documentContent:{sha256(ip)}`: **5** por corrida (baseline de la `003` = 4, y el caso
+      nuevo de la paleta añade exactamente 1), **15** con `--repeat-each=3`, y **12** con
+      `--repeat-each=3` **sin** el caso nuevo. Es decir: **el criterio ya estaba roto antes de que
+      la `004` existiera**; `T-010` no lo introduce, lo destapa.
+      **Decisión: la cifra pasa a ser «por corrida» y el AC gana un segundo comando** — (a)
+      `pnpm test:e2e` + sondeo → **< 10 de 120**; (b) `--retries=2 --repeat-each=3` → **sin un solo
+      `429`**, con la suma de las repeticiones escrita al lado (15, techo teórico 9 × 5 = 45).
+      **Descartada (b) subir el número**: un valor cierto bajo `--repeat-each=3` no habla de la suite
+      sino del **multiplicador**, y cambiaría de significado el día que CI repita otras veces o que
+      la suite pase de 60 s, sin que nadie toque el producto.
+      **Descartada (c) recortar el gasto de `editor.spec.ts`**: su caso de conflicto gasta 3 de los 4
+      del baseline y las tres formas de bajarlo están **explícitamente descartadas** en el riesgo #10
+      de la `003` porque cambian el producto o lo que el AC demuestra. La política **gastar menos, no
+      neutralizar más** es para cuando el presupuesto aprieta, y aquí hay **105 de margen**; pagar
+      cobertura de una spec cerrada para hacer cierta una frase mal escrita es el orden de las cosas
+      al revés. Si algún día el gasto se acercara al límite, **(c) sería la respuesta correcta**.
+      **En la `003` se corrige, no solo se deja constancia** (su **v0.1.5**, patch): su **AC-34 no
+      lleva número** y por eso sigue siendo cierto —afirma «sin un solo `429`», y 12 de 120 lo
+      cumple—, pero la contabilidad de cierre («la suite gasta 4 de 120») es una cifra **por corrida**
+      escrita junto al comando que la triplica, y la `005` va a leer esas notas para dimensionar su
+      presupuesto. Queda además como **riesgo #12** de la `004` la regla que lo evita: **toda cifra de
+      cupo lleva pegada su ventana y el comando con el que se mide**.
+      **También precisa AC-32**: pedía «flechas hasta «Negrita»», pero la única parada de tabulación
+      de la barra **ya es** «Negrita» (el roving tabindex arranca en `activeIndex = 0`), así que la
+      letra del AC no exigía ninguna flecha. `T-010` lo resolvió con un viaje de **ida y vuelta**
+      (`→` Cursiva, `→` Tachado, `←` `←` Negrita) y lo comentó en el caso: quedarse quieto habría
+      hecho que ese paso midiera **dónde arranca el foco** en vez de la navegación. Se ajusta la
+      redacción a lo que se hizo, porque el recorrido era correcto y la frase era lo que estaba mal.
+      **Y deja una deuda con destinatario**: `watchConsole` está **duplicado** entre `editor.spec.ts`
+      y `palette.spec.ts` —consecuencia directa de que la lista de artefactos de `T-010` fuera **un
+      solo archivo**, y ampliarla habría metido la tarea en `editor.spec.ts`, prohibido en la ola 4—.
+      Van dos copias y **ya divergieron en firma**; se extrae a `e2e/support/` **a la tercera**, y esa
+      la escribe la `005`. Anotado en `004/spec.md` §4, en `tasks.md` `T-010` y en la fila de la `005`
+      de `specs/README.md`.
+      **La v0.2.0 es un minor escrito con T-001…T-009 verdes**, y es la razón de que el recuento pase
+      a **36 AC** y **11 tareas**. Tres hallazgos, dos ratificaciones y una tarea nueva:
+      **(1) AC-27 reescrito, el más serio.** Se implementó **según su letra** —región viva pintada
+      tras la primera inserción— y la letra estaba mal: una región que entra en el DOM **con su texto
+      dentro** es notoriamente poco fiable en NVDA y JAWS, porque el lector anuncia **cambios** de
+      regiones que ya conocía, no apariciones. El AC estaba **verde en CI y era falso** justo para
+      quien lo necesita, y la accesibilidad es un objetivo declarado de esta spec (seis AC propios),
+      no un extra. Arreglarlo obliga a montar la región siempre, y eso choca con el `role="status"`
+      **sin nombre accesible** de `SaveStatus`: **seis** aserciones consultan `getByRole('status')` sin
+      desambiguar —cuatro de componente y **dos de e2e**, estas con **violación de modo estricto** de
+      Playwright—. **Decisión: poner nombre accesible a las dos regiones** y desambiguar por nombre,
+      en la tarea **T-011** nueva. Se descartaron documentar la limitación (deja publicado un
+      criterio que el test confirma y el usuario no recibe) y aplazarlo a otra spec (AC-27 quedaría
+      marcado como verificado). Y hay un argumento de calendario: la **`005`** añadirá interfaz a esa
+      misma página —con vista dividida, **dos** paletas—, así que la consulta sin nombre se iba a
+      romper igual; pagarlo aquí es más barato que heredarlo (**riesgo #11** nuevo).
+      **(2) AC-36 nuevo**: insertar **dos veces el mismo elemento** no vuelve a anunciar, porque
+      escribir el mismo texto no muta el DOM. Ningún AC lo cubría. Se verifica con `MutationObserver`
+      + `takeRecords()` —síncrono, sin depender de microtareas ni del reloj falso—: **≥ 2** cambios.
+      **(3) AC-26 era literalmente inalcanzable**: entre el conmutador y la paleta vive el botón
+      **«Guardar»** de la `003`. Se corrige **la redacción, no la cabecera** —pasa a exigir el orden
+      **relativo**, que es la razón que el propio AC daba—; mover un control implementado y verificado
+      para hacer cierta una frase de esta spec sería el orden de las cosas al revés.
+      **(4) AC-20 no se puede medir contando peticiones**, y la spec decía que sí. Medido con
+      mutación: llamar a `setDraft` **dos** veces sigue dando **una** petición porque la coalescencia
+      se lo traga, y el caso de las tres inserciones sigue viendo `toHaveLength(1)`. El conteo cubre
+      «no hay un segundo camino de guardado»; lo que cubre «`setDraft` se llama una sola vez» es la
+      aserción del **borrador exacto**. Las **dos mitades** quedan escritas en el AC con la medida de
+      cada una, y corregida la fila del riesgo #2 donde vivía la afirmación equivocada.
+      **(5) Dos desviaciones menores ratificadas**: `disabled?: boolean` **se retira** de `plan.md`
+      §4.4 (el propio plan lo llamaba «reservado» y la decisión C dice que la paleta no se deshabilita
+      nunca: ningún test podía cubrirlo); y **el andamio vacío es parte del RED** → **§9.7** nueva,
+      porque ya ha pasado tres veces en esta spec (T-001, T-005, T-006). Un `Cannot find module` es
+      rojo, pero solo demuestra que el archivo no está; el RED que vale es el **de la aserción**.
+      **Por qué minor y no el patch que se pedía**: las correcciones (3) y (4) habrían sido patch por
+      sí solas —no mueven una línea de código—, pero (1) y (2) añaden un AC, una tarea y un artefacto
+      nuevo (`SaveStatus.tsx`), y **obligan a cambiar aserciones de tests verdes**. Es exactamente el
+      criterio con que la **v0.4.0 de la `002`** se declaró minor siendo aditiva. Escribir «patch»
+      encima de trabajo no previsto es el atajo que el versionado existe para no tomar.
+      **La v0.1.2 fue un patch de corrección escrito con T-001…T-005 ya verdes**, y es la razón de que el
+      recuento pase a **35 AC**. Cinco cosas: (1) el catálogo tiene **16 elementos, no 14** —error
+      aritmético que contradecía a la propia AC-16 (su enumeración nombra 16) y a AC-30 (espera 16
+      elementos HTML), corregido en **diez** sitios: los ocho de `spec.md`/`tasks.md` más `plan.md`
+      decisión 5 y este archivo—; (2) **AC-35 nuevo**: *ningún bloque destruye la selección de la
+      persona*. `table` y `divider` con una selección activa no estaban definidos, y la lectura literal
+      de §3.D convertía un clic en «Separador» con un párrafo seleccionado en **borrado del párrafo**, sin
+      aviso y sin deshacer. Se modela con `consumesSelection` y **solo `codeBlock`** la lleva a `true`;
+      mutación **M26**; (3) cuatro huecos más ratificados con lo implementado —regla única de separación
+      de bloques (AC-12+AC-13), **empate al inicio** del borde de línea más cercano, selección parcial de
+      una sola línea unificada con la multilínea (AC-8), y líneas de solo espacios tratadas como vacías
+      (AC-9, mutación **M19**)—; (4) `plan.md` §4.2 al día con la firma real
+      `selectTargetWhenWrapping?: string` (no el booleano que decía la v0.1.1: el booleano obligaba a
+      deducir el trozo de `after` analizando paréntesis); (5) **§9.6 nueva** con la lección de que **la
+      guarda de pureza no puede convivir con un comentario que la explique** —lee el fuente con
+      `readFileSync` y no distingue código de comentario—, y la consecuencia para las listas de
+      artefactos. **Es patch y no minor** porque AC-35 no abre alcance: escribe lo que T-004 ya implementó
+      y ya cubre con test.
       **Las seis decisiones abiertas de §8 quedaron resueltas el 2026-07-28, las seis en la opción que la
-      spec recomendaba y sin ningún cambio de alcance**: el recuento se mantiene en **34 AC** y **10
-      tareas**, ni un solo AC cambió de redacción y ningún artefacto entró ni salió. Por eso la subida es
+      spec recomendaba y sin ningún cambio de alcance**: en ese momento el recuento se mantenía en **34
+      AC** y **10 tareas** (desde la v0.1.2, **35 AC** y las mismas 10 tareas), ni un solo AC cambió de
+      redacción y ningún artefacto entró ni salió. Por eso la subida es
       **patch (v0.1.0 → v0.1.1)** y no minor. Las seis: **A** marcador de posición **preseleccionado** ·
       **B** se **acepta** la pérdida de `Ctrl`+`Z`, **con el remedio planificado** (ver abajo) · **C**
       paleta **solo en modo texto** · **D** **los tres** atajos `Ctrl`/`Cmd`+`B`/`I`/`K`, acotados al foco
@@ -191,7 +290,9 @@ Leyenda: `[ ]` pendiente · `[~]` en curso o bloqueado (con motivo) · `[x]` hec
       historial**. **Restricción que la `005` hereda desde hoy**: al fijar su política de desalojo debe
       dejar escrito si «cerrar una pestaña y volver a abrirla pierde el deshacer» es aceptable. Anotado
       también en `004/plan.md` §7 y en `specs/README.md` (filas de la `005` y de la `006`).
-      **34 criterios de aceptación y 10 tareas TDD, todas de `frontend`.** Es la primera spec del proyecto
+      **34 criterios de aceptación y 10 tareas TDD, todas de `frontend`** (**35 AC desde la v0.1.2**, con
+      las mismas 10 tareas; **36 AC y 11 tareas desde la v0.2.0**, que es la única versión que ha
+      añadido trabajo). Es la primera spec del proyecto
       **sin una sola tarea de backend**, y esa es su decisión de más impacto: la `004` toca
       **exclusivamente `apps/web`**; `packages/shared` y `apps/api` no reciben ni una línea, y **AC-34** lo
       convierte en algo verificable (`git status` + los recuentos de las suites de los otros dos paquetes,
@@ -232,7 +333,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso o bloqueado (con motivo) · `[x]` hec
       el caso de navegador agrupa sus inserciones dentro de una sola ventana de debounce y fuerza **un**
       guardado (**AC-33**).
       **Accesibilidad con seis AC propios** (AC-24…AC-29), porque la paleta es interfaz de inserción:
-      `role="toolbar"` con grupos, **roving tabindex** (una sola parada de tabulación para catorce
+      `role="toolbar"` con grupos, **roving tabindex** (una sola parada de tabulación para dieciséis
       botones), flechas y `Home`/`End` con movimiento **real** del foco, región viva propia que no se anida
       con la de guardado, orden de tabulación con la paleta **antes** del área de texto, y tamaño de
       objetivo ≥ **24 × 24 px** (WCAG 2.2 SC 2.5.8) medido en Chromium porque jsdom no calcula disposición.
@@ -1611,12 +1712,15 @@ que el envenenado de la caché signifique algo.
 
 ## Fase 6 — Implementación de `004-markdown-palette`
 
-Detalle en `specs/004-markdown-palette/tasks.md`. **0 de 10 tareas.** La spec está **approved**
-(v0.1.1, 2026-07-28): la puerta que bloqueaba el arranque —las seis decisiones abiertas de su §8— **está
-abierta**. Las seis se resolvieron en la opción recomendada y **ninguna movió un AC ni una tarea**, así que
-`tasks.md` vale tal cual y la ola 1 puede despacharse.
+Detalle en `specs/004-markdown-palette/tasks.md`. **10 de 11 tareas cerradas y verificadas**
+(T-001…T-010, el 2026-07-29) · **T-011 despachándose** en una sesión en paralelo. La spec está
+**approved**, hoy en **v0.2.1** (**36 AC**, **11 tareas**; el patch no mueve el recuento).
 
-**Estado: aprobada y lista para despachar. Ningún agente ha tocado código de esta spec todavía.**
+**Estado: la paleta está construida, enganchada al editor, con atajos, con el corpus de XSS ampliado
+y verificada en Chromium real. Queda solo la corrección de accesibilidad que abrió la v0.2.0
+(T-011).** La ola 3 se cerró entera —la rama A (T-006 → T-007 → T-008) y la rama B (T-009) corrieron
+en paralelo sin pisarse, que era la única oportunidad de paralelismo real de la spec— y la ola 4
+cerró con un hallazgo de spec: **AC-33 era autocontradictorio y lo era desde la `003`** (ver T-010).
 
 **Reparto por archivos**, que es la lección de la Fase 3 (dos agentes coincidieron en un mismo archivo) y
 de la Fase 4 (por eso el reparto va por archivo y no por tarea):
@@ -1627,17 +1731,258 @@ de la Fase 4 (por eso el reparto va por archivo y no por tarea):
 | 2 | T-005 | — | `markdown-palette.ts` · `markdown-palette.test.ts` (+ el `import` de tipos en los dos de la ola 1) |
 | 3 | T-006 → T-007 → T-008 **‖** T-009 | **La única oportunidad real de paralelismo de la spec**: archivos disjuntos | rama A: `MarkdownPalette.tsx/.test.tsx` · `DocumentEditorPage.tsx/.test.tsx` — rama B: `MarkdownPreview.test.tsx` · `markdown-xss-corpus.ts` · `e2e/editor.spec.ts` (una línea) |
 | 4 | T-010 | — | `e2e/palette.spec.ts` **y ningún otro** |
+| 5 | T-011 (v0.2.0) | **Ninguno, y va la última** | `MarkdownPalette.tsx/.test.tsx` · `SaveStatus.tsx` · `DocumentEditorPage.test.tsx` · `e2e/editor.spec.ts` |
 
-- [ ] **T-001** · `frontend` · Núcleo de inserción: tipos, despacho y familia que envuelve — AC-1…AC-4
-- [ ] **T-002** · `frontend` · Núcleo: enlace e imagen — AC-5, AC-6
-- [ ] **T-003** · `frontend` · Núcleo: prefijos de línea — AC-7…AC-11
-- [ ] **T-004** · `frontend` · Núcleo: bloques (código, tabla, separador) — AC-12…AC-15
-- [ ] **T-005** · `frontend` · Catálogo de 14 elementos, guarda de pureza y de exhaustividad — AC-16…AC-18
-- [ ] **T-006** · `frontend` · `MarkdownPalette`: toolbar ARIA, roving tabindex y región viva — AC-24, AC-25, AC-27
-- [ ] **T-007** · `frontend` · Enganche en el editor: modo, `setDraft`, foco y selección real — AC-19…AC-23, AC-26, AC-27
-- [ ] **T-008** · `frontend` · Atajos `Ctrl`/`Cmd`+`B`/`I`/`K` acotados al área de texto — AC-28
-- [ ] **T-009** · `frontend` · Cada plantilla renderizada + tres cargas nuevas en el corpus de XSS — AC-30, AC-31
-- [ ] **T-010** · `frontend` · Navegador: recorrido solo con teclado, tamaño de objetivo y presupuesto — AC-29, AC-32…AC-34
+**Por qué T-011 va después de T-010 y no en paralelo**, aunque sobre el papel los archivos sean
+disjuntos (T-010 solo crea `e2e/palette.spec.ts`): T-010 corre `playwright test` sobre **todo** el
+directorio de e2e para medir el presupuesto de cupo de AC-33, y T-011 edita `editor.spec.ts`. Tocar
+el directorio mientras se toman esas medidas las invalida.
+
+- [x] **T-001** · `frontend` · Núcleo de inserción: tipos, despacho y familia que envuelve — AC-1…AC-4 — 2026-07-29
+- [x] **T-002** · `frontend` · Núcleo: enlace e imagen — AC-5, AC-6 — 2026-07-29
+- [x] **T-003** · `frontend` · Núcleo: prefijos de línea — AC-7…AC-11 — 2026-07-29
+- [x] **T-004** · `frontend` · Núcleo: bloques (código, tabla, separador) — AC-12…AC-15, **AC-35** — 2026-07-29
+- [x] **T-005** · `frontend` · Catálogo de **16** elementos, guarda de pureza y de exhaustividad — AC-16…AC-18 — 2026-07-29
+
+**Verificación de T-001…T-005, corrida por el orchestrator** (rama `feat/004-markdown-palette`, no
+reportada por el agente):
+
+| Comando | Salida real |
+|---|---|
+| `pnpm --filter @one-markdown/web test markdown-insert` | 1 archivo, **48 passed** |
+| `pnpm --filter @one-markdown/web test markdown-palette` | 1 archivo, **43 passed** |
+| `pnpm --filter @one-markdown/web test` | 18 archivos, **412 passed** (venía de 16 / 321) |
+| `pnpm typecheck` | exit **0**, los tres paquetes |
+| `pnpm lint` | exit **0**, los tres paquetes |
+
+Las cinco cifras están tomadas a las **00:05-00:07 del 2026-07-29**, con el árbol conteniendo
+**exactamente** los cuatro archivos nuevos de T-001…T-005 y **ningún archivo modificado**:
+`markdown-insert.ts`, `markdown-insert.test.ts`, `markdown-palette.ts`, `markdown-palette.test.ts`,
+los cuatro en `apps/web/src/features/editor/`. Coherente con la decisión 1 del plan y con AC-34.
+
+**Aviso de concurrencia, y por eso la hora importa.** A partir de las **00:09** aparecieron en el
+árbol cambios de **T-009** (`apps/web/src/test/markdown-xss-corpus.ts` +28 líneas,
+`MarkdownPreview.test.tsx` +161, y la guarda de `e2e/editor.spec.ts` subida de `10` a `15`), hechos
+por una sesión en paralelo mientras se escribía esta entrada. **No afectan a las cifras de arriba**,
+que son anteriores, ni al check-off de T-001…T-005. Lo que sí implica: **el `412 passed` es la cifra
+de T-001…T-005 y ya no es la del árbol**; la de T-009 se mide y se anota **en su propia entrada**,
+cuando se verifique. Anotado también porque T-009 iba a despacharse en la ola 3 y conviene que conste
+que arrancó antes de que estas correcciones de spec estuvieran escritas.
+
+**RED real reportado por tarea** y **41 mutaciones adversariales, de las que 39 mataron tests** —dos
+sobrevivieron—. **Las dos están identificadas y explicadas, y el punto queda cerrado el 2026-07-29**
+(estuvo abierto mientras solo una venía con nombre; la otra estaba en el informe de T-001…T-005 y no
+se había recogido aquí). **Ninguna es un hueco de cobertura**:
+
+- **M38** reordena las claves de `PALETTE_GROUP_LABELS` y **sobrevive** — correcto: el orden de las
+  claves de un objeto **no es contrato** y no debe serlo. El que sí lo es, el de `MARKDOWN_PALETTE`,
+  lo mata **M41**. De ahí la nota de implementación obligatoria que la v0.1.2 escribió en `tasks.md`
+  T-006: el orden de pintado y el recorrido de las flechas salen del **catálogo**, nunca de
+  `Object.keys(...)`.
+- **M5** («cerrar con `before` en vez de `after`») sobrevivió en **T-001** porque los cuatro
+  elementos que envuelven tienen delimitador **simétrico** (`**`, `*`, `~~`, `` ` ``): la mutación es
+  **semánticamente inerte**, no invisible — produce exactamente la misma cadena. Y no se quedó ahí:
+  el agente la **repitió como M5bis** al llegar **T-002**, con `link` e `image`, que son
+  **asimétricos**, y **cayó** (4 tests). Es el desenlace que convierte una superviviente sospechosa
+  en una superviviente explicada.
+
+**Cinco huecos de especificación que el agente tuvo que resolver**, todos implementados y con test, y
+todos **ratificados o corregidos en la v0.1.2 de la spec** (detalle y motivo en su CHANGELOG):
+`consumesSelection` (→ **AC-35**, el único que era destrucción de datos) · regla única de separación
+de bloques (AC-12+AC-13) · empate al inicio del borde de línea más cercano · selección parcial de una
+línea unificada con la multilínea (AC-8) · líneas de solo espacios tratadas como vacías (AC-9).
+
+**Una desviación de artefactos, consciente y ratificada.** T-005 tuvo que reescribir el **comentario
+de cabecera** de `markdown-insert.ts`, y su lista decía «solo el `import` de los tipos». Motivo real y
+que merece quedar: **la guarda de pureza de AC-17 lee el código fuente con `readFileSync` y no
+distingue código de comentario**, así que un archivo vigilado no puede deletrear `zustand`,
+`document.` ni `window.` **ni siquiera en prosa**. Reescribir la cabecera era parte de hacer pasar la
+guarda, no un extra. El agente lo reportó él mismo, el archivo era suyo desde T-001 y no hubo cambio
+de comportamiento — pero **la lista de artefactos estaba mal**, y esto solo sale bien cuando el agente
+para y avisa. La lección quedó escrita en `004/spec.md` **§9.6** y resumida en `plan.md` §5, que es
+donde la encontrará la `006` o cualquiera que reutilice el patrón de `no-dangerous-html.test.ts`.
+- [x] **T-006** · `frontend` · `MarkdownPalette`: toolbar ARIA, roving tabindex y región viva — AC-24, AC-25, AC-27 — 2026-07-29
+      Las dos cosas que la v0.1.2 le pasó al agente llegaron implementadas: **16** botones (uno con
+      `tabIndex=0` y **quince** con `-1`) y el orden de pintado y de las flechas derivado de
+      **`MARKDOWN_PALETTE`**, no de `Object.keys(PALETTE_GROUP_LABELS)`. `markdown-palette.ts` no se
+      tocó, como decía su lista de artefactos.
+      **Su AC-27 lo reabre la v0.2.0 y lo cierra T-011** (ver abajo): la región viva se implementó
+      **según la letra del AC**, que pedía pintarla tras la primera inserción, y esa letra estaba
+      mal. La tarea hizo lo que se le pidió; el defecto es de la spec.
+- [x] **T-007** · `frontend` · Enganche en el editor: modo, `setDraft`, foco y selección real — AC-19…AC-23, AC-26, AC-27 — 2026-07-29
+      **Dos hallazgos suyos entraron en la v0.2.0 de la spec, y los dos son del tipo que solo aparece
+      escribiendo el test**: (a) **AC-26 era literalmente inalcanzable** —entre el conmutador y la
+      paleta vive el botón «Guardar» de la `003`, así que el orden real es conmutador → Guardar →
+      paleta → `<textarea>`—; el agente lo interpretó como orden **relativo**, lo escribió explícito
+      en el test con comentario y **la spec se corrigió, no la cabecera**; (b) **AC-20 no se puede
+      medir contando peticiones**, que es lo que la spec decía: llamar a `setDraft` dos veces sigue
+      dando **una** petición porque la coalescencia se lo traga. Lo que mata esa mutación es la
+      aserción del **borrador exacto**, que el agente añadió al mismo caso justo por eso.
+- [x] **T-008** · `frontend` · Atajos `Ctrl`/`Cmd`+`B`/`I`/`K` acotados al área de texto — AC-28 — 2026-07-29
+- [x] **T-009** · `frontend` · Cada plantilla renderizada + tres cargas nuevas en el corpus de XSS — AC-30, AC-31 — 2026-07-29
+      **Cerrada, incluida la verificación en navegador que la bloqueaba.** `markdown-xss-corpus.ts`
+      (+28) y `MarkdownPreview.test.tsx` (+161), con la guarda del corpus subida de `>= 10` a `>= 15`
+      **en los dos archivos que la afirman** —`MarkdownPreview.test.tsx` y `e2e/editor.spec.ts`—, que
+      era el error concreto que la tarea existía para no cometer.
+      Verificado: `pnpm --filter @one-markdown/web exec playwright test editor` → **3 passed**.
+- [x] **T-010** · `frontend` · Navegador: recorrido solo con teclado, tamaño de objetivo y presupuesto — AC-29, AC-32…AC-34 — 2026-07-29
+      **Cerrada y verificada por la sesión que la ejecutó**, con `apps/web/e2e/**` en exclusiva
+      mientras duró. Artefacto único, como decía su lista: `apps/web/e2e/palette.spec.ts` (nuevo).
+      **No he repetido yo los comandos de Playwright**, y es deliberado: T-011 se está despachando
+      sobre ese mismo directorio y dos suites de navegador a la vez se pelean por los puertos de los
+      servidores (`reuseExistingServer: false`, decisión de `T-025` de la `001`). Un rojo salido de
+      ahí no diría nada sobre el código. Es el mismo criterio con el que se aceptó el
+      `playwright test editor` de T-009. Lo que sí he verificado yo, sin tocar `apps/**`:
+      `git status --short` → **ni un solo archivo fuera de `apps/web/**`, `specs/**` e
+      `IMPLEMENTATION.md`** (AC-34, tercera verificación de la tarea), y que `e2e/palette.spec.ts`
+      existe con el caso de teclado y `expect(contentSaves()).toBe(1)` dentro.
+      **Medidas reportadas** (sondeo de Redis cada 300 ms sobre
+      `throttle:documentContent:{sha256(ip)}`): **5** por corrida con el caso nuevo · **12** con
+      `--repeat-each=3` **sin** el caso nuevo (`--grep-invert`) · **15** con `--repeat-each=3` y con
+      él. Sin un solo `429` en toda la suite; el resto de contadores holgado: `register` 1/5 ·
+      `login` 6/10 · `refresh` 39/60 · `workspace` 34/120.
+      **Hallazgo de spec, y es el importante: AC-33 era autocontradictorio.** Pedía la cifra
+      **< 10 de 120** y mandaba verificarla con el comando que la **triplica dentro de la misma
+      ventana de 60 s**. Era **cierto por corrida y falso bajo su propio comando**, y ya lo era en 12
+      **antes de que la `004` existiera**: el defecto viene de la `003` y `T-010` no lo introduce, lo
+      destapa. El caso nuevo gasta el **mínimo posible** —un `PUT`, afirmado en el propio caso— y no
+      se puede bajar de 1 sin dejar de verificar AC-32. **Resuelto en la v0.2.1 de la spec**
+      (dos ventanas, dos comandos) y en la **v0.1.5 de la `003`** (la contabilidad de cierre). La
+      tarea se da por cumplida **contra el AC corregido**.
+      **Segundo hallazgo, menor pero real: AC-32 pedía «flechas hasta «Negrita»» y la parada del
+      tabulador ya era «Negrita»**, así que el recorrido literal no requería ninguna flecha. Se
+      resolvió con un viaje de ida y vuelta (`→` Cursiva, `→` Tachado, `←` `←` Negrita), comentado en
+      el test: quedarse quieto habría hecho que ese paso midiera **dónde arranca el foco**, no la
+      navegación. **La redacción se ajustó a lo que se hizo**, no al revés.
+      **Deuda anotada al cerrar**: `watchConsole` queda duplicado entre `editor.spec.ts` y
+      `palette.spec.ts` —porque la lista de artefactos era **un solo archivo** y ampliarla habría
+      metido la tarea en `editor.spec.ts`, prohibido en esta ola—. Dos copias, **ya divergidas en
+      firma**; se extrae a `e2e/support/` **a la tercera**, y esa la escribe la `005`.
+      **Pendiente de re-medir cuando T-011 cierre** (no de T-010): las dos verificaciones de suite
+      completa (`--retries=2 --repeat-each=3` y `pnpm test && pnpm typecheck && pnpm lint` con
+      `shared` **81**, api unit **305** y api e2e **511**) se corren **otra vez al cerrar la spec**,
+      porque T-011 edita `editor.spec.ts` y `DocumentEditorPage.test.tsx` y las mueve.
+      → **Re-medición hecha en el cierre de la spec** (ver el bloque «Cierre de la `004`» al final de
+      esta fase). Y con una corrección de calendario que esta nota no había previsto: **T-012 volvió a
+      tocar `e2e/`**, así que la primera re-medición quedó obsoleta y hubo que repetirla.
+- [x] **T-011** · `frontend` · Regiones vivas con nombre, montadas siempre y que reanuncian — **AC-27 (reescrito), AC-36** — 2026-07-29
+      **Es trabajo nuevo que no estaba en la spec aprobada, y por eso la spec sube minor.** AC-27 se
+      implementó según su letra y la letra estaba mal: la región viva de la paleta entra en el DOM
+      **con su primer anuncio dentro**, y un lector de pantalla anuncia los **cambios** de una región
+      que ya conocía, no su aparición. En NVDA y JAWS ese primer anuncio puede no oírse nunca: el AC
+      estaba **verde en CI y era falso** justo para las personas para las que existe. La
+      accesibilidad es un objetivo declarado de esta spec —seis AC propios—, no un extra.
+      **Lo que cuesta**: montar la región siempre pone **dos** `role="status"` permanentes en la
+      página, y `SaveStatus` no tiene nombre accesible, así que rompe **seis** aserciones que hoy
+      consultan `getByRole('status')` sin desambiguar —cuatro en `DocumentEditorPage.test.tsx` y
+      **dos en `e2e/editor.spec.ts`**, estas con **violación de modo estricto** de Playwright—.
+      **La salida es poner nombre a las dos** (`"Elemento insertado"` y `"Estado del guardado"`) y
+      desambiguar por nombre. Un `aria-label` en `SaveStatus.tsx` es lo **único** que se toca de
+      producción de la `003`, y es un nombre accesible, no un cambio de comportamiento.
+      Entra con ella **AC-36**: insertar **dos veces el mismo elemento** no vuelve a anunciar hoy,
+      porque escribir el mismo texto no muta el DOM. Se verifica con `MutationObserver` +
+      `takeRecords()` (síncrono, sin depender del reloj falso): **≥ 2** cambios de la región.
+      **Argumento de calendario que inclinó la decisión**: la `005` va a añadir interfaz a esta misma
+      página —con vista dividida habrá **dos** paletas—, así que `getByRole('status')` a secas se iba
+      a romper igual. Pagarlo en la spec que lo descubre es más barato que heredarlo.
+      **Se despacha después de T-010**, no en paralelo: los archivos son disjuntos sobre el papel,
+      pero T-010 mide el presupuesto de AC-33 corriendo `playwright` sobre todo el directorio y T-011
+      edita `editor.spec.ts` — tocarlo a mitad invalida esas medidas.
+      **Verificado por el orchestrator el 2026-07-29**, con los comandos `DONE` corridos de nuevo:
+      `test MarkdownPalette` → **11 passed** · `test DocumentEditorPage` → **44 passed** ·
+      `pnpm --filter @one-markdown/web test` → **19 archivos, 470 passed** ·
+      `pnpm typecheck` / `pnpm lint` → exit **0** los tres paquetes.
+      El total de web sube **469 → 470** por una sustitución, no por una adición: el caso «anuncia …
+      y **solo** tras insertar» era la traducción fiel del AC-27 **anterior** y se cambia por dos
+      (montaje+nombre, y AC-36). **AC-34 intacto**: `shared` **81** · api unit **305** · api e2e
+      **511**, ninguna de las tres movida.
+      **Cinco mutaciones probadas y las cinco cayeron**, que es lo que convierte «verde» en
+      «verificado»: `SaveStatus` sin `aria-label` → **5 rojos**; región de la paleta perezosa otra vez
+      → **3**; reanuncio que no cambia nada → `expected 1 to be greater than or equal to 2`, **la
+      cifra exacta que la spec predecía**; región sin `aria-label` → **3**; región que arranca con
+      texto dentro → **2**.
+      **Tres hallazgos de spec, los tres resueltos en la v0.3.0 corrigiendo la redacción y no la
+      aserción** —el orden importa, y es el que esta fase lleva usando desde la `002`—:
+      1. **La instrucción de AC-36 sobre `takeRecords()` no era implementable.** El AC pedía contar
+         «con `takeRecords()` **y no** con el callback». Medido con una sonda de callback vacío:
+         `registros solo con takeRecords(): 0`. Y no por el mecanismo elegido, sino por la semántica
+         del observador: navegador y jsdom **entregan la cola en cada punto de comprobación de
+         microtareas** y `await user.click()` cruza varios, así que un `takeRecords()` posterior solo
+         ve lo ocurrido **desde el último `await`** — daría 0 con **cualquier** mecanismo. Lo que
+         `takeRecords()` sí aporta es **el cierre**: capturar de forma síncrona un último lote aún no
+         entregado, sin `waitFor` ni relojes. La implementación acumula en el callback **y** cierra
+         con `takeRecords()`, y **el AC pasa a pedir eso**.
+      2. **El fallo esperado del RED 1(b) no era el que ocurre.** La spec predijo «1 registro en vez
+         de 2»; en realidad (b) revienta **antes**, al buscar la región, porque con la región perezosa
+         no hay nada que encontrar: (a) y (b) cuelgan de la **misma** precondición ausente y fallan
+         igual. El «1 en vez de 2» sí existe, pero como **mutación** sobre producción ya corregida.
+         La cifra era buena; el momento, no.
+      3. **El mecanismo de reanuncio (`U+200B`) se ratifica y se ajusta la aserción a él.** El espacio
+         normal se descartó porque el whitespace es exactamente lo que colapsan `textContent`,
+         jest-dom, Playwright y el cálculo de texto de un lector —una diferencia hecha solo de
+         whitespace es la más fácil de que se normalice hasta desaparecer en el consumidor al que va
+         dirigida—; y vaciar-y-reescribir, porque React agrupa las dos actualizaciones del mismo
+         manejador en un render y exigiría `flushSync` o un temporizador. **Consecuencia ratificada**:
+         tras un número **par** de anuncios el `textContent` es `Insertado: Negrita` + `U+200B`, que
+         no se pinta ni se locuta pero **no es literalmente igual** a la cadena del AC. Se afirma por
+         **contención**. La medida se adapta al mecanismo bueno, no al revés.
+- [x] **T-012** · `frontend` · El último locator que distinguía las regiones vivas por contenido — **AC-27** — 2026-07-29
+      **Tarea nueva de la v0.3.0**, decidida al cerrar: `e2e/palette.spec.ts` lo creó **T-010**, antes
+      de que existiera el nombre accesible, y desambiguaba las dos regiones `role="status"` **por
+      contenido** (`getByRole('status').filter({ hasText: /^(Guardado|…)$/ })`). Pasaba verde.
+      **Por qué no se dejó como deuda de la `005`, que era la opción cómoda**: no es deuda estética.
+      Ese locator es **inmune a la mutación que borra el `aria-label`** —`filter({ hasText })` compara
+      contra el texto renderizado y **no lee** `aria-label`—, así que si alguien retira el nombre que
+      AC-27 exige, la suite de la paleta **sigue verde y no se entera**. Era un test **incapaz de
+      detectar la regresión del criterio que lo rodea**. Y el archivo es artefacto **de esta spec**,
+      no herencia de la `003`: cerrar la `004` dejando dentro un apaño que existe solo porque el
+      nombre aún no estaba es la arqueología que estas fases han pagado por evitar.
+      **Sin RED clásico, y dicho como tal**: el comportamiento lo implementó T-011 y el locator nuevo
+      pasa a la primera; un rojo artificial habría sido teatro. Lo sustituye una **mutación
+      obligatoria**, que es la pregunta que el RED contesta hecha directamente.
+      **Verificado**: `playwright test palette` → **1 passed** (2.2 s) · con el `aria-label` borrado
+      de `SaveStatus.tsx` → **1 failed**, `element(s) not found` en
+      `await expect(saveStatus).toHaveText('Guardado')`, la **primera** aserción sobre la región ·
+      restaurado (hash idéntico, `git diff` idéntico byte a byte al de partida) → **1 passed** ·
+      `lint` y `typecheck` de `web` limpios. Un solo archivo movido: `apps/web/e2e/palette.spec.ts`.
+      **Media medida y no entera**: que el locator **viejo** siguiera verde bajo la misma mutación
+      **no se midió** (cada corrida gasta un `PUT` del cupo de `documentContent`, que no se resetea).
+      Se sigue por construcción y queda anotado como **deducción, no como medición**.
+
+**Verificación de T-006, T-007, T-008 y T-009, corrida por el orchestrator** (rama
+`feat/004-markdown-palette`, el 2026-07-29 a las 00:40-00:42):
+
+| Comando | Salida real |
+|---|---|
+| `pnpm --filter @one-markdown/web test` | **19 archivos, 469 passed** (venía de 18 / 412 al cerrar T-005) |
+| `pnpm typecheck` | exit **0**, los tres paquetes (`shared`, `api`, `web`) |
+| `pnpm lint` | exit **0**, los tres paquetes |
+| `pnpm --filter @one-markdown/web exec playwright test editor` | **3 passed** — la verificación en navegador que tenía bloqueada a T-009 |
+
+**Lo que cierra el `412 passed` de la entrada anterior**: aquella cifra era la de T-001…T-005 y dejó
+de ser la del árbol en cuanto T-009 empezó a escribir. La cifra del árbol es ahora **469** sobre
+**19** archivos, con los dos archivos nuevos de la rama A (`MarkdownPalette.tsx` y su test) y los
+crecimientos de la rama B. El aviso de concurrencia de arriba queda **resuelto**: las dos ramas de la
+ola 3 corrieron en paralelo sin pisarse un archivo.
+
+**El `playwright test editor` lo reporta la sesión que cerró T-009 y no lo he repetido**, a
+propósito: T-010 está corriendo `playwright` sobre ese mismo directorio en paralelo y dos suites de
+navegador a la vez se pelean por los puertos de los servidores (`reuseExistingServer: false` en los
+dos, decisión de `T-025` de la `001`). Un rojo salido de ahí no diría nada sobre el código. Se
+re-mide cuando T-010 cierre, que además es cuando T-011 puede entrar.
+
+**Mutaciones adversariales**: 10 probadas sobre lo entregado en esta ola, **9 mataron tests** y
+**sobrevivió exactamente una** — la que la v0.1.2 dice que **debe** sobrevivir (reordenar las claves
+de `PALETTE_GROUP_LABELS`, que no son contrato de nada). Es el resultado que se pedía, no una
+coincidencia: es el mismo par que la ola 2 midió con M38/M41.
+
+**Cerrado el 2026-07-29 lo que quedaba pendiente de la ola anterior**: la **segunda mutación
+superviviente de las 41 de T-001…T-005** es **M5**, y estaba identificada en el informe de
+T-001…T-005 —no había que preguntarle a nadie, había que leerlo—. Sobrevivió porque los cuatro
+elementos que envuelven usan delimitador **simétrico**, así que cerrar con `before` produce la misma
+cadena; el agente la repitió como **M5bis** en T-002 con `link`/`image`, asimétricos, y **cayó**. Con
+M38 —que **debe** sobrevivir— el par queda explicado y **no hay ningún hueco de cobertura abierto**.
+Detalle en la entrada de T-001…T-005, más arriba, y en el CHANGELOG de la v0.2.1.
 
 **Tres cosas que ninguna tarea puede tocar**, escritas aquí además de en `tasks.md` porque las tres vienen
 con instrucciones explícitas de la `003` y las tres son del tipo que alguien «mejora» sin darse cuenta:
@@ -1649,11 +1994,67 @@ con instrucciones explícitas de la `003` y las tres son del tipo que alguien «
    debounce, la coalescencia y el marcado de sucio sin una línea de código nueva.
 3. **`packages/shared/**` y `apps/api/**`.** Ni una línea (AC-34).
 
+**Una excepción, y una sola, abierta por la v0.2.0**: `SaveStatus.tsx` —producción de la `003`— lo
+toca **T-011 y nadie más**, y solo para añadirle un `aria-label` a su `role="status"`. Sus textos,
+sus estados y su pareja `status`/`alert` se quedan exactamente como están.
+
 **Cifras de partida contra las que se medirá el cierre** (las del cierre de la `003`): `shared` **81** ·
 `apps/web` 16 archivos / **321** · api unit 21 suites / **305** · api e2e 22 suites / **511** ·
 `pnpm test:e2e` **8** · `--retries=2 --repeat-each=3` **24** sin un solo `429` · `typecheck` y `lint` en
 **0** en los tres paquetes. Las tres últimas columnas de `apps/api` y `packages/shared` tienen que salir
 **idénticas** al cerrar la `004`; si se mueven, la decisión 1 del plan se rompió y eso es un cambio de spec.
+
+### Cierre de la `004` (2026-07-29) — re-medición corrida por el orchestrator
+
+La spec queda **complete** en **v0.3.0**: **36/36 AC** y **12/12 tareas**. Estas son las cifras
+reales, con el comando delante.
+
+**Suite completa del monorepo, desde estado limpio** (`rm -rf packages/shared/dist` y dejar que el
+flujo lo reconstruya), corrida **después de T-012**:
+
+| Comando | Salida real |
+|---|---|
+| `pnpm test` → `packages/shared` | 1 archivo, **81 passed** |
+| `pnpm test` → `apps/web` | 19 archivos, **470 passed** |
+| `pnpm test` → `apps/api` (unit) | 21 suites, **305 passed** |
+| `pnpm typecheck` | exit **0**, los tres paquetes |
+| `pnpm lint` | exit **0**, los tres paquetes |
+
+**AC-34 se cumple**: `shared` **81**, api unit **305** y api e2e **511** salen **idénticas** a las
+cifras de partida de la `003`. La única que se mueve es `apps/web`, **469 → 470**, y se mueve por una
+**sustitución** (el caso del AC-27 anterior por dos casos nuevos), no por una adición.
+
+**Navegador, `--retries=2 --repeat-each=3`**: **27 passed en 26,1 s**, **cero reintentos**, **cero
+`flaky`** y **cero apariciones de `429`** en toda la salida. Sondeo de Redis cada 300 ms sobre
+`throttle:*` durante la corrida: pico de `documentContent` **14**, `login` 5, `register` 1 — por
+debajo del 15 que midió T-010 y **sin un solo `429`**, que es lo que AC-33(b) pide. _(El 14 frente al
+15 no es una mejora: el sondeo es muestreado y cada pasada tarda, así que la cifra es una **cota
+inferior**. Se anota como tal y no como reducción de gasto.)_
+
+**Una honestidad sobre el orden, porque la regla de la casa es que una medición que no se tomó no se
+reporta como tomada.** Esa corrida de `--repeat-each=3` se hizo **antes de T-012**. Al repetirla
+después, **abortó sin ejecutar un solo test**:
+
+```
+Error: http://localhost:5173 is already used, make sure that nothing is running
+on the port/url or set reuseExistingServer:true in config.webServer.
+```
+
+No es un rojo de la suite: es un **`pnpm dev` ajeno ocupando el puerto** —una terminal de VS Code del
+usuario, PID 12197, arrancada a mitad del cierre—, y **no se mató** porque no es un proceso de esta
+sesión. Lo que sí está medido después de T-012 es todo lo demás: la suite completa del monorepo (la
+tabla de arriba), y el propio `playwright test palette` de T-012 con su mutación en rojo y su
+restauración en verde. Lo que queda **sin re-medir tras T-012** es exclusivamente el
+`--repeat-each=3` **completo**, y el delta que lo separa de la corrida verde es **un locator que
+resuelve al mismo elemento** — pero eso es un argumento, no una medida, y por eso se escribe aquí en
+vez de darlo por hecho. **Se cierra corriendo el comando con `pnpm dev` parado.**
+
+**Y de ahí sale el riesgo #14 de la spec**, que es el hallazgo operativo del cierre: `dev-env.ts` le
+dio al API un puerto propio para e2e (**3011**, con el comentario «distinto del 3001 de `pnpm dev`»)
+pero **dejó el web en 5173**, el mismo de `pnpm dev`. Media isolación. Con
+`reuseExistingServer: false` —correcto y deliberado desde `T-025` de la `001`— la suite aborta antes
+de empezar, y el error **parece** un fallo de la suite. Arreglo simétrico (`E2E_WEB_PORT` propio)
+anotado para la `005`, que va a correr e2e a menudo sobre esta misma página.
 
 ---
 
@@ -2090,16 +2491,50 @@ que hay que volver a leer la próxima vez que aparezca la misma disyuntiva.
 | `000-foundation` | 0.1.7 | implemented — 14/14 AC |
 | `001-auth` | **0.1.2** | implemented — 26/26 AC (su `T-026` solo espera un run verde de CI, que necesita `git push`) |
 | `002-workspace-tree` | **0.4.3** | **complete** — 35/35 AC; la enmienda de la v0.4.0 quedó **implementada** por `T-007`, `T-009` y `T-013` de la `003` |
-| `003-editor` | 0.1.4 | **complete** — 34/34 AC, 17/17 tareas |
-| `004-markdown-palette` | **0.1.1** | **approved** — 34 AC, 10 tareas, **0 implementadas**. Lista para despachar |
+| `003-editor` | **0.1.5** | **complete** — 34/34 AC, 17/17 tareas. La **v0.1.5** (2026-07-29) es un patch de precisión escrito **desde la `004`**: no toca código ni AC, y arregla una cifra de cupo sin ventana («la suite gasta 4 de 120» es **por corrida**; bajo `--repeat-each=3` eran **12**). Su AC-34 **no lleva número** y por eso sigue siendo cierto |
+| `004-markdown-palette` | **0.3.0** | **complete** — **36/36 AC**, **12/12 tareas** (T-001…T-012), cerradas y verificadas el 2026-07-29. La **v0.3.0** es minor por una sola razón: **el recuento de tareas se mueve** (11 → 12) con `T-012`, que no añade ningún AC. Trae además tres correcciones de redacción, las tres escritas con la medición delante |
 | `006-editor-undo` | — | **sin especificar, pero ya planificada** en `004/spec.md` §9 (qué, por qué y cómo). Depende de la `005` |
 
-**La spec `004-markdown-palette` está aprobada y lista para despachar** (`specs/004-markdown-palette/`,
-v0.1.1, **approved**): 34 AC y 10 tareas, **todas de `frontend`** — es la primera spec del proyecto sin una
-sola tarea de backend. Toca **exclusivamente `apps/web`**; AC-34 verifica que `packages/shared` y
-`apps/api` no se mueven. Las **seis decisiones abiertas** de su §8 se resolvieron el 2026-07-28, **las seis
-en la opción recomendada y sin mover un solo AC ni una sola tarea**, así que no hay nada que releer antes
-de arrancar la ola 1: `tasks.md` vale tal cual.
+**La spec `004-markdown-palette` está `complete`** (`specs/004-markdown-palette/`, **v0.3.0**):
+**36/36 AC** y **12/12 tareas**, **todas de `frontend`** —es la primera spec del proyecto sin una sola
+tarea de backend—, cerradas y verificadas el 2026-07-29: web **19 archivos / 470 passed**, `shared`
+**81**, api unit **305**, api e2e **511**, typecheck **0**, lint **0**, y el navegador con
+`--retries=2 --repeat-each=3` en **27 passed sin un solo `429`**. Toca **exclusivamente `apps/web`**;
+AC-34 verifica que `packages/shared` y `apps/api` no se mueven, y `git status --short` lo confirma:
+ni un archivo fuera de `apps/web/**`, `specs/**` e `IMPLEMENTATION.md`. Detalle y matices —incluido
+**qué no se pudo re-medir tras T-012 y por qué**— en el bloque «Cierre de la `004`» de la Fase 6.
+
+**La v0.3.0 se escribió al cerrar, con T-011 verde, y añadió una tarea y tres correcciones.** La
+tarea es **`T-012`**: `e2e/palette.spec.ts` —creado por T-010, antes de que existiera el nombre
+accesible— seguía distinguiendo las dos regiones vivas **por contenido**, y eso no era deuda
+estética: ese locator es **inmune a la mutación que borra el `aria-label`**, así que era un test
+**incapaz de detectar la regresión del AC que lo rodea**. Las tres correcciones, todas con la
+medición delante y ninguna relajando una aserción: **AC-36** pedía un `takeRecords()` **no
+implementable** (medido: **0** registros, y lo sería con cualquier mecanismo, porque la cola del
+observador se entrega en cada punto de comprobación de microtareas); el **fallo esperado del RED
+1(b)** no era el que ocurre (los dos subcasos colgaban de la misma precondición ausente, así que
+fallaban igual; el «1 en vez de 2» aparece como **mutación**); y el mecanismo de reanuncio
+(**`U+200B`**) se ratifica, con la aserción del contenido final pasada a **contención** en vez de
+igualdad literal.
+
+**La v0.2.1 corrigió el único defecto de spec que quedaba vivo**, y conviene no releerlo mal: **AC-33
+era cierto por corrida y falso bajo su propio comando de verificación** —pedía un pico de
+`documentContent` **< 10 de 120** y mandaba medirlo con `--retries=2 --repeat-each=3`, que triplica
+el gasto **dentro de la misma ventana de 60 s** del throttler—, y **ya estaba roto en 12 antes de que
+esta spec existiera**. Se parte en dos ventanas con dos comandos; se descartó subir el número (sería
+un número sobre el multiplicador, no sobre la suite) y recortar `editor.spec.ts` (cuesta cobertura de
+una spec cerrada, con 105 de margen disponible). El mismo día se abrió la **v0.1.5 de la `003`** para
+que su contabilidad de cierre no siga propagando la ambigüedad a la `005`.
+
+**La v0.1.2 es un patch escrito con el código delante**, y salió de revisar lo entregado en vez de
+darlo por bueno: el catálogo tiene **16 elementos y no 14** (error aritmético que contradecía a la
+propia AC-16 y a AC-30, corregido en diez sitios); **AC-35** es nuevo y dice que *ningún bloque
+destruye la selección de la persona* —`table` y `divider` con selección activa no estaban definidos, y
+la lectura literal borraba el párrafo seleccionado al pulsar «Separador», sin aviso y sin deshacer—;
+cuatro huecos más quedaron ratificados con lo implementado; `plan.md` §4.2 recoge ya la firma real de
+`selectTargetWhenWrapping` (`?: string`, no booleano); y **§9.6** deja escrita la lección de que la
+guarda de pureza no puede convivir con un comentario que la explique. Las **seis decisiones abiertas**
+de su §8 se habían resuelto el 2026-07-28, las seis en la opción recomendada.
 
 **Y hay una spec nueva en el horizonte que no existía esta mañana: la `006-editor-undo`.** No está escrita,
 pero **sí planificada**, y en un sitio concreto: `004/spec.md` **§9**. Nació al resolver la decisión B de la
@@ -2120,7 +2555,10 @@ Cifras del cierre: `shared` **81** · `apps/web` 16 archivos / **321** · api un
 api e2e 22 suites / **511** (40,2 s) · `pnpm test:e2e` **8** · `--retries=2 --repeat-each=3` **24** sin
 un solo `429` · `typecheck` y `lint` en **0** en los tres paquetes.
 
-**Lo siguiente es implementar la spec `004-markdown-palette`**, ya escrita (v0.1.0, **draft**). Llegó con el
+**La spec `004-markdown-palette` está cerrada** (v0.3.0, **complete**, 36/36 AC y 12/12 tareas), así
+que **lo siguiente del proyecto es la `005`**: tabs y vista dividida, que todavía **no tiene spec** y
+por tanto empieza por el flujo de siempre —`spec.md` + `plan.md` + `tasks.md` + `CHANGELOG.md`— con
+la lista de herencias de abajo delante. La `004` llegó con el
 contrato cerrado por la `003` —el modo texto es **un solo `<textarea>`** y **todo** cambio de contenido
 entra por `setDraft(id, texto)`, así que la paleta solo calcula la cadena nueva y llama; el estado sucio,
 el debounce y la coalescencia reaccionan solos— y GFM ya está en el parser, así que tablas, listas de
@@ -2154,6 +2592,42 @@ Dos matices que la planificación de la `004` añadió y que conviene leer antes
   **escrito y consciente** si «cerrar una pestaña y volver a abrirla pierde el deshacer» es aceptable, o
   si las entradas con historial merecen otro trato. Y el motivo de que la `006` vaya **después** y no
   antes es exactamente ese: diseñar la pila sin la política fijada es diseñarla contra un supuesto.
+- **Restricción del 2026-07-29, al cerrar `T-010` de la `004`**: en la página del editor hay **dos
+  regiones vivas** (`SaveStatus` y la paleta) y desde la `004` las dos llevan **`aria-label`**;
+  `getByRole('status')` **sin nombre** está prohibido ahí, y en Playwright es violación de modo
+  estricto. Con vista dividida habrá **dos paletas**, así que toda región viva que añada la `005`
+  nace **con nombre accesible**. **Y la regla vale también para los tests**: desambiguar una región
+  viva **por su contenido** (`filter({ hasText })`) parece equivalente y no lo es —es inmune a que
+  alguien borre el `aria-label`, así que el test sobrevive verde a la regresión del criterio que
+  dice verificar—. Le pasó a `e2e/palette.spec.ts` y lo arregló **`T-012`** de la `004`.
+- **Nota de accesibilidad de la `004`, no bloqueante y con destinatario aquí** (riesgo #13 de su
+  spec): poner `aria-label` a una región viva la nombra en la lista de regiones —que es lo que AC-27
+  busca— pero **algunos lectores lo usan en el anuncio además del contenido**, de modo que puede
+  oírse «Elemento insertado. Insertado: Negrita». La `004` lo pide explícitamente y **lo asume**. La
+  `005` tendrá **dos paletas** y por tanto **dos regiones homónimas** en la misma página, así que le
+  toca revisarlo **con lector real** (NVDA o VoiceOver). **Ningún test de este repositorio puede
+  detectarlo**: ni jsdom ni Playwright locutan nada, y escribir uno que finja que sí sería peor que
+  no tenerlo. Si con dos paletas resulta hablador, la salida previsible es **un nombre por panel**
+  («Elemento insertado, panel izquierdo»), no quitar el nombre.
+- **El e2e y `pnpm dev` se pelean por el `5173`, y media isolación ya está hecha** (riesgo #14 de la
+  `004`). `apps/web/e2e/support/dev-env.ts` le dio al API un puerto propio —**3011**, con el
+  comentario «distinto del 3001 de `pnpm dev`»— pero dejó el web en **5173**, el mismo que usa
+  `pnpm dev`. Con `reuseExistingServer: false` —correcto, y decisión de `T-025` de la `001`— la suite
+  **aborta antes de ejecutar un solo test** con `http://localhost:5173 is already used`, que se lee
+  como un fallo de la suite y es un fallo de **entorno**. Bloqueó una re-medición del cierre de la
+  `004`. La `005` va a correr e2e a menudo sobre esta misma página: darle al web su `E2E_WEB_PORT`
+  es simétrico con lo que ya está escrito ahí y cuesta una constante.
+- **La tercera copia de `watchConsole` la escribe la `005`, y con ella la extracción.** El ayudante
+  está duplicado entre `e2e/editor.spec.ts` y `e2e/palette.spec.ts` porque la lista de artefactos de
+  `T-010` era **un solo archivo**. La regla es extraer **a la tercera**, va a
+  `apps/web/e2e/support/`, y **extraer es unificar**: las dos copias ya divergieron en firma (una
+  acepta patrones tolerados, la otra no). `e2e/support/**` es contrato de la `001` → entrada de
+  cierre en su CHANGELOG, como hicieron `T-027` de la `002` y `T-015` de la `003`.
+- **Toda cifra de cupo que escriba la `005` lleva pegada su ventana y su comando.** Es la lección de
+  la v0.2.1 de la `004`: un AC con un número de cupo pero sin ventana fue **cierto por corrida y
+  falso bajo su propio comando de verificación** durante dos specs, porque `--repeat-each` y
+  `--retries` multiplican el escenario **dentro de la misma ventana de 60 s** del throttler cuando la
+  suite dura menos que eso.
 
 **Tres cosas que costaron descubrir y que no se deducen leyendo el código:**
 
@@ -2171,7 +2645,8 @@ Dos matices que la planificación de la `004` añadió y que conviene leer antes
    sí, a mitad de una secuencia de agotamiento no), **no el lugar**.
 
 Y un riesgo conocido que conviene reconocer antes de diagnosticarlo mal: si el caso de conflicto de
-**AC-33** parpadea alguna vez en CI, la causa es la ventana de **decenas de milisegundos** entre el `PUT`
+**AC-33 de la `003`** (no el de la `004`, que también se llama AC-33 y va del presupuesto de cupo)
+parpadea alguna vez en CI, la causa es la ventana de **decenas de milisegundos** entre el `PUT`
 externo y el vencimiento del debounce de 1.500 ms — **no** el cupo del throttler, que es donde mira todo
 el mundo después de `T-015`. Corrió 13 veces sin fallar y **no se estabilizó a propósito**
 (`003/spec.md` §8.2).

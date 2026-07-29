@@ -1,8 +1,26 @@
 # Plan 004 — Paleta de elementos markdown insertables
 
-Spec de referencia: `spec.md` **v0.1.1** (**approved** el 2026-07-28, con las seis decisiones de su
-§8 resueltas en la opción recomendada). El plan **no cambió** con la aprobación: ninguna resolución
-movió un contrato, un artefacto ni un AC.
+Spec de referencia: `spec.md` **v0.3.0** (**complete** el 2026-07-29; approved el 2026-07-28 con las
+seis decisiones de su §8 resueltas en la opción recomendada; **v0.1.2, v0.2.0 y v0.2.1 el
+2026-07-29**). El plan **no cambió** con la aprobación: ninguna resolución movió un contrato, un
+artefacto ni un AC.
+
+**Lo que cambió en la v0.3.0**, escrito al cerrar y con T-011 verde: §4.4 corrige el mecanismo de
+verificación del **reanuncio** —el `takeRecords()` **a secas no es implementable**, y está medido— y
+deja escrito el mecanismo elegido (`U+200B`) con las dos alternativas descartadas y su motivo. Ningún
+contrato se mueve. La tarea nueva de esa versión, **T-012**, es de test y no toca este plan.
+
+**Lo que sí cambió en la v0.1.2**, después de implementar T-001…T-005 y con la firma real delante:
+§4.2 pasa a describir `selectTargetWhenWrapping` como **cadena** y no como booleano, gana la marca
+`consumesSelection` (AC-35) y precisa la regla de separación y el desempate del borde de línea; §4.4
+deja escrito que los rótulos de grupo salen del **catálogo**; y §5 recoge la lección de la guarda de
+pureza. Nada de esto es alcance nuevo: es el plan poniéndose al día con lo que ya está verde.
+
+**Lo que cambió en la v0.2.0** (spec `spec.md` **v0.2.0**, con T-001…T-009 verdes): §4.4 reescribe la
+**región viva** —se monta desde el primer render y las dos regiones de la página llevan `aria-label`
+(AC-27), y una segunda inserción del mismo elemento **vuelve a anunciar** (AC-36)— y **retira** el
+`disabled?: boolean` que nunca se implementó. Esto **sí** es alcance nuevo, lo ejecuta **T-011** y por
+eso la spec sube minor.
 
 ---
 
@@ -14,7 +32,7 @@ movió un contrato, un artefacto ni un AC.
 | 2 | **Núcleo puro separado del adaptador.** `markdown-insert.ts` es una función de `(estado de selección, elemento) → (estado de selección)`; no importa React, ni el store, ni menciona `document` | Manipular el `<textarea>` directamente desde el manejador del clic con `setRangeText` | Es la frontera de hexagonal aplicada al frontend: dominio puro dentro, adaptador fuera. Y tiene un beneficio concreto e inmediato: los ~40 casos de §3.A-D de la spec son de **cadenas**, sin `render`, sin jsdom, sin temporizadores falsos — se escriben y corren en milisegundos, y no pueden ponerse en rojo por un cambio de interfaz. Precedente en el repo: `contentBytesOf` de la `003` (`T-002`), que también se verificó comprobando que no importaba nada de su entorno |
 | 3 | **No se usa `setRangeText` pese a que `003/spec.md` §4 lo daba por el camino** | `element.setRangeText(...)` en el manejador | `setRangeText` muta el `value` del DOM **por fuera** de React. En un `<textarea>` controlado, React sobrescribe ese valor en el render siguiente con lo que diga el estado, así que o se duplica la lógica o se pelean. La forma correcta con un control controlado es: calcular la cadena nueva → `setDraft` → restaurar la selección tras el render. La `003` no se equivocó al decir que la API estaba disponible; simplemente el camino limpio resultó ser otro, y se escribe aquí para que nadie lo «arregle» de vuelta |
 | 4 | **La selección se restaura en un `useLayoutEffect`, no en el manejador del clic** | `setSelectionRange` justo después de `setDraft`; `requestAnimationFrame`; `setTimeout(0)` | React documenta que un `<textarea>` controlado al que se le asigna un valor distinto de `e.target.value` **manda el caret al final**. Llamar a `setSelectionRange` antes de que el valor nuevo aterrice en el DOM no sirve de nada: lo pisa el render. `useLayoutEffect` corre **después** del commit y **antes** del repintado, así que la persona nunca ve el caret en el sitio equivocado. Un `setTimeout` lo dejaría ver un fotograma |
-| 5 | **`role="toolbar"` con roving tabindex**, no una lista de botones ni un `menu` | Catorce `<button>` sueltos; `role="menubar"` + `role="menuitem"`; un `<select>` | Catorce paradas de tabulación entre el conmutador de vista y el área de escritura es una barrera real para quien navega con teclado. `menubar` es el patrón de **menús desplegables** y trae expectativas (submenús, `Escape`, activación con letra) que aquí no se cumplen. `toolbar` es literalmente el patrón de «conjunto de controles agrupados que actúan sobre otra cosa». Y hay dos precedentes de roving en el propio repo de los que copiar el idiom: el `tablist` de `DocumentEditorPage` y el `role="tree"` de `WorkspaceTreeView` |
+| 5 | **`role="toolbar"` con roving tabindex**, no una lista de botones ni un `menu` | Dieciséis `<button>` sueltos; `role="menubar"` + `role="menuitem"`; un `<select>` | Dieciséis paradas de tabulación entre el conmutador de vista y el área de escritura es una barrera real para quien navega con teclado. `menubar` es el patrón de **menús desplegables** y trae expectativas (submenús, `Escape`, activación con letra) que aquí no se cumplen. `toolbar` es literalmente el patrón de «conjunto de controles agrupados que actúan sobre otra cosa». Y hay dos precedentes de roving en el propio repo de los que copiar el idiom: el `tablist` de `DocumentEditorPage` y el `role="tree"` de `WorkspaceTreeView` |
 | 6 | **Sin `Ctrl`+`Z` agrupado** (la `003` lo había asignado aquí y se devuelve) | `document.execCommand('insertText')` | Está deprecado y **jsdom no lo implementa**: adoptarlo obliga a mockearlo en todos los tests de componente, o sea a verificar el mock. Un `execCommand` con respaldo es peor todavía: el respaldo sería lo **único** que los tests ejercitan. La salida honesta no es recuperar la pila del navegador, es tener una propia en el store, y eso es una spec entera. **RESUELTA el 2026-07-28** (decisión **B** de `spec.md` §8): la limitación se acepta en la `004` y la pila propia queda **planificada con destinatario** en `spec.md` **§9**, asignada a la spec **`006-editor-undo`**, dependiente de la `005` |
 | 7 | **El catálogo es datos, no código.** Una tabla de objetos congelados; el despacho son tres funciones (`inline`, `linePrefix`, `block`) | Una clase o una función por elemento | Añadir un elemento tiene que ser una fila. AC-18 recorre el catálogo entero, así que un elemento nuevo sin cubrir sale en rojo solo |
 | 8 | **Ninguna dependencia nueva.** Cero paquetes instalados | `@uiw/react-md-editor`, `react-markdown-editor-lite`, iconos de `lucide-react` | La `003` midió el coste del ecosistema `unified`: **+255 módulos y +160,7 kB (+48 kB gzip)**, y dejó ese número escrito como la vara contra la que juzgar cualquier añadido de la `004` o la `005`. La paleta son cadenas y botones. Los iconos van como `<svg aria-hidden="true">` en línea, igual que `RowActionButton` de `TreeNodeRow.tsx` |
@@ -51,7 +69,7 @@ omisión: no se añade ninguna entrada ni ninguna salida.
 apps/web/src/features/editor/
   markdown-insert.ts          NUEVO · núcleo puro: (selección, elemento) → selección
   markdown-insert.test.ts     NUEVO · ~40 casos de cadenas, sin DOM
-  markdown-palette.ts         NUEVO · catálogo (datos) + tipos del elemento
+  markdown-palette.ts         NUEVO · catálogo (datos) + tipos del elemento + rótulos de los grupos
   markdown-palette.test.ts    NUEVO · exhaustividad, pureza, guardas del catálogo
   MarkdownPalette.tsx         NUEVO · toolbar ARIA con roving tabindex
   MarkdownPalette.test.tsx    NUEVO · roles, nombres, teclado, región viva
@@ -98,8 +116,23 @@ Tres familias, un despacho:
   resultante es `[start + before.length, start + before.length + seleccionado.length]`.
 - Sin selección: se inserta `before + placeholder + after` y la selección cubre el `placeholder`.
 - `link` e `image` son `inline` con una vuelta de tuerca declarada en el catálogo
-  (`selectTargetWhenWrapping: true`): con selección, lo que queda seleccionado es **la URL**, porque
-  el rótulo ya lo escribió la persona y el hueco por rellenar es el destino (AC-5).
+  (`selectTargetWhenWrapping`): con selección, lo que queda seleccionado es **la URL**, porque el
+  rótulo ya lo escribió la persona y el hueco por rellenar es el destino (AC-5).
+
+**Firma real de `selectTargetWhenWrapping`** (corregida en la v0.1.2, tras implementar T-002):
+
+```ts
+readonly selectTargetWhenWrapping?: string;   // el fragmento literal DE `after` que queda seleccionado
+```
+
+La v0.1.1 la había escrito como `selectTargetWhenWrapping: true`. **Mismo nombre, dato explícito.** El
+motivo del cambio, para que nadie lo revierta: con un booleano el núcleo tiene que **deducir** qué
+trozo de `after` seleccionar, y la única forma de deducirlo es analizar los paréntesis de
+`](https://ejemplo.com)` —es decir, meter un miniparser de plantillas dentro de una función de
+cadenas, para recuperar una información que el catálogo ya tiene y podría simplemente decir. Con la
+cadena, el núcleo hace `after.indexOf(target)` y se acabó: cero magia, y una invariante afirmada con
+test —**el valor declarado es siempre un fragmento de `after`**—, que es justo lo que el booleano
+dejaba sin poder comprobar.
 
 **`linePrefix`** — `{ kind: 'linePrefix', prefix | numbered, replaces: RegExp, placeholder }`
 
@@ -114,17 +147,36 @@ Tres familias, un despacho:
    línea que lo contenía (AC-7). Si abarcaba varias líneas, la selección resultante cubre el bloque
    entero ya prefijado, de la primera columna de la primera línea a la última columna de la última.
 
-**`block`** — `{ kind: 'block', render(seleccionado): string, selectionInside }`
+**`block`** — `{ kind: 'block', render(seleccionado): RenderedBlock, consumesSelection: boolean }`
 
-1. Se corta en el **borde de línea** más cercano al cursor: los bloques no se meten en medio de un
-   párrafo.
-2. Se normaliza la separación a **exactamente una** línea en blanco antes y después, y **ninguna**
-   cuando el bloque queda pegado al principio o al final del documento (AC-12 y AC-13). La regla
-   operativa: contar los `\n` que ya hay y añadir solo los que falten, nunca concatenar `\n\n` a
-   ciegas.
-3. `codeBlock` mete la selección dentro de la valla y la deja seleccionada; sin selección, el cursor
-   queda dentro y el hueco de lenguaje vacío (AC-14). `table` deja seleccionada la primera celda de
-   encabezado (AC-15). `divider` no deja nada seleccionado: el cursor va a la línea siguiente.
+`render` devuelve `{ text, selection }`: el bloque **sin** las líneas en blanco de separación —esas
+las pone el núcleo— y qué queda seleccionado en desplazamientos relativos al principio del bloque,
+o `null` si no queda nada.
+
+1. **Dónde se corta.** Si el bloque **consume** la selección (solo `codeBlock`) y la selección no
+   está vacía, el corte es la selección misma: se la lleva dentro. Si **no** la consume, el bloque se
+   abre en un borde de línea y **la selección sobrevive intacta** (AC-35). Con selección, ese borde
+   es el **final de la última línea que toca**, para que el bloque quede detrás de lo seleccionado y
+   no encima. Sin selección, es el **borde de línea más cercano al cursor** —distancia al inicio
+   frente a distancia al final, **empate al inicio**—: un bloque metido a mitad de frase parte el
+   párrafo en dos.
+   _(El desempate es de la v0.1.2. La v0.1.1 decía «el borde más cercano» y no definía el empate, que
+   ocurre siempre que el cursor está justo en el medio de la línea. Se implementó al inicio y tiene
+   test propio; si algún día se prefiere «siempre el final de la línea», es un cambio de una línea y
+   de un test, pero hay que **decidirlo**, no dejarlo al azar del `<=`.)_
+2. **Separación.** El bloque **siempre cierra su línea con un `\n`**, y la línea en blanco entera
+   (dos saltos) solo aparece **del lado donde hay texto** (AC-12 y AC-13). La regla operativa:
+   contar los `\n` que ya hay y añadir solo los que falten, nunca concatenar `\n\n` a ciegas.
+3. `codeBlock` (`consumesSelection: true`) mete la selección dentro de la valla y la deja
+   seleccionada; sin selección, el cursor queda dentro y el hueco de lenguaje vacío (AC-14). `table`
+   (`consumesSelection: false`) deja seleccionada la primera celda de encabezado (AC-15). `divider`
+   (`consumesSelection: false`) no deja nada seleccionado: el cursor va a la línea siguiente.
+
+**Por qué `consumesSelection` es un dato del catálogo y no una rama por `id`.** Porque es la marca
+que impide el peor defecto posible de esta spec —borrar el párrafo que la persona tenía seleccionado
+al pulsar «Separador» (AC-35)—, y como dato lo declara **cada elemento nuevo** en su fila. Como rama
+por `id`, el elemento que alguien añada mañana cae en la que hubiera por defecto sin que nadie lo
+decida.
 
 ### 4.3 El adaptador — `DocumentEditorPage.tsx`
 
@@ -186,24 +238,70 @@ son los de la `003`.
 
 ```tsx
 export interface MarkdownPaletteProps {
+  /** Se llama con el elemento del catálogo que se acaba de activar. */
   readonly onInsert: (element: PaletteElement) => void;
-  /** Lo que se anuncia en la región viva; lo gestiona la paleta, no la página. */
-  readonly disabled?: boolean;   // reservado; hoy no se usa (decisión C: la paleta no se deshabilita)
 }
 ```
 
+**`disabled?: boolean` se retira del plan en la v0.2.0, y no por descuido de nadie.** La v0.1.x lo
+declaraba «reservado; hoy no se usa», y la decisión C dice que **la paleta no se deshabilita nunca**
+(en vista previa no se pinta). O sea: no había ningún test que pudiera cubrirlo, porque no había
+ningún comportamiento que afirmar. T-006 lo implementó sin él, que era lo correcto. Un `prop`
+opcional que nadie pasa y ningún test defiende es una invitación a que alguien lo use más adelante
+creyendo que está especificado; si algún día hace falta deshabilitar la paleta, eso es un AC.
+
 - `div[role="toolbar"][aria-label="Elementos de markdown"]`, con tres
-  `div[role="group"][aria-label]`: «Formato», «Bloques de texto», «Insertar».
+  `div[role="group"][aria-label]`: «Formato», «Bloques de texto», «Insertar». Los tres rótulos se
+  **leen de `PALETTE_GROUP_LABELS`** (`markdown-palette.ts`); el componente **no** los declara. Son
+  copia de interfaz en castellano, del mismo tipo que las etiquetas de los botones, y así el nombre
+  accesible de un grupo tiene un solo dueño y un solo test (AC-16, AC-24).
 - Cada botón: `<button type="button" aria-label="{etiqueta}" title="{descripción}">` con un
   `<svg aria-hidden="true" focusable="false">` dentro. Nombre accesible en castellano (AC-24).
 - **Roving tabindex** (AC-25): un índice de foco en `useState`; el botón activo lleva `tabIndex={0}`
-  y el resto `-1`; `onKeyDown` delegado en el `toolbar` que atiende `ArrowRight`, `ArrowLeft`, `Home`
-  y `End`, mueve el índice **atravesando los grupos** (el orden es el del catálogo aplanado,
-  no el de cada grupo por separado), envuelve por los extremos, llama a `preventDefault()` y **enfoca
-  de verdad** el botón destino con un array de `ref`s.
-- **Región viva** (AC-27): un `p[role="status"]` propio de la paleta que dice `Insertado: Negrita`.
-  Es **hermano** del `role="status"` de `SaveStatus`, nunca su ancestro ni su descendiente, y el test
-  lo comprueba con la misma aserción de no-contención que la `003` usa entre `status` y `alert`.
+  y los quince restantes `-1`; `onKeyDown` delegado en el `toolbar` que atiende `ArrowRight`,
+  `ArrowLeft`, `Home` y `End`, mueve el índice **atravesando los grupos**, envuelve por los extremos,
+  llama a `preventDefault()` y **enfoca de verdad** el botón destino con un array de `ref`s.
+- **De dónde sale el orden, y esto no es opcional**: tanto el pintado como el recorrido de las
+  flechas salen del **orden de `MARKDOWN_PALETTE`** —el catálogo aplanado, no cada grupo por
+  separado, y **no** `Object.keys(PALETTE_GROUP_LABELS)`—. Los grupos se pintan agrupando el catálogo
+  ya ordenado, no recorriendo las claves del objeto de rótulos. El orden del catálogo es contrato
+  afirmado con test; el orden de las claves de un objeto no lo es y no debe serlo. Medido con
+  mutación: reordenar el catálogo mata tests, reordenar las claves del objeto de rótulos **sobrevive
+  correctamente**.
+- **Región viva** (AC-27, AC-36 — **reescrito en la v0.2.0; lo ejecuta T-011**): un
+  `p[role="status"][aria-label="Elemento insertado"]` propio de la paleta que dice
+  `Insertado: Negrita`.
+  - **Se monta desde el primer render**, con el texto vacío, y **no** aparece con la primera
+    inserción. Un lector de pantalla anuncia los **cambios** de una región viva que ya conocía; una
+    región que entra en el DOM con su texto dentro es poco fiable en NVDA y JAWS. Montarla vacía es
+    la única forma de que el primer anuncio sea un cambio.
+  - Es **hermana** del `role="status"` de `SaveStatus`, nunca su ancestro ni su descendiente, y el
+    test lo comprueba con la misma aserción de no-contención que la `003` usa entre `status` y
+    `alert`.
+  - **Las dos regiones llevan `aria-label`** —la de guardado, `"Estado del guardado"`, añadido por
+    T-011 en `SaveStatus.tsx`— y a partir de ahí **toda** consulta de test las distingue por nombre:
+    `getByRole('status', { name: … })`. `getByRole('status')` a secas queda prohibido en esta página;
+    con dos regiones montadas siempre, en Playwright es **violación de modo estricto**. **Y también
+    queda prohibido distinguirlas por contenido** (`filter({ hasText })`, que es lo que hacía
+    `e2e/palette.spec.ts` hasta **T-012**): parece equivalente y no lo es, porque **no lee
+    `aria-label`** y por tanto sobrevive verde a que alguien borre el nombre que AC-27 exige.
+  - **Reanuncio (AC-36)** _(reescrito en la v0.3.0, con la implementación y la medición delante)_:
+    escribir el mismo texto que ya había no muta el DOM y no se anuncia, así que la región tiene que
+    cambiar entre un anuncio y el siguiente. **Mecanismo elegido: alternar un `U+200B`** al final del
+    texto — síncrono, un solo render, no se pinta y no se locuta. Las dos alternativas se
+    descartaron con motivo: un **espacio normal** es whitespace, y el whitespace es exactamente lo
+    que colapsan `textContent`, jest-dom, Playwright y el cálculo de texto de un lector (una
+    diferencia hecha solo de whitespace es la más fácil de que se normalice hasta desaparecer **en el
+    consumidor al que va dirigida**); y **vaciar y reescribir** exige `flushSync` o un temporizador,
+    porque React agrupa las dos actualizaciones del mismo manejador en un render. Consecuencia
+    asumida: tras un número **par** de anuncios el `textContent` lleva el `U+200B` pegado, así que el
+    contenido final se afirma **por contención**, no por igualdad literal.
+    **Cómo se mide**: `MutationObserver` que **acumula en su callback** y **cierra con
+    `takeRecords()`** antes de contar. El `takeRecords()` **a secas no sirve** —medido: **0**
+    registros—, y no por culpa del mecanismo: navegador y jsdom entregan la cola en **cada** punto de
+    comprobación de microtareas y `await user.click()` cruza varios, así que solo devolvería lo
+    ocurrido desde el último `await`. Lo que aporta es el **cierre**: recoger un último lote aún no
+    entregado, de forma síncrona y sin depender del reloj.
 - **Estilo**: se reutilizan literalmente las clases del repo —`min-h-8` o mayor para llegar a los
   24 px de SC 2.5.8, y el anillo `outline-solid outline-0 focus-visible:outline-2
   focus-visible:outline-offset-2 focus-visible:outline-blue-700`. En Tailwind 4 `outline-none` se
@@ -220,8 +318,9 @@ De `@one-markdown/shared` se consume lo que ya se consumía: `MAX_DOCUMENT_CONTE
 |---|---|---|
 | Nombre, rol, valor | `toolbar` + `group` + `button` con `aria-label` en castellano; iconos `aria-hidden` | AC-24 |
 | Operable con teclado (SC 2.1.1) | Roving tabindex, flechas, `Home`/`End`, `Enter`/`Espacio` nativos del `<button>` | AC-25 |
-| Orden del foco (SC 2.4.3) | Paleta **antes** del área de texto en el DOM | AC-26 |
-| Estado dinámico anunciado (SC 4.1.3) | `role="status"` propia, `polite`, sin anidar con la de guardado | AC-27 |
+| Orden del foco (SC 2.4.3) | Paleta **antes** del área de texto en el DOM (orden **relativo**: entre medias está el botón «Guardar» de la `003`) | AC-26 |
+| Estado dinámico anunciado (SC 4.1.3) | `role="status"` propia, `polite`, **montada desde el primer render y vacía**, con `aria-label` propio y sin anidar con la de guardado | AC-27 |
+| El mismo anuncio dos veces (SC 4.1.3) | La región **cambia** entre anuncios; repetir elemento vuelve a anunciar | AC-36 |
 | Tamaño del objetivo (SC 2.5.8) | ≥ 24 × 24 px CSS, medido con `boundingBox()` en Chromium | AC-29 |
 | Foco visible (SC 2.4.11) | Anillo `focus-visible` del repo, verificado en navegador | AC-29 |
 | Sin trampa de teclado (SC 2.1.2) | La toolbar no captura `Tab`: solo flechas, `Home` y `End` | AC-25, AC-26 |
@@ -255,7 +354,27 @@ Convenciones heredadas que las tareas **deben** respetar, y que costaron descubr
   `user.type(node, 'x', { skipClick: true, initialSelectionStart, initialSelectionEnd })` cuando lo
   que se quiere es simular el gesto. `user.keyboard('{Control>}a{/Control}')` selecciona todo.
 - Los tests de e2e resetean `login` y `workspace` en un *fixture* automático, como hace
-  `editor.spec.ts`, y **nunca** `documentContent`.
+  `editor.spec.ts`, y **nunca** `documentContent`. **Precisión de la v0.2.1**: el gasto de
+  `documentContent` es **5 de 120 por corrida** (4 el baseline de la `003`, 1 el caso de la paleta) y
+  **15** cuando la suite se repite tres veces dentro de la misma ventana de 60 s. Las cifras van
+  siempre **con su ventana**; AC-33 las separa en dos comandos por eso.
+- **La guarda de pureza no puede convivir con un comentario que la explique** (lección de la v0.1.2,
+  pagada en T-005 y escrita entera en `spec.md` §9.6). La guarda lee el **código fuente** con
+  `readFileSync` y busca cadenas prohibidas; **no distingue código de comentario**. En un archivo
+  vigilado no se puede deletrear `zustand`, `document.`, `window.` ni `from 'react'` **ni siquiera en
+  prosa**. Los comentarios se escriben en castellano sin los términos literales («no sabe nada de la
+  interfaz, del estado de la aplicación ni del navegador»), y la tarea que crea un módulo vigilado
+  debe meter **el comentario de cabecera del archivo** en su lista de artefactos: reescribirlo es
+  parte de hacer pasar la guarda, no un extra.
+- **El andamio vacío es parte del RED** (lección de la v0.2.0, pagada ya tres veces —T-001, T-005 y
+  T-006— y escrita entera en `spec.md` §9.7). Un test que importa un módulo inexistente falla por
+  **resolución de módulo**, y ese rojo solo demuestra que el archivo no está. El RED que vale es el
+  **de la aserción**, así que la tarea crea primero el módulo con la firma mínima y el cuerpo vacío,
+  y **ese** es el fallo que el agente reporta. Un RED reportado como `Cannot find module` es un RED
+  sin verificar.
+- **En la página del editor, `getByRole('status')` a secas está prohibido** (v0.2.0): hay **dos**
+  regiones vivas montadas siempre y las consultas las distinguen por `aria-label`. En Playwright, la
+  consulta sin nombre es violación de modo estricto directamente.
 
 ---
 
