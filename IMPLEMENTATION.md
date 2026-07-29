@@ -159,7 +159,93 @@ Leyenda: `[ ]` pendiente · `[~]` en curso o bloqueado (con motivo) · `[x]` hec
       afirmación de seguridad verificada solo en jsdom no es una afirmación sobre navegadores.
       Verificado: los cuatro archivos existen en `specs/003-editor/`; `specs/README.md` actualizado.
       **Sin comandos de test que correr todavía** — no hay código de esta spec.
-- [ ] **spec 004-markdown-palette** — listado de elementos markdown insertables.
+- [x] **spec 004-markdown-palette** — `specs/004-markdown-palette/` (`spec.md` **v0.1.1** + `plan.md` + `tasks.md` +
+      `CHANGELOG.md`), estado **approved** (aprobada por el usuario el 2026-07-28). — 2026-07-28
+      **Las seis decisiones abiertas de §8 quedaron resueltas el 2026-07-28, las seis en la opción que la
+      spec recomendaba y sin ningún cambio de alcance**: el recuento se mantiene en **34 AC** y **10
+      tareas**, ni un solo AC cambió de redacción y ningún artefacto entró ni salió. Por eso la subida es
+      **patch (v0.1.0 → v0.1.1)** y no minor. Las seis: **A** marcador de posición **preseleccionado** ·
+      **B** se **acepta** la pérdida de `Ctrl`+`Z`, **con el remedio planificado** (ver abajo) · **C**
+      paleta **solo en modo texto** · **D** **los tres** atajos `Ctrl`/`Cmd`+`B`/`I`/`K`, acotados al foco
+      dentro del `<textarea>` · **E** tabla **fija 3 × 2** · **F** **con** anuncio en región viva.
+      **Lo único que la aprobación añade de verdad, y viene por encargo explícito del usuario al resolver
+      la B**: la limitación de deshacer se acepta **pero no queda como nota al pie**. La pila de deshacer
+      propia está ahora **planificada como trabajo futuro con destinatario** en la **§9 nueva** de
+      `004/spec.md`, con el qué, el porqué y el cómo. **Qué**: pila de deshacer/rehacer propia en el store,
+      **por documento**, que cubra tecleo e inserciones. **Por qué**: el problema no es de la paleta sino
+      del **control controlado** —el `<textarea>` recibe su `value` del `draft`, así que toda escritura
+      programática hace que React reescriba el contenido y esa reescritura **no entra en la pila nativa**:
+      la invalida—, y `execCommand('insertText')` **no es la salida** (deprecado; **jsdom no lo
+      implementa**, o sea mockear y **verificar el mock en vez del comportamiento**; y la variante «con
+      respaldo» es peor, porque el respaldo sería lo **único** que los tests ejercitan). **Cómo**:
+      `UndoState` (`past`/`future`) **dentro de `EditorEntry`**, transacciones que guardan **texto y
+      selección** en los dos extremos, inserción de paleta/atajo = **una** transacción y tecleo agrupado
+      por ventana de **~500 ms**, registro **dentro de `setDraft`** —que sigue siendo el único camino— y
+      deshacer implementado **como otro `setDraft`**, heredando sucio, debounce y coalescencia. Los dos
+      umbrales (~500 ms de historial, 1.500 ms de guardado) **no se comparten ni deben igualarse**: uno es
+      granularidad de historial y el otro tráfico de red.
+      **Asignado a la spec `006-editor-undo`**, **dependiente de la `005`** — no dentro de la `004` (es un
+      modelo de historial, no una paleta) ni dentro de la `005` (que ya carga con la política de desalojo y
+      con la dedup de `open(id)`), y **después** de la `005` por una dependencia real: la pila vive dentro
+      de `EditorEntry` y es la `005` quien decide cuándo se desaloja una entrada; desalojarla **tira su
+      historial**. **Restricción que la `005` hereda desde hoy**: al fijar su política de desalojo debe
+      dejar escrito si «cerrar una pestaña y volver a abrirla pierde el deshacer» es aceptable. Anotado
+      también en `004/plan.md` §7 y en `specs/README.md` (filas de la `005` y de la `006`).
+      **34 criterios de aceptación y 10 tareas TDD, todas de `frontend`.** Es la primera spec del proyecto
+      **sin una sola tarea de backend**, y esa es su decisión de más impacto: la `004` toca
+      **exclusivamente `apps/web`**; `packages/shared` y `apps/api` no reciben ni una línea, y **AC-34** lo
+      convierte en algo verificable (`git status` + los recuentos de las suites de los otros dos paquetes,
+      que tienen que salir idénticos a los del cierre de la `003`: shared **81** · api unit **305** ·
+      api e2e **511**).
+      El motivo del alcance no es la comodidad: el servidor guarda el contenido como **texto opaco** y no
+      interpreta markdown en ningún punto, y el catálogo de la paleta es copia de interfaz en castellano
+      sin **ningún** consumidor de servidor. Meterlo en `packages/shared` habría comprado, a cambio de
+      nada, el coste que la `002` y la `003` ya pagaron: un cambio en `shared` deja `apps/api` en **rojo de
+      compilación** hasta que aterriza la tarea de DTO —así que esas dos tareas **no se paralelizan**— y el
+      radio del cambio incluye los **fixtures de test de los dos paquetes**, que no se encuentran buscando
+      el nombre del endpoint sino el del **tipo**. A la `002` se le quedó corta la lista de artefactos
+      **dos veces** por exactamente eso (sus v0.4.2 y v0.4.3).
+      **Una afirmación de la `003` que esta spec corrige.** La `003` §4 daba por hecho que la paleta usaría
+      `setRangeText`. **No lo usa** (decisión 3 de `plan.md`): `setRangeText` muta el `value` del DOM por
+      fuera de React y en un `<textarea>` **controlado** el render siguiente lo pisa. El camino limpio es
+      calcular la cadena nueva → `setDraft` → restaurar la selección en un `useLayoutEffect`. No es un
+      detalle: verificado con `context7` contra la documentación de React, un control controlado al que se
+      le asigna un valor distinto de `e.target.value` **manda el caret al final**, así que sin restauración
+      explícita cada inserción tiraría a la persona al final del documento. De ahí que **AC-21** sea un AC
+      propio y afirme `selectionStart`/`selectionEnd` **reales del DOM**, no lo que devolvió el núcleo.
+      **Alcance devuelto a quien lo asignó**: la `003` había puesto «deshacer agrupado» aquí. La `004` lo
+      **declina con motivo**: la única forma de conservar la pila nativa desde un `<textarea>` controlado es
+      `document.execCommand('insertText')`, deprecado y **no implementado por jsdom**, así que adoptarlo
+      obliga a mockearlo en todos los tests de componente —verificar el mock en vez del comportamiento—. Un
+      `execCommand` con respaldo sería peor: el respaldo sería lo **único** que los tests ejercitan.
+      Consecuencia asumida y escrita: `Ctrl`+`Z` deshace lo tecleado, no una inserción de la paleta.
+      **Lo heredado de la `003` que la spec respeta punto por punto**: (1) **cero plugins** de
+      remark/rehype —GFM ya renderiza tablas, tareas y tachado, así que lo que la paleta produce es un
+      **subconjunto** de lo que la `003` ya midió—, y por tanto la cadena de saneado no se toca ni hay que
+      volver a medirla; (2) el **corpus de XSS sí se amplía** con AC propio (**AC-31**), porque la paleta
+      vuelve alcanzables de **un clic** tres contenedores que el corpus **no visita hoy** —dentro de una
+      valla de código, dentro de una celda de tabla y dentro de un elemento de tarea—: tres cargas nuevas
+      producen doce casos de jsdom más el recorrido de Chromium **sin escribir una línea de test**, y la
+      guarda de tamaño sube de `>= 10` a `>= 15` **en los dos archivos que la afirman** (`tasks.md` T-009
+      lo señala como el error concreto que esa tarea existe para no cometer); (3) el cupo de
+      `documentContent` **no se neutraliza** —la política es **gastar menos, no neutralizar más**—, así que
+      el caso de navegador agrupa sus inserciones dentro de una sola ventana de debounce y fuerza **un**
+      guardado (**AC-33**).
+      **Accesibilidad con seis AC propios** (AC-24…AC-29), porque la paleta es interfaz de inserción:
+      `role="toolbar"` con grupos, **roving tabindex** (una sola parada de tabulación para catorce
+      botones), flechas y `Home`/`End` con movimiento **real** del foco, región viva propia que no se anida
+      con la de guardado, orden de tabulación con la paleta **antes** del área de texto, y tamaño de
+      objetivo ≥ **24 × 24 px** (WCAG 2.2 SC 2.5.8) medido en Chromium porque jsdom no calcula disposición.
+      **Seis decisiones abiertas** en `spec.md` §8 (A-F), cada una con su opción recomendada: qué queda
+      seleccionado al insertar sin selección · aceptar la pérdida de `Ctrl`+`Z` · paleta solo en modo texto
+      · atajos `Ctrl`/`Cmd`+`B`/`I`/`K` pese a que pisan atajos del navegador · tabla fija 3 × 2 · anuncio
+      en región viva. **Ninguna bloquea la implementación**, pero las seis cambian lo que se ve.
+      APIs verificadas con `context7` antes de escribirlas: React (caret de un control controlado) y
+      `user-event` 14.6.1 (`initialSelectionStart`/`initialSelectionEnd`, `pointer({ target, offset })`,
+      `{Control>}a{/Control}`). **Ninguna dependencia nueva** — la `003` dejó medido el coste del
+      ecosistema `unified` (+255 módulos, +160,7 kB) como la vara contra la que juzgar cualquier añadido.
+      Verificado: los cuatro archivos existen en `specs/004-markdown-palette/`; `specs/README.md`
+      actualizado. **Sin comandos de test que correr todavía** — no hay código de esta spec.
 - [ ] **spec 005-tabs-split-view** — tabs tipo VS Code y vista dividida.
 
 _(Cada spec se escribe cuando la anterior está aprobada, para apoyarse en contratos cerrados. Índice y dependencias en `specs/README.md`.)_
@@ -1523,6 +1609,54 @@ que el envenenado de la caché signifique algo.
 
 ---
 
+## Fase 6 — Implementación de `004-markdown-palette`
+
+Detalle en `specs/004-markdown-palette/tasks.md`. **0 de 10 tareas.** La spec está **approved**
+(v0.1.1, 2026-07-28): la puerta que bloqueaba el arranque —las seis decisiones abiertas de su §8— **está
+abierta**. Las seis se resolvieron en la opción recomendada y **ninguna movió un AC ni una tarea**, así que
+`tasks.md` vale tal cual y la ola 1 puede despacharse.
+
+**Estado: aprobada y lista para despachar. Ningún agente ha tocado código de esta spec todavía.**
+
+**Reparto por archivos**, que es la lección de la Fase 3 (dos agentes coincidieron en un mismo archivo) y
+de la Fase 4 (por eso el reparto va por archivo y no por tarea):
+
+| Ola | Tareas | Paralelismo real | Archivos de la ola |
+|---|---|---|---|
+| 1 | T-001 → T-002 → T-003 → T-004 | **Ninguno.** Las cuatro escriben en el **mismo** archivo; lanzarlas a la vez es garantizar conflictos | `markdown-insert.ts` · `markdown-insert.test.ts` |
+| 2 | T-005 | — | `markdown-palette.ts` · `markdown-palette.test.ts` (+ el `import` de tipos en los dos de la ola 1) |
+| 3 | T-006 → T-007 → T-008 **‖** T-009 | **La única oportunidad real de paralelismo de la spec**: archivos disjuntos | rama A: `MarkdownPalette.tsx/.test.tsx` · `DocumentEditorPage.tsx/.test.tsx` — rama B: `MarkdownPreview.test.tsx` · `markdown-xss-corpus.ts` · `e2e/editor.spec.ts` (una línea) |
+| 4 | T-010 | — | `e2e/palette.spec.ts` **y ningún otro** |
+
+- [ ] **T-001** · `frontend` · Núcleo de inserción: tipos, despacho y familia que envuelve — AC-1…AC-4
+- [ ] **T-002** · `frontend` · Núcleo: enlace e imagen — AC-5, AC-6
+- [ ] **T-003** · `frontend` · Núcleo: prefijos de línea — AC-7…AC-11
+- [ ] **T-004** · `frontend` · Núcleo: bloques (código, tabla, separador) — AC-12…AC-15
+- [ ] **T-005** · `frontend` · Catálogo de 14 elementos, guarda de pureza y de exhaustividad — AC-16…AC-18
+- [ ] **T-006** · `frontend` · `MarkdownPalette`: toolbar ARIA, roving tabindex y región viva — AC-24, AC-25, AC-27
+- [ ] **T-007** · `frontend` · Enganche en el editor: modo, `setDraft`, foco y selección real — AC-19…AC-23, AC-26, AC-27
+- [ ] **T-008** · `frontend` · Atajos `Ctrl`/`Cmd`+`B`/`I`/`K` acotados al área de texto — AC-28
+- [ ] **T-009** · `frontend` · Cada plantilla renderizada + tres cargas nuevas en el corpus de XSS — AC-30, AC-31
+- [ ] **T-010** · `frontend` · Navegador: recorrido solo con teclado, tamaño de objetivo y presupuesto — AC-29, AC-32…AC-34
+
+**Tres cosas que ninguna tarea puede tocar**, escritas aquí además de en `tasks.md` porque las tres vienen
+con instrucciones explícitas de la `003` y las tres son del tipo que alguien «mejora» sin darse cuenta:
+
+1. **`MarkdownPreview.tsx`** y su cadena de plugins. `rehype-sanitize` **no es redundante** —es la única
+   capa que defiende los protocolos de `src`, medido con una mutación— y las capas 1 y 2 siguen **sin un
+   rojo propio**: una capa no se retira porque ningún test la eche de menos.
+2. **`editor.store.ts`.** La paleta llama a `setDraft` tal cual: es la invariante que le hace heredar el
+   debounce, la coalescencia y el marcado de sucio sin una línea de código nueva.
+3. **`packages/shared/**` y `apps/api/**`.** Ni una línea (AC-34).
+
+**Cifras de partida contra las que se medirá el cierre** (las del cierre de la `003`): `shared` **81** ·
+`apps/web` 16 archivos / **321** · api unit 21 suites / **305** · api e2e 22 suites / **511** ·
+`pnpm test:e2e` **8** · `--retries=2 --repeat-each=3` **24** sin un solo `429` · `typecheck` y `lint` en
+**0** en los tres paquetes. Las tres últimas columnas de `apps/api` y `packages/shared` tienen que salir
+**idénticas** al cerrar la `004`; si se mueven, la decisión 1 del plan se rompió y eso es un cambio de spec.
+
+---
+
 ## Notas de verificación
 
 - **2026-07-24** — Skills instaladas con `npx skills add <repo> --skill <name> -y --copy`. `.claude/skills/` y `.agents/` están en `.gitignore`; `skills-lock.json` sí se versiona y permite restaurar con `npx skills experimental_install`.
@@ -1957,6 +2091,27 @@ que hay que volver a leer la próxima vez que aparezca la misma disyuntiva.
 | `001-auth` | **0.1.2** | implemented — 26/26 AC (su `T-026` solo espera un run verde de CI, que necesita `git push`) |
 | `002-workspace-tree` | **0.4.3** | **complete** — 35/35 AC; la enmienda de la v0.4.0 quedó **implementada** por `T-007`, `T-009` y `T-013` de la `003` |
 | `003-editor` | 0.1.4 | **complete** — 34/34 AC, 17/17 tareas |
+| `004-markdown-palette` | **0.1.1** | **approved** — 34 AC, 10 tareas, **0 implementadas**. Lista para despachar |
+| `006-editor-undo` | — | **sin especificar, pero ya planificada** en `004/spec.md` §9 (qué, por qué y cómo). Depende de la `005` |
+
+**La spec `004-markdown-palette` está aprobada y lista para despachar** (`specs/004-markdown-palette/`,
+v0.1.1, **approved**): 34 AC y 10 tareas, **todas de `frontend`** — es la primera spec del proyecto sin una
+sola tarea de backend. Toca **exclusivamente `apps/web`**; AC-34 verifica que `packages/shared` y
+`apps/api` no se mueven. Las **seis decisiones abiertas** de su §8 se resolvieron el 2026-07-28, **las seis
+en la opción recomendada y sin mover un solo AC ni una sola tarea**, así que no hay nada que releer antes
+de arrancar la ola 1: `tasks.md` vale tal cual.
+
+**Y hay una spec nueva en el horizonte que no existía esta mañana: la `006-editor-undo`.** No está escrita,
+pero **sí planificada**, y en un sitio concreto: `004/spec.md` **§9**. Nació al resolver la decisión B de la
+`004` —el usuario aceptó que la paleta no soporte `Ctrl`+`Z` **a condición de que el remedio quedara
+planificable, no como nota al pie**—. Lo que hay que saber sin abrir nada: la pila **nativa** del navegador
+es **inservible** en un `<textarea>` **controlado**, porque React reescribe el `value` en toda escritura
+programática y esa reescritura no entra en la pila; `execCommand('insertText')` **no** es la salida
+(deprecado, jsdom no lo implementa, obligaría a verificar el mock); y el enfoque previsto es una pila
+**propia, por documento, dentro de `EditorEntry`**, registrada **dentro de `setDraft`** y con el deshacer
+implementado **como otro `setDraft`**. Va **después de la `005`** porque es ella quien decide cuándo se
+desaloja una entrada, y desalojarla **tira el historial** — lo que le deja a la `005` una restricción que
+tiene que resolver conscientemente al fijar esa política.
 
 **La spec `003-editor` está cerrada** (`specs/003-editor/`, v0.1.4, **complete**): 34/34 AC y 17/17
 tareas. Detalle con comandos y salidas en la Fase 5. **No queda trabajo abierto de las cinco fases.**
@@ -1965,11 +2120,21 @@ Cifras del cierre: `shared` **81** · `apps/web` 16 archivos / **321** · api un
 api e2e 22 suites / **511** (40,2 s) · `pnpm test:e2e` **8** · `--retries=2 --repeat-each=3` **24** sin
 un solo `429` · `typecheck` y `lint` en **0** en los tres paquetes.
 
-**Lo siguiente es la spec `004-markdown-palette`**, y llega con el contrato ya cerrado por la `003`: el
-modo texto es **un solo `<textarea>`** (así que `selectionStart`/`setRangeText` están disponibles sin API
-de terceros) y **todo** cambio de contenido entra por `setDraft(id, texto)`, así que la paleta solo tiene
-que calcular la cadena nueva y llamarla — el estado sucio, el debounce y la coalescencia reaccionan
-solos. GFM ya está en el parser, así que tablas, listas de tareas y tachado no necesitan un plugin nuevo.
+**Lo siguiente es implementar la spec `004-markdown-palette`**, ya escrita (v0.1.0, **draft**). Llegó con el
+contrato cerrado por la `003` —el modo texto es **un solo `<textarea>`** y **todo** cambio de contenido
+entra por `setDraft(id, texto)`, así que la paleta solo calcula la cadena nueva y llama; el estado sucio,
+el debounce y la coalescencia reaccionan solos— y GFM ya está en el parser, así que tablas, listas de
+tareas y tachado **no necesitan un plugin nuevo** y la cadena de saneado no hay que volver a medirla.
+
+Dos matices que la planificación de la `004` añadió y que conviene leer antes de tocar código:
+
+- **`setRangeText` no se usa**, pese a que la `003` lo daba por el camino. Muta el `value` del DOM por
+  fuera de React y el render siguiente lo pisa en un control **controlado**. El camino es: calcular la
+  cadena → `setDraft` → restaurar la selección en un `useLayoutEffect`. Y la restauración **no es
+  opcional**: React manda el caret al final cuando se asigna un valor distinto de `e.target.value`.
+- **«Deshacer agrupado», que la `003` había asignado a la `004`, se devuelve** con motivo: exige
+  `document.execCommand('insertText')`, deprecado y no implementado por jsdom, o sea mockear en todos los
+  tests de componente. `Ctrl`+`Z` deshará lo tecleado, no una inserción de la paleta.
 
 **Lo que la `005` hereda con nombre y razón**, para no redescubrirlo:
 
@@ -1982,6 +2147,13 @@ solos. GFM ya está en el parser, así que tablas, listas de tareas y tachado no
   vuelo dentro de `open(id)`, con el mismo idiom *single-flight* que `http.ts` ya usa en
   `refreshSession()`. Hoy `StrictMode` lo duplica **solo en desarrollo**; con tabs pasa a ser un problema
   **real de producción**, y la `005` tiene que tocar `open(id)` de todas formas.
+- **Una restricción nueva desde el 2026-07-28, al aprobarse la `004`**: la spec **`006-editor-undo`**
+  —planificada en `004/spec.md` §9— colgará una **pila de deshacer dentro de `EditorEntry`**, es decir,
+  **una por documento**. Eso convierte la política de desalojo en una decisión con una consecuencia que
+  hoy no tiene: **desalojar una entrada descarta su historial de deshacer**. La `005` tiene que dejar
+  **escrito y consciente** si «cerrar una pestaña y volver a abrirla pierde el deshacer» es aceptable, o
+  si las entradas con historial merecen otro trato. Y el motivo de que la `006` vaya **después** y no
+  antes es exactamente ese: diseñar la pila sin la política fijada es diseñarla contra un supuesto.
 
 **Tres cosas que costaron descubrir y que no se deducen leyendo el código:**
 
