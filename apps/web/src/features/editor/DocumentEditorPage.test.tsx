@@ -1,4 +1,4 @@
-import type { MarkdownDocument, WorkspaceTree } from '@one-markdown/shared';
+import { MAX_DOCUMENT_CONTENT_CHARS, type MarkdownDocument, type WorkspaceTree } from '@one-markdown/shared';
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent, { type UserEvent } from '@testing-library/user-event';
 import { createMemoryRouter } from 'react-router';
@@ -190,6 +190,58 @@ function textarea(): HTMLElement {
   return screen.getByRole('textbox', { name: TEXTAREA_NAME });
 }
 
+/**
+ * El área de edición **como área de edición**, no como un elemento cualquiera: AC-21 se afirma
+ * sobre `selectionStart`/`selectionEnd`, que solo existen en un `HTMLTextAreaElement`. Nada de
+ * `as`: se estrecha y, si un día deja de ser un `<textarea>`, el caso lo dice con todas las letras.
+ */
+function textareaNode(): HTMLTextAreaElement {
+  const node = textarea();
+
+  if (!(node instanceof HTMLTextAreaElement)) {
+    throw new Error('El área de edición ya no es un <textarea>');
+  }
+
+  return node;
+}
+
+/** Dónde tiene la persona el cursor **de verdad**, según el DOM y no según lo que devolvió nadie. */
+function caret(): readonly [number, number] {
+  const node = textareaNode();
+
+  return [node.selectionStart, node.selectionEnd];
+}
+
+function paletteButton(label: string): HTMLElement {
+  return within(screen.getByRole('toolbar', { name: 'Elementos de markdown' })).getByRole('button', {
+    name: label,
+  });
+}
+
+/** Los nombres accesibles de las dos regiones vivas del editor (AC-27). Salen de sus `aria-label`. */
+const SAVE_REGION_NAME = 'Estado del guardado';
+const PALETTE_REGION_NAME = 'Elemento insertado';
+
+/** La región viva del guardado de la `003`, ya no la única `role="status"` de la página (AC-27). */
+function saveRegion(): HTMLElement {
+  return screen.getByRole('status', { name: SAVE_REGION_NAME });
+}
+
+/**
+ * Las **dos** regiones vivas de la página (AC-27): la de la paleta y la del guardado.
+ *
+ * Se distinguen **por nombre accesible** y no por lo que dicen. Por contenido no se puede: la de la
+ * paleta se monta desde el primer render y está **vacía** hasta que se inserta algo, así que
+ * `startsWith('Insertado:')` —como discriminaba esta función hasta la v0.2.0— ya no distingue nada.
+ * Y por nombre es además como las distingue quien las recorre con un lector de pantalla.
+ */
+function liveRegions(): { readonly palette: HTMLElement; readonly save: HTMLElement } {
+  return {
+    palette: screen.getByRole('status', { name: PALETTE_REGION_NAME }),
+    save: saveRegion(),
+  };
+}
+
 function sentContent(call: StubbedRequest | undefined): unknown {
   return (call?.body as { readonly content?: unknown } | undefined)?.content;
 }
@@ -214,6 +266,35 @@ async function pressCtrlS(): Promise<boolean> {
 
   await act(async () => {
     window.dispatchEvent(event);
+    await Promise.resolve();
+  });
+
+  return event.defaultPrevented;
+}
+
+/**
+ * Dispara un atajo **sobre un elemento concreto** y devuelve si alguien llamó a `preventDefault`.
+ *
+ * Se dispara en el elemento y no en la ventana a propósito: la mitad de AC-28 es que los tres
+ * atajos son del área de escritura y **no** de la página, y eso solo se puede afirmar eligiendo
+ * dónde nace el evento. El evento burbujea, así que el manejador de `window` de la `003` lo sigue
+ * viendo igual que en el navegador.
+ */
+async function pressShortcut(
+  target: HTMLElement,
+  key: string,
+  modifier: 'ctrl' | 'meta' = 'ctrl',
+): Promise<boolean> {
+  const event = new KeyboardEvent('keydown', {
+    key,
+    ctrlKey: modifier === 'ctrl',
+    metaKey: modifier === 'meta',
+    bubbles: true,
+    cancelable: true,
+  });
+
+  await act(async () => {
+    target.dispatchEvent(event);
     await Promise.resolve();
   });
 
@@ -293,7 +374,7 @@ describe('DocumentEditorPage — estructura y accesibilidad (AC-22)', () => {
     await seedTree();
     await openEditor();
 
-    expect(screen.getByRole('status')).toHaveTextContent(/guardado/i);
+    expect(saveRegion()).toHaveTextContent(/guardado/i);
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
@@ -308,7 +389,7 @@ describe('DocumentEditorPage — estructura y accesibilidad (AC-22)', () => {
     await user.type(textarea(), 'algo');
     await settle(AUTOSAVE_DEBOUNCE_MS);
 
-    const status = screen.getByRole('status');
+    const status = saveRegion();
     const alert = screen.getByRole('alert');
 
     expect(alert).not.toBe(status);
@@ -442,7 +523,7 @@ describe('DocumentEditorPage — guardado explícito (AC-27)', () => {
     await settle();
 
     expect(api.callsTo(PUT_ROUTE)).toHaveLength(1);
-    expect(screen.getByRole('status')).toHaveTextContent(/guardado/i);
+    expect(saveRegion()).toHaveTextContent(/guardado/i);
   });
 });
 
@@ -542,7 +623,7 @@ describe('DocumentEditorPage — resolución del conflicto (AC-20)', () => {
     expect(sentContent(puts[1])).toBe(MY_TEXT);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(textarea()).toHaveValue(MY_TEXT);
-    expect(screen.getByRole('status')).toHaveTextContent(/guardado/i);
+    expect(saveRegion()).toHaveTextContent(/guardado/i);
   });
 
   it('«Descartar mis cambios» adopta el texto del servidor sin emitir ningún PUT más', async () => {
@@ -662,6 +743,247 @@ describe('DocumentEditorPage — activar un documento del árbol (AC-31)', () =>
     await user.click(screen.getByRole('treeitem', { name: 'Notas' }));
 
     expect(router.state.location.pathname).toBe('/');
+  });
+});
+
+describe('DocumentEditorPage — paleta de markdown (spec 004: AC-19 a AC-23, AC-26, AC-27)', () => {
+  /** El título del documento de prueba empieza en la posición 2 y mide 6: `# Título del servidor\n`. */
+  const TITLE_AT = [2, 8] as const;
+
+  it('la paleta está en modo texto y NO en vista previa (AC-19)', async () => {
+    await seedTree();
+    await openEditor();
+
+    expect(screen.getByRole('toolbar', { name: 'Elementos de markdown' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: 'Vista previa' }));
+
+    // Insertar en un área de texto que no se ve no es una funcionalidad, es desconcierto.
+    expect(
+      screen.queryByRole('toolbar', { name: 'Elementos de markdown' }),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: 'Texto' }));
+
+    expect(screen.getByRole('toolbar', { name: 'Elementos de markdown' })).toBeInTheDocument();
+  });
+
+  it('una inserción ensucia el borrador y NO emite ninguna petición (AC-20)', async () => {
+    await seedTree();
+    const { api } = await openEditor({ [PUT_ROUTE]: contentSaved(SERVER_VERSION + 1) });
+
+    await user.click(paletteButton('Negrita'));
+
+    expect(entry()).toMatchObject({
+      draft: '**texto en negrita**# Título del servidor\n',
+      savedContent: SERVER_TEXT,
+      status: 'dirty',
+    });
+    expect(api.callsTo(PUT_ROUTE)).toHaveLength(0);
+  });
+
+  it('TRES inserciones dentro de la misma ventana de debounce producen UNA petición (AC-20)', async () => {
+    // Se cuentan **peticiones**, no llamadas a un espía: lo que hay que demostrar es que la paleta
+    // no abre un segundo camino de guardado, y eso solo se ve en la red.
+    await seedTree();
+    const { api } = await openEditor({ [PUT_ROUTE]: contentSaved(SERVER_VERSION + 1) });
+
+    await user.click(paletteButton('Negrita'));
+    await user.click(paletteButton('Cursiva'));
+    await user.click(paletteButton('Tachado'));
+
+    // Cada elemento envuelve **el contenido** que dejó seleccionado el anterior, no sus marcadores.
+    const expected = '***~~texto en negrita~~***# Título del servidor\n';
+
+    expect(entry().draft).toBe(expected);
+    expect(api.callsTo(PUT_ROUTE)).toHaveLength(0);
+
+    await settle(AUTOSAVE_DEBOUNCE_MS);
+
+    expect(api.callsTo(PUT_ROUTE)).toHaveLength(1);
+    expect(sentContent(api.callsTo(PUT_ROUTE)[0])).toBe(expected);
+  });
+
+  it('devuelve el foco al textarea con el cursor DONDE TOCA, no al final (AC-21)', async () => {
+    await seedTree();
+    await openEditor({ [PUT_ROUTE]: contentSaved(SERVER_VERSION + 1) });
+
+    const node = textareaNode();
+
+    node.focus();
+    node.setSelectionRange(...TITLE_AT);
+
+    await user.click(paletteButton('Negrita'));
+
+    expect(entry().draft).toBe('# **Título** del servidor\n');
+    expect(textareaNode()).toHaveFocus();
+    // La aserción es sobre el DOM **real**: React manda el caret al final de un `<textarea>`
+    // controlado al que se le asigna un valor distinto de `e.target.value`, y ese final serían 26.
+    expect(caret()).toEqual([4, 10]);
+  });
+
+  it('con el documento VACÍO y sin foco previo, inserta la plantilla y coloca el cursor (AC-22)', async () => {
+    await seedTree();
+    await openEditor({
+      [GET_ROUTE]: documentRoute({ content: '', contentVersion: SERVER_VERSION }),
+      [PUT_ROUTE]: contentSaved(SERVER_VERSION + 1),
+    });
+
+    expect(textareaNode()).toHaveValue('');
+    expect(textareaNode()).not.toHaveFocus();
+
+    await user.click(paletteButton('Lista de tareas'));
+
+    expect(entry().draft).toBe('- [ ] Tarea pendiente');
+    expect(textareaNode()).toHaveFocus();
+    expect(caret()).toEqual([6, 21]);
+  });
+
+  it('por encima del límite de caracteres la inserción se aplica igual (AC-23)', async () => {
+    await seedTree();
+    const { api } = await openEditor({ [PUT_ROUTE]: contentSaved(SERVER_VERSION + 1) });
+    const tooLong = 'x'.repeat(MAX_DOCUMENT_CONTENT_CHARS + 10);
+
+    await act(async () => {
+      useEditorStore.getState().setDraft(DOC_ID, tooLong);
+      await Promise.resolve();
+    });
+
+    await user.click(paletteButton('Negrita'));
+
+    // Quien reacciona es el camino que ya existía (el contador de la `003` y el rechazo del
+    // servidor). Dos formas distintas de impedir lo mismo es cómo se produce el aviso que no
+    // coincide con la realidad.
+    expect(entry().draft).toBe(`${tooLong}**texto en negrita**`);
+    expect(paletteButton('Negrita')).toBeEnabled();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByText(/te sobran/i)).toBeInTheDocument();
+    expect(api.callsTo(PUT_ROUTE)).toHaveLength(0);
+  });
+
+  it('el orden de tabulación es conmutador → paleta → textarea (AC-26)', async () => {
+    await seedTree();
+    await openEditor();
+
+    await user.tab();
+
+    expect(screen.getByRole('tab', { name: 'Texto' })).toHaveFocus();
+
+    // El botón de guardar de la `003` vive entre los dos: lo que AC-26 pide es que la paleta esté
+    // **antes** del área de escritura, para encontrarla al recorrer la página y no después.
+    await user.tab();
+
+    expect(screen.getByRole('button', { name: 'Guardar' })).toHaveFocus();
+
+    await user.tab();
+
+    expect(paletteButton('Negrita')).toHaveFocus();
+
+    await user.tab();
+
+    expect(textareaNode()).toHaveFocus();
+  });
+
+  it('las dos regiones vivas conviven sin contenerse la una a la otra (AC-27)', async () => {
+    await seedTree();
+    await openEditor({ [PUT_ROUTE]: contentSaved(SERVER_VERSION + 1) });
+
+    // **Antes** de insertar las dos ya están montadas y la de la paleta está vacía. Es la mitad del
+    // AC que la v0.2.0 corrigió: una región viva que entra en el DOM con su primer anuncio dentro no
+    // es un cambio que el lector pueda observar, es una aparición, y en NVDA o JAWS puede no oírse.
+    expect(screen.getAllByRole('status')).toHaveLength(2);
+    expect(liveRegions().palette).toBeEmptyDOMElement();
+
+    await user.click(paletteButton('Negrita'));
+
+    const regions = screen.getAllByRole('status');
+
+    expect(regions).toHaveLength(2);
+
+    const { palette, save } = liveRegions();
+
+    // Dos regiones vivas anidadas producen anuncios duplicados: la misma aserción con la que la
+    // `003` separa `status` de `alert`.
+    expect(palette).not.toBe(save);
+    expect(palette).not.toContainElement(save);
+    expect(save).not.toContainElement(palette);
+    expect(palette).toHaveTextContent('Insertado: Negrita');
+    expect(save).toHaveTextContent('Cambios sin guardar');
+  });
+});
+
+describe('DocumentEditorPage — atajos del área de escritura (spec 004: AC-28)', () => {
+  /** `# Título del servidor\n`: «Título» ocupa de la posición 2 a la 8. */
+  const TITLE_AT = [2, 8] as const;
+
+  /** Deja el editor abierto con «Título» seleccionado y el foco **dentro** del área de escritura. */
+  async function withTitleSelected(): Promise<ApiStub> {
+    await seedTree();
+    const { api } = await openEditor({ [PUT_ROUTE]: contentSaved(SERVER_VERSION + 1) });
+    const node = textareaNode();
+
+    node.focus();
+    node.setSelectionRange(...TITLE_AT);
+
+    return api;
+  }
+
+  it('Ctrl+B aplica negrita y previene el atajo del navegador', async () => {
+    await withTitleSelected();
+
+    // `Ctrl`+`B` abre los marcadores en Firefox: sin `preventDefault` la persona pierde el foco y
+    // el texto se queda sin envolver.
+    expect(await pressShortcut(textareaNode(), 'b')).toBe(true);
+    expect(entry().draft).toBe('# **Título** del servidor\n');
+    expect(caret()).toEqual([4, 10]);
+  });
+
+  it('Ctrl+I aplica cursiva y previene el atajo del navegador', async () => {
+    await withTitleSelected();
+
+    expect(await pressShortcut(textareaNode(), 'i')).toBe(true);
+    expect(entry().draft).toBe('# *Título* del servidor\n');
+    expect(caret()).toEqual([3, 9]);
+  });
+
+  it('Cmd+K inserta el enlace y deja seleccionado el destino', async () => {
+    await withTitleSelected();
+
+    // Con `Cmd`, que es el mismo atajo en macOS: el catálogo no declara modificador por elemento.
+    expect(await pressShortcut(textareaNode(), 'k', 'meta')).toBe(true);
+    expect(entry().draft).toBe('# [Título](https://ejemplo.com) del servidor\n');
+    expect(caret()).toEqual([11, 30]);
+  });
+
+  it('con el foco FUERA del área de escritura los tres atajos no hacen nada', async () => {
+    const api = await withTitleSelected();
+    const guardar = screen.getByRole('button', { name: 'Guardar' });
+
+    guardar.focus();
+
+    for (const key of ['b', 'i', 'k']) {
+      // Son atajos del área de escritura, no de la ventana: fuera de ella los del navegador siguen
+      // intactos, y por eso aquí nadie previene nada.
+      expect(await pressShortcut(guardar, key), key).toBe(false);
+    }
+
+    expect(entry()).toMatchObject({ draft: SERVER_TEXT, status: 'clean' });
+    expect(api.callsTo(PUT_ROUTE)).toHaveLength(0);
+  });
+
+  it('Ctrl+S sigue guardando desde el área de escritura y NO inserta nada (regresión de la 003)', async () => {
+    const api = await withTitleSelected();
+
+    await user.type(textarea(), 'algo');
+
+    const written = entry().draft;
+
+    expect(await pressShortcut(textareaNode(), 's')).toBe(true);
+    await settle();
+
+    expect(entry().draft).toBe(written);
+    expect(api.callsTo(PUT_ROUTE)).toHaveLength(1);
+    expect(sentContent(api.callsTo(PUT_ROUTE)[0])).toBe(written);
   });
 });
 

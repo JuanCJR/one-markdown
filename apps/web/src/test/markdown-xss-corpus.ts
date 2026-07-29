@@ -119,4 +119,32 @@ export const MARKDOWN_XSS_CORPUS: readonly MarkdownXssPayload[] = [
     markdown: 'antes del logo ![logo](irc://irc.tercero.test/logo.png) después del logo',
     survives: ['antes del logo', 'después del logo'],
   },
+  {
+    name: 'bloque de código vallado que contiene una etiqueta script',
+    // Las tres cargas de la `004` (AC-31) tienen el mismo motivo: la paleta vuelve estos tres
+    // contenedores alcanzables **de un clic**, y hasta hoy el corpus no visitaba **ninguno** de los
+    // tres. Todas las cargas de la `003` viven en la raíz del documento o dentro de un párrafo.
+    //
+    // Esta es la valla de código: dentro de ella el markdown no se interpreta, así que el contenido
+    // llega al árbol como texto y tiene que **verse escrito**, marca por marca, sin que aparezca un
+    // `<script>` de verdad.
+    markdown: '```\n<script>alert(1)</script>\n```',
+    survives: ['<script>alert(1)</script>'],
+  },
+  {
+    name: 'celda de tabla que contiene una imagen con manejador onerror',
+    // La celda de tabla: un contenedor que solo existe gracias a `remark-gfm`, con lo que la carga
+    // atraviesa **los dos** plugins de remark y de rehype antes de sanearse. El corpus de la `003`
+    // no metía nada dentro de una tabla, y la paleta inserta una con un botón.
+    markdown: '| celda | otra |\n| --- | --- |\n| <img src=x onerror="alert(1)"> | texto vecino |',
+    survives: ['<img src=x onerror="alert(1)">', 'texto vecino'],
+  },
+  {
+    name: 'elemento de lista de tareas con un enlace javascript',
+    // El elemento de tarea: otro contenedor de `remark-gfm`, y el único del corpus donde el enlace
+    // peligroso cuelga de un `<li>` con `<input type="checkbox">` delante. Dos botones de la paleta
+    // —«Lista de tareas» y «Enlace»— dejan exactamente esta construcción.
+    markdown: '- [ ] [pincha aquí](javascript:alert(1)) y sigue la tarea',
+    survives: ['pincha aquí', 'y sigue la tarea'],
+  },
 ];

@@ -1,6 +1,11 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
+import { applyPaletteElement } from './markdown-insert';
+import { MARKDOWN_PALETTE } from './markdown-palette';
 import { MarkdownPreview } from './MarkdownPreview';
 import { MARKDOWN_XSS_CORPUS } from '../../test/markdown-xss-corpus';
 
@@ -198,10 +203,12 @@ describe('MarkdownPreview — elementos y GFM (AC-24)', () => {
 });
 
 describe('MarkdownPreview — corpus de XSS (AC-25)', () => {
-  it('el corpus trae al menos las diez cargas medidas en el plan', () => {
+  it('el corpus trae al menos las quince cargas medidas hasta la 004', () => {
     // Guardia contra el corpus que se queda vacío o se poda sin querer: sin ella los casos de abajo
-    // pasarían sin ejercitar nada.
-    expect(MARKDOWN_XSS_CORPUS.length).toBeGreaterThanOrEqual(10);
+    // pasarían sin ejercitar nada. Sube de 10 a 15 con la `004` (AC-31: 12 + 3), **a la vez** que la
+    // gemela de `e2e/editor.spec.ts`: están duplicadas a propósito para que jsdom y navegador no
+    // puedan divergir, y moverla en un solo sitio destruye justo esa garantía.
+    expect(MARKDOWN_XSS_CORPUS.length).toBeGreaterThanOrEqual(15);
     expect(MARKDOWN_XSS_CORPUS.every((payload) => payload.survives.length > 0)).toBe(true);
   });
 
@@ -238,4 +245,152 @@ describe('MarkdownPreview — corpus de XSS (AC-25)', () => {
       }
     },
   );
+});
+
+/**
+ * Qué elemento HTML tiene que producir cada plantilla del catálogo de la `004` (AC-30).
+ *
+ * Es un mapa **por identificador** y no una lista paralela de casos: el recorrido de abajo lo hace
+ * `it.each(MARKDOWN_PALETTE)` sobre el catálogo **real**, así que un elemento nuevo sin fila aquí no
+ * se salta en silencio, se cae. Y la guarda de exhaustividad cierra el otro lado: una fila sobrante
+ * —un identificador que ya no existe, o uno inventado— también pone el archivo en rojo.
+ */
+const EXPECTED_SELECTOR: Readonly<Record<string, string>> = {
+  bold: 'strong',
+  italic: 'em',
+  strikethrough: 'del',
+  inlineCode: 'code',
+  heading1: 'h1',
+  heading2: 'h2',
+  heading3: 'h3',
+  quote: 'blockquote',
+  bulletList: 'ul',
+  numberedList: 'ol',
+  taskList: 'input[type="checkbox"]',
+  link: 'a',
+  image: 'img',
+  codeBlock: 'pre > code',
+  table: 'table',
+  divider: 'hr',
+};
+
+/** El documento vacío: el punto de partida de cada plantilla, igual que en `markdown-palette.test.ts`. */
+const EMPTY_DOCUMENT = { text: '', selectionStart: 0, selectionEnd: 0 } as const;
+
+describe('MarkdownPreview — cada plantilla del catálogo se renderiza y no trae nada activo (AC-30)', () => {
+  it('el recorrido cubre el catálogo entero, ni una fila de más ni de menos', () => {
+    // Sin esto, el `it.each` de abajo seguiría en verde con la mitad del catálogo sin mapa: quien
+    // añada un elemento a `spec.md` §6 se entera aquí y no en producción. §6 enumera 4 + 7 + 5 = 16.
+    expect([...MARKDOWN_PALETTE].map((element) => element.id).sort()).toEqual(
+      Object.keys(EXPECTED_SELECTOR).sort(),
+    );
+    expect(MARKDOWN_PALETTE).toHaveLength(16);
+    expect(new Set(Object.values(EXPECTED_SELECTOR)).size).toBe(16);
+  });
+
+  it.each(MARKDOWN_PALETTE)(
+    'la plantilla de «$label» produce su elemento y nada activo',
+    (element) => {
+      const { text } = applyPaletteElement(element, EMPTY_DOCUMENT);
+      const { container } = render(<MarkdownPreview markdown={text} />);
+      const selector = EXPECTED_SELECTOR[element.id];
+
+      // Un elemento sin fila en el mapa no puede pasar de aquí: sería un caso que se ejecuta sin
+      // comprobar nada.
+      expect(selector).toBeDefined();
+      expect(container.querySelectorAll(selector ?? '')).not.toHaveLength(0);
+
+      for (const tag of FORBIDDEN_TAGS) {
+        expect(container.querySelectorAll(tag)).toHaveLength(0);
+      }
+
+      expect(eventHandlerAttributes(container)).toEqual([]);
+      expect(unsafeUrls(container)).toEqual([]);
+    },
+  );
+});
+
+/**
+ * Raíz del paquete del cliente: `apps/web`, tres niveles por encima de este archivo.
+ *
+ * Se resuelve con `import.meta.dirname` y **no** con `new URL(…, import.meta.url)` por lo mismo que
+ * `no-dangerous-html.test.ts` dejó medido: el `URL` global de este entorno es el de jsdom.
+ */
+const WEB_PACKAGE_ROOT = join(import.meta.dirname, '../../..');
+
+/** Las dependencias de la cadena de markdown que la `003` dejó instaladas, y **solo** esas. */
+const MARKDOWN_DEPENDENCIES = ['react-markdown', 'rehype-sanitize', 'remark-gfm'] as const;
+
+/** Qué se considera «dependencia de la cadena de markdown» al leer el manifiesto. */
+const MARKDOWN_PACKAGE_PATTERN = /markdown|remark|rehype|unified|hast|mdast|micromark|sanitiz/i;
+
+const IMPORT_PATTERN = /^import\s[^;]*?from\s'([^']+)';$/gm;
+
+/** Los módulos que importa un archivo fuente, ordenados. */
+function importedModules(source: string): readonly string[] {
+  return [...source.matchAll(IMPORT_PATTERN)].map((match) => match[1] ?? '').sort();
+}
+
+/** Los nombres de dependencia de un `package.json` que suenan a cadena de markdown, ordenados. */
+function markdownDependenciesOf(manifest: string): readonly string[] {
+  const parsed: unknown = JSON.parse(manifest);
+
+  if (typeof parsed !== 'object' || parsed === null || !('dependencies' in parsed)) {
+    throw new Error('el manifiesto leído no declara dependencias');
+  }
+
+  const { dependencies } = parsed as { readonly dependencies: unknown };
+
+  if (typeof dependencies !== 'object' || dependencies === null) {
+    throw new Error('las dependencias del manifiesto no son un objeto');
+  }
+
+  return Object.keys(dependencies)
+    // `@one-markdown/shared` lleva «markdown» en el nombre y no es un plugin de nadie: es el paquete
+    // de tipos del propio monorepo.
+    .filter((name) => !name.startsWith('@one-markdown/') && MARKDOWN_PACKAGE_PATTERN.test(name))
+    .sort();
+}
+
+describe('MarkdownPreview — la cadena de plugins sigue siendo la de la 003 (AC-30)', () => {
+  const source = readFileSync(join(import.meta.dirname, 'MarkdownPreview.tsx'), 'utf8');
+
+  it('los detectores se comprueban a sí mismos', () => {
+    expect(importedModules("import rehypeRaw from 'rehype-raw';")).toEqual(['rehype-raw']);
+    expect(importedModules('const x = 1;')).toEqual([]);
+    expect(
+      markdownDependenciesOf(
+        '{"dependencies":{"rehype-raw":"1","react":"19","@one-markdown/shared":"workspace:*"}}',
+      ),
+    ).toEqual(['rehype-raw']);
+  });
+
+  it('se ha leído el componente de verdad (si no, la guarda no comprobaría nada)', () => {
+    expect(source.length).toBeGreaterThan(500);
+    expect(source).toContain('export function MarkdownPreview');
+  });
+
+  it('importa exactamente los tres plugins de la 003 y ninguno más', () => {
+    expect(importedModules(source)).toEqual([
+      './rehype-raw-as-text',
+      'react-markdown',
+      'rehype-sanitize',
+      'remark-gfm',
+    ]);
+  });
+
+  it('las dos cadenas conservan su contenido y su orden', () => {
+    // El orden es normativo (`MarkdownPreview.tsx`): primero degradar el HTML a texto, después
+    // sanear el árbol resultante. Se afirma sobre el texto del módulo porque los arrays no se
+    // exportan: exportarlos para poder mirarlos sería ampliar la superficie del componente que la
+    // `003` dejó cerrada.
+    expect(source).toContain('const REMARK_PLUGINS = [remarkGfm];');
+    expect(source).toContain('const REHYPE_PLUGINS = [rehypeRawAsText, rehypeSanitize];');
+  });
+
+  it('la 004 no ha instalado ninguna dependencia de markdown', () => {
+    const manifest = readFileSync(join(WEB_PACKAGE_ROOT, 'package.json'), 'utf8');
+
+    expect(markdownDependenciesOf(manifest)).toEqual([...MARKDOWN_DEPENDENCIES].sort());
+  });
 });

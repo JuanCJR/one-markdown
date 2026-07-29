@@ -1,0 +1,294 @@
+import { randomUUID } from 'node:crypto';
+
+import { expect, test as base, type Locator, type Page } from '@playwright/test';
+
+import { resetLoginThrottleCounter, resetWorkspaceThrottleCounter } from './support/services';
+import { signIn, type E2eSession } from './support/session';
+
+/**
+ * La paleta de elementos markdown en un navegador de verdad (spec `004`: AC-29 y AC-32).
+ *
+ * **Por qué este archivo existe teniendo la suite de jsdom en verde** (`004/spec.md` §3.G y §3.H):
+ * las dos afirmaciones que trae son, literalmente, las dos que jsdom **no puede** hacer.
+ *
+ * 1. El **tamaño del objetivo** (SC 2.5.8) es geometría: jsdom no calcula disposición y devuelve
+ *    ceros para cualquier caja. Un `24 × 24` afirmado allí no afirmaría nada.
+ * 2. El **recorrido completo** —tabulador, flechas, `Enter`, escribir, `Ctrl`+`S`, **recargar**— es
+ *    la única forma de demostrar que los tres eslabones (paleta → `setDraft` → guardado de la `003`)
+ *    están de verdad enganchados. Que el borrador cambie en memoria no prueba que llegue al
+ *    servidor; lo prueba **la recarga**, que es lo único que no deja nada del estado del cliente.
+ *
+ * **Todo el recorrido es con teclado y sin un solo clic**, que es lo que AC-32 pide: si algún paso
+ * necesitara el ratón, la paleta sería exactamente la barrera que esta spec existe para no crear.
+ *
+ * **El presupuesto (AC-33) se respeta gastando menos, no neutralizando más.** El cupo de
+ * `documentContent` (120/min por IP) **no se resetea nunca** —política heredada de `003/tasks.md`
+ * T-015— así que este caso hace **una sola** escritura de contenido: la inserción y el texto caen
+ * dentro de una misma ventana de debounce (1.500 ms, que el `setDraft` de cada tecla reinicia) y
+ * `Ctrl`+`S` la cierra con un único `PUT`. Ese «uno» está **afirmado**, no supuesto: sin la
+ * aserción, un cambio que partiera el guardado en cinco peticiones se colaría en silencio y el
+ * presupuesto se descubriría meses después, en un `429` de otra suite.
+ */
+
+/** WCAG 2.2, SC 2.5.8 (*Target Size (Minimum)*): 24 × 24 px CSS. */
+const MIN_TARGET_PX = 24;
+
+/**
+ * El texto que se escribe **sustituyendo** el marcador de posición que deja «Negrita»: el documento
+ * acaba siendo exactamente `**…**`, y eso es lo que la vista previa tiene que pintar en un `<strong>`.
+ */
+const TYPED = 'recorrido solo con teclado';
+
+/**
+ * Cota del tabulador hasta la paleta. Es generosa a propósito (la barra lateral, el árbol y la
+ * cabecera van delante) y es una **cota**, no un número exacto: fijar el número exacto ataría este
+ * caso al recuento de paradas del resto de la página, que no es lo que mide.
+ */
+const MAX_TABS_TO_PALETTE = 50;
+
+/**
+ * El nombre accesible de la región viva del guardado (`004`: AC-27), que es **por lo que** se la
+ * distingue de la de la paleta: por cómo se llama, no por lo que dice en ese momento. Filtrar por
+ * contenido resolvería igual de bien hoy, pero sería inmune a que alguien le quitara el nombre —
+ * justo la regresión que AC-27 existe para impedir. Es el mismo nombre y la misma forma que usa
+ * `editor.spec.ts`, para que las dos suites llamen igual a la misma región.
+ */
+const SAVE_REGION_NAME = 'Estado del guardado';
+
+/**
+ * La sesión de cada caso, en un *fixture* automático. Es el **mismo** que `editor.spec.ts`, y por
+ * las mismas razones, que están escritas con sus cifras en `support/services.ts`: el cupo de
+ * entradas (10/min) y el de la superficie del workspace (120/min) se ponen a cero en el **límite**
+ * del caso, nunca a mitad de una secuencia. El de `documentContent` **no se toca**.
+ *
+ * `auto: true` porque este caso no pide el `Bearer` en su firma pero necesita la sesión igual: sin
+ * él, un *fixture* perezoso no llegaría a ejecutarse y el caso empezaría sin haber entrado.
+ */
+const test = base.extend<{ session: E2eSession }>({
+  session: [
+    async ({ page }, use) => {
+      await Promise.all([resetLoginThrottleCounter(), resetWorkspaceThrottleCounter()]);
+      await use(await signIn(page));
+    },
+    { auto: true },
+  ],
+});
+
+test.describe('Paleta de markdown en el navegador (AC-29, AC-32)', () => {
+  test('recorrido solo con teclado, tamaño de objetivo y foco visible (AC-29, AC-32)', async ({
+    page,
+    session,
+  }) => {
+    const consoleErrors = watchConsole(page);
+    const contentSaves = watchContentSaves(page);
+    const title = uniqueTitle('paleta');
+    const documentId = await createDocument(page, session.authorization, title);
+
+    await page.goto(`/documents/${documentId}`);
+    await expect(page.getByRole('heading', { level: 2, name: title })).toBeVisible();
+
+    const toolbar = page.getByRole('toolbar', { name: 'Elementos de markdown' });
+    const bold = toolbar.getByRole('button', { name: 'Negrita' });
+    const saveStatus = page.getByRole('status', { name: SAVE_REGION_NAME });
+
+    await expect(toolbar).toBeVisible();
+    await expect(textarea(page, title)).toHaveValue('');
+    await expect(saveStatus).toHaveText('Guardado');
+
+    // ---- (a) El recorrido, **sin un solo clic** -----------------------------------------------
+
+    // El tabulador entra en la paleta por su **única** parada (AC-25): una barra de dieciséis
+    // paradas obligaría a dieciséis pulsaciones para llegar al área de escritura.
+    await tabUntilFocused(page, bold);
+    await expect(bold).toBeFocused();
+
+    // ---- (b) Tamaño de objetivo y foco visible, con el foco **puesto** -------------------------
+    //
+    // Va aquí, entre la llegada y la activación, por dos motivos: es el instante en que hay un botón
+    // enfocado de verdad, y medir antes de insertar deja el debounce sin empezar (AC-33).
+
+    const undersized: string[] = [];
+
+    for (const button of await toolbar.getByRole('button').all()) {
+      const name = (await button.getAttribute('aria-label')) ?? '(sin nombre)';
+      const box = await button.boundingBox();
+
+      // Un botón sin caja no es un botón que cumpla: es uno que no se puede pulsar.
+      expect(box, `«${name}» no tiene caja`).not.toBeNull();
+
+      if (box !== null && (box.width < MIN_TARGET_PX || box.height < MIN_TARGET_PX)) {
+        undersized.push(`«${name}» ${String(box.width)} × ${String(box.height)} px`);
+      }
+    }
+
+    expect(undersized, `objetivos por debajo de ${String(MIN_TARGET_PX)} px`).toEqual([]);
+
+    const focused = await outlineOf(bold);
+    // El contraste con un botón **sin** foco es la mitad que importa: sin ella, un borde permanente
+    // de 2 px pasaría por indicador de foco sin serlo.
+    const idle = await outlineOf(toolbar.getByRole('button', { name: 'Cursiva' }));
+
+    expect(focused.style, 'estilo del anillo de foco').not.toBe('none');
+    expect(Number.parseFloat(focused.width)).toBeGreaterThanOrEqual(2);
+    expect(focused.color, 'color del anillo de foco').not.toBe('rgba(0, 0, 0, 0)');
+    expect(Number.parseFloat(idle.width), 'anillo de un botón sin foco').toBe(0);
+
+    // Las flechas recorren el catálogo **atravesando los grupos** y vuelven a «Negrita». Ir y volver
+    // y no quedarse quieto: la parada del tabulador ya cae en «Negrita», así que sin movimiento real
+    // este paso no mediría la navegación con flechas, solo dónde empieza el foco.
+    await page.keyboard.press('ArrowRight');
+    await expect(toolbar.getByRole('button', { name: 'Cursiva' })).toBeFocused();
+
+    await page.keyboard.press('ArrowRight');
+    await expect(toolbar.getByRole('button', { name: 'Tachado' })).toBeFocused();
+
+    await page.keyboard.press('ArrowLeft');
+    await page.keyboard.press('ArrowLeft');
+    await expect(bold).toBeFocused();
+
+    // `Enter` activa el botón enfocado, inserta el marcador de posición y **se lleva el foco al área
+    // de escritura con el marcador seleccionado** (AC-21, AC-22). Por eso lo siguiente que se
+    // escribe lo sustituye sin haber tocado el ratón ni haber vuelto a tabular.
+    await page.keyboard.press('Enter');
+    await expect(textarea(page, title)).toBeFocused();
+    await expect(textarea(page, title)).toHaveValue('**texto en negrita**');
+    await expect(saveStatus).toHaveText('Cambios sin guardar');
+
+    await page.keyboard.type(TYPED);
+    await expect(textarea(page, title)).toHaveValue(`**${TYPED}**`);
+
+    // `Ctrl`+`S` cancela el debounce pendiente y guarda **una** vez: es lo que mantiene el caso
+    // dentro del presupuesto de AC-33.
+    await page.keyboard.press('Control+s');
+    await expect(saveStatus).toHaveText('Guardado');
+
+    // **La recarga es el criterio.** Después de ella no queda nada del estado del cliente, así que
+    // lo que se lea viene de la base de datos y no de un borrador que nunca salió del navegador.
+    await page.reload();
+
+    await expect(page.getByRole('heading', { level: 2, name: title })).toBeVisible();
+    await expect(textarea(page, title)).toHaveValue(`**${TYPED}**`);
+
+    // La pestaña se cambia con el teclado también: el recorrido entero de AC-32 es sin ratón.
+    await tabUntilFocused(page, page.getByRole('tab', { name: 'Texto' }));
+    await page.keyboard.press('ArrowRight');
+
+    const preview = page.getByRole('tabpanel');
+
+    await expect(preview.locator('strong')).toHaveText(TYPED);
+
+    // Un guardado, no cinco (AC-33). El cupo de `documentContent` no se resetea nunca, así que este
+    // número es el que la suite entera acaba pagando multiplicado por los repeticiones y reintentos.
+    expect(contentSaves(), 'peticiones de guardado de contenido').toBe(1);
+    expect(consoleErrors()).toEqual([]);
+  });
+});
+
+/** El textarea del modo texto, por su nombre accesible, que lleva el título del documento. */
+function textarea(page: Page, title: string): Locator {
+  return page.getByRole('textbox', { name: `Contenido de «${title}» en markdown` });
+}
+
+/**
+ * Tabula hasta que el foco cae en `target`. Falla —con un mensaje que dice cuántas pulsaciones
+ * gastó— si no llega: un bucle que se rinde en silencio convertiría «la paleta no es alcanzable con
+ * el tabulador» en «el caso siguió adelante sin foco».
+ */
+async function tabUntilFocused(page: Page, target: Locator): Promise<void> {
+  for (let pressed = 0; pressed < MAX_TABS_TO_PALETTE; pressed += 1) {
+    await page.keyboard.press('Tab');
+
+    if (await target.evaluate((node) => node === document.activeElement)) {
+      return;
+    }
+  }
+
+  throw new Error(
+    `El foco no llegó al destino en ${String(MAX_TABS_TO_PALETTE)} pulsaciones de Tab`,
+  );
+}
+
+/** El anillo de foco tal y como lo calcula Blink, que es el que se ve. */
+async function outlineOf(
+  target: Locator,
+): Promise<{ readonly width: string; readonly style: string; readonly color: string }> {
+  return await target.evaluate((node) => {
+    const computed = getComputedStyle(node);
+
+    return {
+      width: computed.outlineWidth,
+      style: computed.outlineStyle,
+      color: computed.outlineColor,
+    };
+  });
+}
+
+/**
+ * Cuenta los guardados de contenido **contando peticiones**, no espiando el store: lo que el
+ * presupuesto de AC-33 gasta son peticiones que llegan al API, y un espía sobre el cliente no vería
+ * un reintento ni una petición duplicada por `StrictMode`.
+ */
+function watchContentSaves(page: Page): () => number {
+  let saves = 0;
+
+  page.on('request', (request) => {
+    if (request.method() === 'PUT' && /\/documents\/[0-9a-f-]{36}\/content$/.test(request.url())) {
+      saves += 1;
+    }
+  });
+
+  return () => saves;
+}
+
+/**
+ * Título único por caso. La cuenta es **compartida** y los casos corren en paralelo, así que dos
+ * documentos con el mismo título en la raíz chocarían con un `409 DOCUMENT_TITLE_TAKEN` que no tiene
+ * nada que ver con lo que se está midiendo.
+ */
+function uniqueTitle(purpose: string): string {
+  return `Paleta ${purpose} ${randomUUID().slice(0, 8)}`;
+}
+
+/**
+ * Recoge los errores de consola y de página, y devuelve los que hubo.
+ *
+ * Está copiado de `editor.spec.ts` en vez de extraído a `e2e/support/`: la lista de artefactos de
+ * T-010 es **este único archivo**, y mover un ayudante compartido tocaría un archivo que la tarea no
+ * puede tocar. Si un tercer archivo lo necesita, ese es el momento de extraerlo, con su tarea.
+ */
+function watchConsole(page: Page): () => readonly string[] {
+  const messages: string[] = [];
+
+  page.on('console', (message) => {
+    if (message.type() === 'error') {
+      messages.push(message.text());
+    }
+  });
+  page.on('pageerror', (error) => {
+    messages.push(error.message);
+  });
+
+  return () => messages;
+}
+
+/**
+ * Un documento vacío en la raíz, por API. Devuelve su `id`.
+ *
+ * Por API y no por la interfaz a propósito: lo que AC-32 mide es el recorrido **desde el documento
+ * abierto**, y crearlo por el árbol costaría peticiones del cupo que aprieta (`workspace`, 120/min)
+ * sin añadir nada a la afirmación. El recorrido por la interfaz ya lo cubre `editor.spec.ts`.
+ */
+async function createDocument(page: Page, authorization: string, title: string): Promise<string> {
+  const created = await page.request.post('/api/workspace/documents', {
+    headers: { authorization },
+    data: { title, directoryId: null },
+  });
+
+  if (!created.ok()) {
+    throw new Error(
+      `No se pudo crear el documento: POST /api/workspace/documents devolvió ${String(created.status())} ${await created.text()}`,
+    );
+  }
+
+  return ((await created.json()) as { id: string }).id;
+}

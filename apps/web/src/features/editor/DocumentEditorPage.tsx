@@ -1,10 +1,13 @@
 import { MAX_DOCUMENT_CONTENT_CHARS, type DirectoryNode } from '@one-markdown/shared';
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router';
 
 import { ConflictDialog } from './ConflictDialog';
 import { CONTENT_COUNTER_THRESHOLD } from './editor.constants';
 import { useEditorStore, type ViewMode } from './editor.store';
+import { applyPaletteElement } from './markdown-insert';
+import { MARKDOWN_PALETTE, type PaletteElement } from './markdown-palette';
+import { MarkdownPalette } from './MarkdownPalette';
 import { MarkdownPreview } from './MarkdownPreview';
 import { SaveStatus } from './SaveStatus';
 import { ApiError } from '../../shared/api/http';
@@ -53,6 +56,10 @@ export function DocumentEditorPage(): React.JSX.Element {
   const [requestedId, setRequestedId] = useState(id);
   const [conflictDismissed, setConflictDismissed] = useState(false);
   const tabsRef = useRef<Partial<Record<ViewMode, HTMLButtonElement | null>>>({});
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  // Selección que hay que aplicar **después** de que el valor nuevo aterrice en el DOM. Es un `ref`
+  // y no estado porque no se pinta: en `useState` sería un render extra por inserción.
+  const pendingSelection = useRef<{ readonly start: number; readonly end: number } | null>(null);
   const baseId = useId();
 
   const status = entry?.status ?? 'clean';
@@ -138,6 +145,39 @@ export function DocumentEditorPage(): React.JSX.Element {
     };
   }, [id]);
 
+  /**
+   * Restaura la selección tras una inserción de la paleta (AC-21).
+   *
+   * React documenta que a un `<textarea>` controlado al que se le asigna un valor distinto de
+   * `e.target.value` se le va el caret al final. Por eso esto va aquí y **no** dentro del manejador
+   * del clic: en el manejador el valor nuevo todavía no ha aterrizado y `setSelectionRange` mediría
+   * sobre el texto anterior. `useLayoutEffect` corre tras el commit y antes de pintar, así que la
+   * persona nunca llega a ver el cursor al final.
+   *
+   * Sin array de dependencias y protegido por el `ref`, que se **consume**: solo hace algo cuando
+   * hay una selección pendiente. Un array sobre `entry.draft` también dispararía al teclear.
+   */
+  useLayoutEffect(() => {
+    const target = pendingSelection.current;
+
+    if (target === null) {
+      return;
+    }
+
+    pendingSelection.current = null;
+
+    const node = textareaRef.current;
+
+    if (node === null) {
+      return;
+    }
+
+    // El `focus()` va antes que el rango y no es adorno: es lo que hace que AC-22 —documento
+    // vacío, el área de escritura sin haber tenido nunca el foco— acabe donde tiene que acabar.
+    node.focus();
+    node.setSelectionRange(target.start, target.end);
+  });
+
   const unsaved = entry !== undefined && status !== 'clean';
 
   // AC-29. La segunda mitad —**retirarlo**— es la que importa: dejarlo puesto avisa de que «vas a
@@ -196,6 +236,64 @@ export function DocumentEditorPage(): React.JSX.Element {
 
   const selectMode = (mode: ViewMode): void => {
     useEditorStore.getState().setViewMode(documentId, mode);
+  };
+
+  /**
+   * Aplicar un elemento de la paleta (AC-20, AC-21). Tres pasos y ninguno más: se lee dónde está el
+   * cursor, se pide al núcleo el texto resultante y se deja el borrador por **el único camino** que
+   * cambia el contenido, `setDraft`. Así la inserción hereda el debounce, la coalescencia y el
+   * marcado de sucio de la `003` sin una sola rama nueva.
+   *
+   * El texto de partida es `entry.draft` y no `node.value`: el store es quien manda, y leer del DOM
+   * abriría la puerta a insertar sobre un valor que React está a punto de pisar.
+   *
+   * Tampoco hay rama por el límite de caracteres (AC-23): quien reacciona es el contador que ya
+   * existe y el rechazo del servidor. Dos formas distintas de impedir lo mismo es cómo se produce
+   * el aviso que no coincide con la realidad.
+   */
+  const insertElement = (element: PaletteElement): void => {
+    const node = textareaRef.current;
+
+    if (node === null) {
+      return;
+    }
+
+    const next = applyPaletteElement(element, {
+      text: entry.draft,
+      selectionStart: node.selectionStart,
+      selectionEnd: node.selectionEnd,
+    });
+
+    pendingSelection.current = { start: next.selectionStart, end: next.selectionEnd };
+    useEditorStore.getState().setDraft(documentId, next.text);
+  };
+
+  /**
+   * Atajos `Ctrl`/`Cmd`+`B`/`I`/`K` (AC-28).
+   *
+   * Van **en el área de escritura** y no en la ventana, al revés que el `Ctrl`+`S` de la `003`, que
+   * sigue donde estaba y no se toca. La diferencia es deliberada: guardar es una acción de la
+   * página entera, mientras que envolver texto solo significa algo donde se está escribiendo. Los
+   * tres pisan atajos del navegador (`Ctrl`+`B` abre los marcadores en Firefox, `Ctrl`+`K` enfoca
+   * la búsqueda en Chrome), así que fuera del `<textarea>` se dejan intactos.
+   *
+   * Qué tecla hace qué sale del **catálogo**, del campo `shortcut`: añadir un atajo es añadir un
+   * dato en su fila, no una rama aquí.
+   */
+  const handleTextareaKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>): void => {
+    if (!(event.ctrlKey || event.metaKey)) {
+      return;
+    }
+
+    const key = event.key.toLowerCase();
+    const element = MARKDOWN_PALETTE.find((candidate) => candidate.shortcut === key);
+
+    if (element === undefined) {
+      return;
+    }
+
+    event.preventDefault();
+    insertElement(element);
   };
 
   const handleTablistKeyDown = (event: React.KeyboardEvent<HTMLDivElement>): void => {
@@ -312,6 +410,13 @@ export function DocumentEditorPage(): React.JSX.Element {
         </div>
       </div>
 
+      {/*
+        Va **antes** del panel y solo en modo texto (AC-19, AC-26): quien recorra la página con
+        lector de pantalla o con el tabulador encuentra la paleta antes de entrar a escribir, y no
+        después de haber pasado por dentro del área de texto.
+      */}
+      {viewMode === 'text' ? <MarkdownPalette onInsert={insertElement} /> : null}
+
       <div
         role="tabpanel"
         id={panelId}
@@ -323,9 +428,11 @@ export function DocumentEditorPage(): React.JSX.Element {
       >
         {viewMode === 'text' ? (
           <textarea
+            ref={textareaRef}
             aria-label={`Contenido de «${title}» en markdown`}
             value={entry.draft}
             spellCheck={false}
+            onKeyDown={handleTextareaKeyDown}
             onChange={(event) => {
               // Único camino por el que cambia el contenido (decisión 10 del plan): la paleta de
               // la spec `004` llamará a la misma acción y heredará el debounce y la coalescencia.

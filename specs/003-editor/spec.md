@@ -1,6 +1,16 @@
 # Spec 003 — Editor: vista texto/preview, guardado y sanitización del preview
 
-- **Versión**: 0.1.4 — **patch de cierre**. **Cierra la spec entera**: `T-013`, `T-014` y `T-015`
+- **Versión**: 0.1.5 — **patch de precisión, escrito desde la `004` el 2026-07-29 y sin tocar código
+  ni AC**. La spec sigue **complete, 34/34 AC · 17/17 tareas**. Único cambio: las notas de cierre
+  daban la cifra de cupo «la suite gasta **4 de 120**» **sin decir en qué ventana se mide**, y es
+  **por corrida**; bajo el comando de verificación de su propio AC-34 (`--retries=2 --repeat-each=3`)
+  el pico real era **12 de 120**, porque la suite dura ~23 s y las tres repeticiones caen **dentro de
+  la misma ventana de 60 s** del throttler y se suman. **AC-34 no cambia y sigue siendo cierto**: no
+  lleva número, afirma «sin un solo `429`», y 12 de 120 lo cumple con holgura. Se escribe porque la
+  `004` heredó esa cifra dentro de un criterio que **sí** llevaba número (su AC-33) y la convirtió en
+  un AC autocontradictorio, y porque la `005` va a leer estas notas para dimensionar su presupuesto.
+  Detalle en el CHANGELOG, v0.1.5.
+- **Versión anterior**: 0.1.4 — **patch de cierre**. **Cerró la spec entera**: `T-013`, `T-014` y `T-015`
   implementadas y verificadas, con lo que la spec pasa a **34/34 AC · 17/17 tareas**. No añade alcance ni
   cambia ningún contrato. Lo que sí hace, además de cerrar, es **corregir una afirmación de la v0.1.2 que
   la implementación desmintió**: `plan.md` §2.2.1 decía que `rehype-sanitize` era **redundante**, y al
@@ -431,6 +441,16 @@ fingir cobertura.
   **ninguna** llamada a `POST /api/auth/register`, `POST /api/auth/login`, `PUT …/content` ni al resto
   de `/api/workspace/*` ha recibido un `429`.
   _Verificado por_: el comando completo, cuya salida es la verificación.
+
+  **Precisión de la v0.1.5 (2026-07-29), que no cambia el criterio sino la contabilidad que lo
+  acompaña.** Este AC **no lleva número y hace bien en no llevarlo**: afirma la ausencia de `429`
+  bajo el comando con reintentos, y eso es cierto y sigue siéndolo. Lo que estaba mal escrito es la
+  cifra de las notas de cierre —«la suite gasta 4 de 120»—, que es **por corrida**: bajo
+  `--retries=2 --repeat-each=3` la suite entera (~23 s) repite **dentro de la misma ventana de 60 s**
+  del throttler, así que los gastos **se suman** y el pico real era **12 de 120**. La regla que sale
+  de aquí, y que la `004` escribió como riesgo #12 de su spec: **toda cifra de cupo lleva pegada su
+  ventana y el comando con el que se mide**. Sin ventana, un número de cupo no es verificable aunque
+  parezca el dato más concreto del criterio.
 
   **Por qué existe, y por qué es distinto del AC-34 de la `002`.** La `002` cerró su AC-35 con el
   presupuesto **agotado al milímetro**: 5 altas por IP cada 15 minutos y 10 entradas por minuto, y su
