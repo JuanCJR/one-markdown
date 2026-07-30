@@ -2,6 +2,79 @@
 
 Formato: `## vX.Y.Z — YYYY-MM-DD` + motivo del cambio.
 
+## v0.1.4 — 2026-07-29
+
+**Entrada de cierre por un cambio en `apps/web/e2e/support/**`, que es contrato de esta spec.** La
+escribe `T-007` de la `006-editor-undo`. **Ningún AC de la `001` cambia y ningún límite de producción
+se toca**; tampoco se mueve su recuento (siguen 26/26 AC).
+
+- **Qué cambia**: `support/editor-e2e.ts` gana un séptimo ayudante compartido, `watchContentSaves`
+  —cuenta los `PUT …/content` contando **peticiones** que llegan al API, no espiando el store—, y el
+  inventario de la guarda `apps/web/src/test/e2e-support.test.ts` lo incluye. `palette.spec.ts` y
+  `tabs.spec.ts` pierden su copia local y lo importan.
+- **Por qué ahora**: iba por su **segunda** copia y `e2e/undo.spec.ts` habría sido la tercera, que es
+  cuando la regla de la casa manda extraer. La deuda estaba anotada con destinatario desde el cierre
+  de la `005`.
+- **Y una diferencia con la extracción de la `005` que conviene registrar**: aquellos seis ayudantes
+  **ya habían divergido** —dos de ellos en firma, midiendo cosas distintas mientras creían medir lo
+  mismo—, así que extraer fue **elegir**. Estas dos copias eran **idénticas carácter por carácter**,
+  comentario incluido, y se comprobó **antes** de mover en vez de suponerlo: aquí extraer fue mover.
+- **Verificado**: `test e2e-support` → **5 passed** (el RED previo señaló los dos archivos que lo
+  declaraban por su cuenta) · `typecheck` y `lint` en **0** · la suite de navegador con **los mismos
+  casos y los mismos nombres** que antes de la extracción.
+
+## v0.1.3 — 2026-07-29
+
+**Patch. Cambia el andamiaje e2e de esta spec; sus 26 AC y todos sus límites de producción, no.**
+Lo traen `T-001` (su **AC-29**) y `T-002` (sus **AC-30** y **AC-31**) de la spec `005`, que tocan
+`apps/web/e2e/support/**` por ser contrato de `001` — igual que hicieron `T-027` de la `002` y
+`T-015` de la `003`. **No se modificó `THROTTLE_LIMITS` ni ningún umbral de seguridad, ni se añadió
+ni se quitó ningún reset de contador.**
+
+- **El problema.** `dev-env.ts` le daba al API un puerto propio (**3011**, «distinto del 3001 de
+  `pnpm dev`») pero dejaba el web en **5173**, que es exactamente el de `pnpm dev`. Con
+  `reuseExistingServer: false` —correcto y deliberado: un servidor reutilizado proxearía al API de
+  desarrollo y la suite mediría el backend equivocado sin decirlo— la suite abortaba con
+  `http://localhost:5173 is already used` **antes de ejecutar un solo caso** en cuanto alguien
+  tuviera el servidor de desarrollo levantado. Es un fallo de **entorno disfrazado de fallo de
+  suite**: no aparece ningún caso en rojo, aparece un error antes de empezar. Bloqueó dos mediciones
+  al cerrar la `004`, que lo dejó anotado como su riesgo #14.
+
+- **El arreglo, simétrico con lo que ya había.** `E2E_WEB_PORT = 5183` en `dev-env.ts`, con
+  `E2E_WEB_ORIGIN` derivado de él, y el `webServer` del web arrancando con
+  `pnpm dev --port <puerto> --strictPort`.
+
+- **Dos decisiones que valen, y su motivo.** **(a) El puerto va por la CLI y no por
+  `vite.config.ts`**: la línea de órdenes de Vite gana a la configuración, así que la suite se lleva
+  su puerto sin tocar un archivo que es contrato de las specs `000` y `002` y que lleva un bloque de
+  comentario que nadie debería releer para cambiar un puerto. **(b) `--strictPort` es obligatorio**:
+  sin él, ante un puerto ocupado Vite se muda al siguiente libre **en silencio** y Playwright se
+  queda esperando en una URL donde no hay nadie hasta agotar su tiempo — cambiar un aborto claro por
+  un cuelgue oscuro es empeorar justo el problema que esto arregla.
+
+- **Verificado, las dos mitades.** Con `pnpm dev` levantado: RED previo con el
+  `is already used` literal, y tras el arreglo **`9 passed` (21,1 s)**. Sin `pnpm dev`: **`9 passed`
+  (13,7 s)**. La precondición «parar `pnpm dev` antes de medir con Playwright» **deja de existir**.
+
+- **`support/` gana un módulo: `editor-e2e.ts` (`T-002`, AC-30 y AC-31).** Los archivos de navegador
+  que abren un documento del editor tenían **seis** ayudantes duplicados literalmente entre
+  `editor.spec.ts` y `palette.spec.ts` —el *fixture* de sesión incluido, que es el que consume el
+  `signIn` y los resets de contador de esta spec—, y la regla de la casa es extraer a la tercera
+  copia. **Dos de las seis ya habían divergido**: la vigilancia de errores de consola tenía una
+  versión que sabía tolerar patrones y otra que no, y el título único llevaba el prefijo escrito a
+  mano en cada archivo. Al unificar sobrevive la firma **tolerante** (superset, así que quien no
+  perdona nada no nota diferencia) y el prefijo pasa a ser **parámetro**, para que cada suite siga
+  produciendo títulos que no chocan con un `409 DOCUMENT_TITLE_TAKEN` ajeno a lo que mide.
+  **Nada del andamiaje de sesión cambia de comportamiento**: el *fixture* se mudó de sitio con sus
+  dos resets y su `auto: true` idénticos, y `session.ts` y `services.ts` no se tocaron.
+
+- **Y la extracción viene con guarda**, porque una regla que solo vive en la cabeza de quien la
+  escribió se rompe en la siguiente spec: `apps/web/src/test/e2e-support.test.ts` lee el fuente de
+  los archivos de casos y falla si alguno vuelve a hacerse su copia. Vive en `src/` porque es donde
+  mira Vitest. Verificado: RED con las **12** copias enumeradas (seis por archivo) y, tras la
+  extracción, `test e2e-support` en verde y `test:e2e` con los **mismos 9 casos en verde** que antes
+  (18,4 s frente a los 17,8 s de la medición previa, con los mismos nombres de caso).
+
 ## v0.1.2 — 2026-07-28
 
 **Patch. Vuelve a cambiar el andamiaje e2e de esta spec; sus 26 AC y todos sus límites de producción, no.**

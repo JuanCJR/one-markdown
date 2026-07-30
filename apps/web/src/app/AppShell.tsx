@@ -1,6 +1,7 @@
 import { Link, Outlet } from 'react-router';
 
 import { useAuthStore } from '../features/auth/auth.store';
+import { DocumentTabs, EDITOR_PANEL_ID } from '../features/editor/DocumentTabs';
 import { WorkspaceTreeView } from '../features/workspace/WorkspaceTreeView';
 import { useUiStore } from '../shared/store/ui.store';
 
@@ -68,7 +69,21 @@ export function AppShell(): React.JSX.Element {
           </div>
         </header>
 
-        <main role="main" className="min-h-0 flex-1 overflow-auto px-6 py-6">
+        {/*
+          La tira de pestañas va **aquí** y no dentro de la página del editor (`005/plan.md`,
+          decisión 7): tiene que sobrevivir al documento que muestra —se ve mientras uno carga y se
+          ve con la ruta en `/` si quedan pestañas— y no debe desmontarse y remontarse en cada salto,
+          lo que perdería el foco y dispararía su región viva. De paso, estar por encima del `<main>`
+          es lo que le da gratis el orden de tabulación que fija AC-27.
+        */}
+        <DocumentTabs />
+
+        {/*
+          El `id` sale de la constante que exporta `DocumentTabs`, que es quien la necesita para su
+          `aria-controls`. Dos literales iguales en dos archivos es exactamente cómo un
+          `aria-controls` acaba apuntando a nada sin que se note.
+        */}
+        <main id={EDITOR_PANEL_ID} role="main" className="min-h-0 flex-1 overflow-auto px-6 py-6">
           <Outlet />
         </main>
       </div>

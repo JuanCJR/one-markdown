@@ -15,8 +15,20 @@ export const E2E_API_PORT = 3011;
 
 export const E2E_API_ORIGIN = `http://localhost:${String(E2E_API_PORT)}`;
 
+/**
+ * Puerto dedicado del servidor web para los e2e, distinto del 5173 de `pnpm dev`.
+ *
+ * Es el simétrico de `E2E_API_PORT`, y llega tarde: el API tenía puerto propio desde el principio y
+ * el web se quedó con el de desarrollo. Con `reuseExistingServer: false` —que es correcto y
+ * deliberado— eso hacía que la suite abortara con `http://localhost:5173 is already used` **antes de
+ * ejecutar un solo caso** en cuanto alguien tuviera `pnpm dev` levantado. No es un rojo de test sino
+ * de entorno, y se disfraza de fallo de suite: no aparece ningún caso en rojo, aparece un error antes
+ * de empezar. Bloqueó dos mediciones al cerrar la spec `004` (su riesgo #14).
+ */
+export const E2E_WEB_PORT = 5183;
+
 /** Origen de la web bajo test. El proxy de Vite hace que el API sea mismo origen. */
-export const E2E_WEB_ORIGIN = 'http://localhost:5173';
+export const E2E_WEB_ORIGIN = `http://localhost:${String(E2E_WEB_PORT)}`;
 
 /**
  * Servicios de infraestructura. Se respeta lo que venga del entorno (CI apunta a los suyos, con

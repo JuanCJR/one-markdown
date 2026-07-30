@@ -1,9 +1,14 @@
-import { randomUUID } from 'node:crypto';
+import { expect, type Locator, type Page } from '@playwright/test';
 
-import { expect, test as base, type Locator, type Page } from '@playwright/test';
-
-import { resetLoginThrottleCounter, resetWorkspaceThrottleCounter } from './support/services';
-import { signIn, type E2eSession } from './support/session';
+import {
+  createDocument,
+  SAVE_REGION_NAME,
+  test,
+  textarea,
+  uniqueTitle,
+  watchConsole,
+  watchContentSaves,
+} from './support/editor-e2e';
 
 /**
  * La paleta de elementos markdown en un navegador de verdad (spec `004`: AC-29 y AC-32).
@@ -28,6 +33,11 @@ import { signIn, type E2eSession } from './support/session';
  * `Ctrl`+`S` la cierra con un único `PUT`. Ese «uno» está **afirmado**, no supuesto: sin la
  * aserción, un cambio que partiera el guardado en cinco peticiones se colaría en silencio y el
  * presupuesto se descubriría meses después, en un `429` de otra suite.
+ *
+ * Desde la `005` (AC-30), lo que este archivo comparte con `editor.spec.ts` se **importa** de
+ * `support/editor-e2e.ts` en vez de copiarse, y lo vigila `src/test/e2e-support.test.ts`. La copia
+ * que había aquí llegó a divergir de la otra —una de las dos no sabía tolerar nada— y esa es
+ * exactamente la avería que la extracción cierra (AC-31).
  */
 
 /** WCAG 2.2, SC 2.5.8 (*Target Size (Minimum)*): 24 × 24 px CSS. */
@@ -46,34 +56,6 @@ const TYPED = 'recorrido solo con teclado';
  */
 const MAX_TABS_TO_PALETTE = 50;
 
-/**
- * El nombre accesible de la región viva del guardado (`004`: AC-27), que es **por lo que** se la
- * distingue de la de la paleta: por cómo se llama, no por lo que dice en ese momento. Filtrar por
- * contenido resolvería igual de bien hoy, pero sería inmune a que alguien le quitara el nombre —
- * justo la regresión que AC-27 existe para impedir. Es el mismo nombre y la misma forma que usa
- * `editor.spec.ts`, para que las dos suites llamen igual a la misma región.
- */
-const SAVE_REGION_NAME = 'Estado del guardado';
-
-/**
- * La sesión de cada caso, en un *fixture* automático. Es el **mismo** que `editor.spec.ts`, y por
- * las mismas razones, que están escritas con sus cifras en `support/services.ts`: el cupo de
- * entradas (10/min) y el de la superficie del workspace (120/min) se ponen a cero en el **límite**
- * del caso, nunca a mitad de una secuencia. El de `documentContent` **no se toca**.
- *
- * `auto: true` porque este caso no pide el `Bearer` en su firma pero necesita la sesión igual: sin
- * él, un *fixture* perezoso no llegaría a ejecutarse y el caso empezaría sin haber entrado.
- */
-const test = base.extend<{ session: E2eSession }>({
-  session: [
-    async ({ page }, use) => {
-      await Promise.all([resetLoginThrottleCounter(), resetWorkspaceThrottleCounter()]);
-      await use(await signIn(page));
-    },
-    { auto: true },
-  ],
-});
-
 test.describe('Paleta de markdown en el navegador (AC-29, AC-32)', () => {
   test('recorrido solo con teclado, tamaño de objetivo y foco visible (AC-29, AC-32)', async ({
     page,
@@ -81,7 +63,7 @@ test.describe('Paleta de markdown en el navegador (AC-29, AC-32)', () => {
   }) => {
     const consoleErrors = watchConsole(page);
     const contentSaves = watchContentSaves(page);
-    const title = uniqueTitle('paleta');
+    const title = uniqueTitle('Paleta', 'paleta');
     const documentId = await createDocument(page, session.authorization, title);
 
     await page.goto(`/documents/${documentId}`);
@@ -184,11 +166,6 @@ test.describe('Paleta de markdown en el navegador (AC-29, AC-32)', () => {
   });
 });
 
-/** El textarea del modo texto, por su nombre accesible, que lleva el título del documento. */
-function textarea(page: Page, title: string): Locator {
-  return page.getByRole('textbox', { name: `Contenido de «${title}» en markdown` });
-}
-
 /**
  * Tabula hasta que el foco cae en `target`. Falla —con un mensaje que dice cuántas pulsaciones
  * gastó— si no llega: un bucle que se rinde en silencio convertiría «la paleta no es alcanzable con
@@ -223,72 +200,3 @@ async function outlineOf(
   });
 }
 
-/**
- * Cuenta los guardados de contenido **contando peticiones**, no espiando el store: lo que el
- * presupuesto de AC-33 gasta son peticiones que llegan al API, y un espía sobre el cliente no vería
- * un reintento ni una petición duplicada por `StrictMode`.
- */
-function watchContentSaves(page: Page): () => number {
-  let saves = 0;
-
-  page.on('request', (request) => {
-    if (request.method() === 'PUT' && /\/documents\/[0-9a-f-]{36}\/content$/.test(request.url())) {
-      saves += 1;
-    }
-  });
-
-  return () => saves;
-}
-
-/**
- * Título único por caso. La cuenta es **compartida** y los casos corren en paralelo, así que dos
- * documentos con el mismo título en la raíz chocarían con un `409 DOCUMENT_TITLE_TAKEN` que no tiene
- * nada que ver con lo que se está midiendo.
- */
-function uniqueTitle(purpose: string): string {
-  return `Paleta ${purpose} ${randomUUID().slice(0, 8)}`;
-}
-
-/**
- * Recoge los errores de consola y de página, y devuelve los que hubo.
- *
- * Está copiado de `editor.spec.ts` en vez de extraído a `e2e/support/`: la lista de artefactos de
- * T-010 es **este único archivo**, y mover un ayudante compartido tocaría un archivo que la tarea no
- * puede tocar. Si un tercer archivo lo necesita, ese es el momento de extraerlo, con su tarea.
- */
-function watchConsole(page: Page): () => readonly string[] {
-  const messages: string[] = [];
-
-  page.on('console', (message) => {
-    if (message.type() === 'error') {
-      messages.push(message.text());
-    }
-  });
-  page.on('pageerror', (error) => {
-    messages.push(error.message);
-  });
-
-  return () => messages;
-}
-
-/**
- * Un documento vacío en la raíz, por API. Devuelve su `id`.
- *
- * Por API y no por la interfaz a propósito: lo que AC-32 mide es el recorrido **desde el documento
- * abierto**, y crearlo por el árbol costaría peticiones del cupo que aprieta (`workspace`, 120/min)
- * sin añadir nada a la afirmación. El recorrido por la interfaz ya lo cubre `editor.spec.ts`.
- */
-async function createDocument(page: Page, authorization: string, title: string): Promise<string> {
-  const created = await page.request.post('/api/workspace/documents', {
-    headers: { authorization },
-    data: { title, directoryId: null },
-  });
-
-  if (!created.ok()) {
-    throw new Error(
-      `No se pudo crear el documento: POST /api/workspace/documents devolvió ${String(created.status())} ${await created.text()}`,
-    );
-  }
-
-  return ((await created.json()) as { id: string }).id;
-}

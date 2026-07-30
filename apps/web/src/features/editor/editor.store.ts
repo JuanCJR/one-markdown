@@ -5,6 +5,15 @@ import {
   DOCUMENT_CONTENT_CONFLICT_CODE,
   UNREACHABLE_SAVE_MESSAGE,
 } from './editor.constants';
+import {
+  clearHistory,
+  EMPTY_HISTORY,
+  recordWrite,
+  redoStep,
+  undoStep,
+  type Caret,
+  type UndoState,
+} from './undo-history';
 import { ApiError, getDocument, saveDocumentContent } from '../../shared/api/http';
 
 /**
@@ -34,12 +43,18 @@ export type SaveStatus =
   | 'unreachable';
 
 /**
- * Los dos modos excluyentes del conmutador (AC-22). Vive **por documento** y no en la página: con
- * la definición de split view que fija `CLAUDE.md` —texto y vista previa del **mismo** documento—
- * el modo activo es una propiedad del documento, así que la spec `005` lo conserva al volver a su
- * pestaña sin trabajo extra. En un `useState` de la página se perdería en cada montaje.
+ * Los **tres** modos excluyentes del conmutador (`003` AC-22, `005` AC-14). Vive **por documento** y
+ * no en la página: con la definición de split view que fija `CLAUDE.md` —texto y vista previa del
+ * **mismo** documento— el modo activo es una propiedad del documento, así que la spec `005` lo
+ * conserva al volver a su pestaña sin trabajo extra (AC-17). En un `useState` de la página se
+ * perdería en cada montaje.
+ *
+ * `'split'` es un valor **más** de la enumeración y no un booleano aparte (`005/plan.md` decisión
+ * 6): con `viewMode` + `split: boolean`, «vista previa **y** dividida» sería un estado
+ * representable que no significa nada, y alguien acabaría escribiéndolo. Tres valores excluyentes
+ * son tres pestañas excluyentes, que es literalmente lo que se ve.
  */
-export type ViewMode = 'text' | 'preview';
+export type ViewMode = 'text' | 'preview' | 'split';
 
 export interface EditorEntry {
   /** Lo último que el servidor confirmó. */
@@ -64,20 +79,88 @@ export interface EditorEntry {
    * declaraba `serverContent`.
    */
   readonly serverVersion: number | null;
+  /**
+   * Pila de deshacer/rehacer **de este documento** (spec `006`).
+   *
+   * Vive dentro de la entrada y no en un diccionario aparte, y de ahí sale por construcción lo que la
+   * `004` §9.4 pedía: un `Ctrl`+`Z` no puede deshacer un cambio de **otra** pestaña, porque no hay
+   * ninguna pila a la que llegar que no sea la de este id (AC-15).
+   *
+   * Y **muere con la entrada**, que es la política que fijó la `005` en su §6.3: cambiar de pestaña la
+   * conserva —`flush` no desaloja— y cerrarla la tira —`closeTab` sí—. Esa política **es** la cota de
+   * vida del historial, así que aquí no hay expulsión por tiempo ni serialización (AC-16).
+   */
+  readonly undo: UndoState;
+}
+
+/**
+ * Lo que la interfaz necesita saber tras pedir el cierre de una pestaña, y nada más (spec `005`,
+ * AC-4, AC-5, AC-7).
+ */
+export interface CloseResult {
+  /**
+   * `false` cuando la pestaña **sigue abierta**: o porque el guardado forzado falló y cerrarla habría
+   * tirado el trabajo de alguien (AC-7, lo implementa `T-005`), o porque ese id no estaba abierto.
+   */
+  readonly closed: boolean;
+  /**
+   * A dónde ir **si la cerrada era la activa**: la vecina de la derecha, si no la de la izquierda, y
+   * `null` cuando no queda ninguna (AC-5). Se calcula **antes** de desalojar, porque después ya no
+   * está la información con la que calcularlo.
+   */
+  readonly next: string | null;
 }
 
 export interface EditorState {
   readonly entries: Readonly<Record<string, EditorEntry>>;
+  /**
+   * Pestañas abiertas, en **orden de apertura** (spec `005`, AC-1).
+   *
+   * Invariante que defiende AC-1: su conjunto de ids es **exactamente** el conjunto de claves de
+   * `entries`. Vive aquí y no en un store aparte precisamente por eso — en dos stores la invariante
+   * no tiene dueño y se rompe en la primera secuencia rara, dejando pestañas pintadas sobre la nada o
+   * entradas que nadie ve y nadie puede cerrar. Y se mantiene **por construcción**: el único camino
+   * que quita una entrada (`drop`) quita también su id.
+   *
+   * La pestaña **activa** no está aquí, y es deliberado (AC-3): es el `:id` de la ruta y nada más.
+   * Un segundo origen de verdad se desincroniza exactamente donde nadie prueba a mano — el botón
+   * «atrás» del navegador.
+   */
+  readonly openIds: readonly string[];
 
   /** Lee el documento y lo deja limpio. Respeta un borrador sin guardar de una visita anterior. */
   open: (id: string) => Promise<void>;
-  /** Descarta la entrada sin guardar nada. Para forzar el guardado antes, `flush`. */
-  close: (id: string) => void;
-  /** **Único** punto por el que cambia el contenido (spec §4, para la paleta de la `004`). */
-  setDraft: (id: string, draft: string) => void;
+  /**
+   * Cierra una pestaña: **guarda lo pendiente, comprueba, y solo entonces desaloja** (AC-6), sacando
+   * el id de `openIds` y devolviendo a dónde ir si era la activa (AC-5). Si el guardado falla, **no
+   * cierra** (AC-7).
+   *
+   * Es el **único** camino que desaloja una entrada. El `close(id)` de la `003` —que descartaba sin
+   * guardar— se retiró aquí: con pestañas, un segundo camino de desalojo es un camino por el que
+   * alguien pierde su trabajo, y ninguna parte de la aplicación lo usaba.
+   */
+  closeTab: (id: string) => Promise<CloseResult>;
+  /**
+   * **Único** punto por el que la interfaz cambia el contenido (spec §4, para la paleta de la `004`),
+   * y desde la `006` también el único que **registra un paso de deshacer**.
+   *
+   * El tercer argumento es opcional a propósito: sin él, la escritura se registra como tecleo y las
+   * selecciones se derivan del propio reemplazo, que es **exacto** para el tecleo. Lo que sí tiene que
+   * pasarlo es un gesto único —insertar de la paleta, un atajo—, porque ahí la selección de partida no
+   * se puede derivar: envolver texto en negrita deja un cursor donde había una selección.
+   */
+  setDraft: (id: string, draft: string, write?: DraftWrite) => void;
   /** Guardado explícito (`Ctrl`+`S`): inmediato, y cancela el debounce pendiente (AC-27). */
   saveNow: (id: string) => Promise<void>;
-  /** Al desmontar (AC-28): fuerza lo pendiente; si sale bien descarta la entrada, si no la conserva. */
+  /**
+   * Al desmontar o al cambiar de pestaña (`003` AC-28, enmendado por la `005` en su v0.2.0): fuerza
+   * el guardado pendiente y **conserva la entrada pase lo que pase**.
+   *
+   * Hasta la enmienda descartaba la entrada si el guardado salía bien, y era correcto mientras
+   * navegar **fuese** cerrar. Con pestañas son dos gestos distintos: descartar aquí obligaría a
+   * releer el documento en cada salto y tiraría el `viewMode` —que la `003` quería conservar
+   * expresamente— y, desde la `006`, el historial de deshacer. Quien desaloja es `closeTab`.
+   */
   flush: (id: string) => Promise<void>;
   /** «Conservar mi versión»: relee, adopta la versión nueva y reenvía el borrador local (AC-20). */
   resolveKeepMine: (id: string) => Promise<void>;
@@ -85,6 +168,30 @@ export interface EditorState {
   resolveTakeServer: (id: string) => Promise<void>;
   /** Conmutador texto/vista previa **de ese documento** (AC-22). */
   setViewMode: (id: string, viewMode: ViewMode) => void;
+  /**
+   * Deshace el último paso de **ese** documento y devuelve dónde dejar el cursor, o `null` si no había
+   * nada que deshacer (spec `006`, AC-11, AC-14).
+   *
+   * Escribe por el mismo camino interno que `setDraft`, con el registro apagado, así que hereda el
+   * marcado de sucio, el debounce y la coalescencia sin una sola rama nueva — y por eso una ráfaga de
+   * deshacer produce **una** petición (AC-20).
+   */
+  undo: (id: string) => Caret | null;
+  /** Rehace el último paso deshecho. Misma forma que `undo` (AC-12). */
+  redo: (id: string) => Caret | null;
+}
+
+/** Lo que una escritura de contenido puede contar de sí misma (spec `006`, `plan.md` §4.5). */
+export interface DraftWrite {
+  /**
+   * `true` —el valor por defecto— para el tecleo, que se agrupa por ventana de inactividad; `false`
+   * para un gesto único, que es siempre un paso propio.
+   */
+  readonly mergeable?: boolean | undefined;
+  /** Dónde estaba el cursor antes. Se deriva del reemplazo si falta. */
+  readonly caretBefore?: Caret | undefined;
+  /** Dónde queda después. Se deriva del reemplazo si falta. */
+  readonly caretAfter?: Caret | undefined;
 }
 
 /**
@@ -99,6 +206,18 @@ const debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
  * guardado encolado lo lanza el que está corriendo, al terminar.
  */
 const savesInFlight = new Map<string, Promise<void>>();
+
+/**
+ * Lecturas en vuelo, una por documento (spec `005`, AC-10…AC-12). Es el idiom *single-flight* que
+ * `shared/api/http.ts` usa en `refreshSession()`, y que la `003` dejó recomendado por nombre en su
+ * §8.1 — con una diferencia que no es un detalle: allí el recurso es **uno solo** y una promesa
+ * global basta; aquí hay uno por documento, así que la clave es el `id`. Con una promesa compartida,
+ * abrir dos documentos a la vez leería uno y la otra pestaña saldría con el contenido del primero.
+ *
+ * Fuera del estado, por el mismo motivo que los temporizadores del debounce: una promesa no se pinta,
+ * y meterla en el store haría que cada apertura provocara dos renders de más.
+ */
+const readsInFlight = new Map<string, Promise<void>>();
 
 function cancelDebounce(id: string): void {
   const timer = debounceTimers.get(id);
@@ -156,11 +275,16 @@ export const useEditorStore = create<EditorState>()((set, get) => {
     });
   };
 
+  /**
+   * Quita la entrada **y su pestaña**, que es lo que mantiene la invariante de AC-1 por construcción
+   * en vez de por disciplina: mientras este sea el único camino que borra una entrada, no puede
+   * quedar ni una entrada sin pestaña ni una pestaña sin entrada.
+   */
   const drop = (id: string): void => {
     set((state) => {
       const { [id]: _removed, ...rest } = state.entries;
 
-      return { entries: rest };
+      return { entries: rest, openIds: state.openIds.filter((open) => open !== id) };
     });
   };
 
@@ -279,6 +403,91 @@ export const useEditorStore = create<EditorState>()((set, get) => {
     return run;
   };
 
+  /**
+   * Lee el documento y crea su entrada **y su pestaña** (spec `005`, AC-1).
+   *
+   * El error **se propaga** a quien llamó y no se traga: es el contrato que la `003` cerró en su
+   * `T-012`, y lo que permite a `DocumentEditorPage` distinguir `loading` de `missing` y de `error`
+   * en vez de caer en el aviso genérico que su AC-19 existe para evitar.
+   */
+  const readDocument = async (id: string): Promise<void> => {
+    const document = await getDocument(id);
+
+    set((state) => ({
+      entries: {
+        ...state.entries,
+        [id]: {
+          savedContent: document.content,
+          draft: document.content,
+          contentVersion: document.contentVersion,
+          status: 'clean',
+          viewMode: 'text',
+          error: null,
+          serverContent: null,
+          serverVersion: null,
+          undo: EMPTY_HISTORY,
+        },
+      },
+      // Al **final** y solo si no estaba (AC-1, AC-2). Un `push` incondicional duplicaría la pestaña
+      // al volver a un documento; recalcular la lista poniendo el último abierto al final es lo que
+      // hace el historial de un navegador, y no lo que hace un gestor de pestañas.
+      openIds: state.openIds.includes(id) ? state.openIds : [...state.openIds, id],
+    }));
+  };
+
+  /**
+   * Escribe el borrador y su historial. **Es la única ruta de escritura de contenido**, y `setDraft`,
+   * `undo` y `redo` son tres formas de llamarla: no hay un segundo camino que pueda discrepar del
+   * primero, hay uno con un interruptor —quién trae el historial ya calculado—.
+   *
+   * De aquí sale que deshacer herede el marcado de sucio, el debounce y la coalescencia **sin código
+   * propio**, que es lo que hace que una ráfaga de deshacer sea una petición y no diez (AC-20).
+   */
+  const writeDraft = (id: string, draft: string, undo: UndoState): void => {
+    const entry = entryOf(id);
+
+    if (entry === undefined) {
+      return;
+    }
+
+    if (draft === entry.savedContent) {
+      // Deshacer hasta el original no es un cambio pendiente: además de volver a `clean`, cancela
+      // el guardado programado, para no mandar una petición que no cambia nada.
+      cancelDebounce(id);
+      patch(id, { draft, undo, status: 'clean', error: null });
+
+      return;
+    }
+
+    patch(id, { draft, undo, status: 'dirty', error: null });
+    scheduleSave(id);
+  };
+
+  /**
+   * Un paso de historial, en los dos sentidos. Lo que cambia entre deshacer y rehacer es **qué función
+   * del módulo se pregunta**, y nada más: el resto —escribir por la ruta única, devolver dónde va el
+   * cursor, no registrarse a sí mismo— es idéntico, así que vive escrito una vez (AC-13).
+   */
+  const applyHistoryStep = (id: string, step: typeof undoStep | typeof redoStep): Caret | null => {
+    const entry = entryOf(id);
+
+    if (entry === undefined) {
+      return null;
+    }
+
+    const applied = step(entry.undo, entry.draft);
+
+    // Sin nada que deshacer no se toca el borrador, no se marca sucio y no se programa guardado
+    // (AC-14). Devolver `null` es lo que le permite a la interfaz no mover el cursor.
+    if (applied === null) {
+      return null;
+    }
+
+    writeDraft(id, applied.text, applied.history);
+
+    return applied.caret;
+  };
+
   const scheduleSave = (id: string): void => {
     cancelDebounce(id);
 
@@ -293,58 +502,94 @@ export const useEditorStore = create<EditorState>()((set, get) => {
 
   return {
     entries: {},
+    openIds: [],
 
     open: async (id) => {
-      const existing = entryOf(id);
-
-      // Volver a un documento cuyo guardado falló tiene que devolver **el texto sin guardar**, no
-      // el del servidor (AC-28). Releer aquí sería la forma silenciosa de perderlo.
-      if (existing !== undefined && existing.draft !== existing.savedContent) {
+      // Con entrada ya en el store —**limpia o sucia**— no se pide nada (spec `005`, AC-13).
+      //
+      // La rama «sucia» viene de la `003` (su AC-28): volver a un documento cuyo guardado falló tiene
+      // que devolver **el texto sin guardar**, no el del servidor, y releer aquí sería la forma
+      // silenciosa de perderlo. La rama «limpia» es nueva y es un **cambio consciente**: en la `003`
+      // navegar fuera descartaba la entrada, así que esa rama era casi código muerto; con pestañas
+      // sería una lectura por cada salto entre pestañas. La consecuencia —una pestaña vieja puede
+      // chocar con un `409` al guardar— es exactamente el caso que la maquinaria de conflicto de la
+      // `003` existe para resolver.
+      if (entryOf(id) !== undefined) {
         return;
       }
 
-      const document = await getDocument(id);
+      // Una sola lectura por documento aunque la pidan varios a la vez (AC-10).
+      const reading = readsInFlight.get(id);
 
-      set((state) => ({
-        entries: {
-          ...state.entries,
-          [id]: {
-            savedContent: document.content,
-            draft: document.content,
-            contentVersion: document.contentVersion,
-            status: 'clean',
-            viewMode: 'text',
-            error: null,
-            serverContent: null,
-            serverVersion: null,
-          },
-        },
-      }));
+      if (reading !== undefined) {
+        return reading;
+      }
+
+      const run = readDocument(id).finally(() => {
+        // En el `finally` y no tras el `await`: si la lectura falla, la promesa **tiene que
+        // liberarse** igual (AC-12). Cachearla sin limpiarla dejaría el documento imposible de abrir
+        // hasta recargar la aplicación, a partir de un fallo de red pasajero.
+        readsInFlight.delete(id);
+      });
+
+      readsInFlight.set(id, run);
+
+      return run;
     },
 
-    close: (id) => {
+    closeTab: async (id) => {
+      const { openIds } = get();
+      const index = openIds.indexOf(id);
+
+      // Cerrar algo que no está abierto no cierra nada, y decir lo contrario haría que la interfaz
+      // navegara a `/` por un gesto que no ocurrió.
+      if (index === -1) {
+        return { closed: false, next: null };
+      }
+
+      // Se calcula **antes** de guardar y de desalojar: después, `openIds` ya no tiene con qué. La
+      // derecha manda y la izquierda es el respaldo, que es lo que hace que cerrar la última no salte
+      // al principio.
+      const next = openIds[index + 1] ?? openIds[index - 1] ?? null;
+
+      // Guardar **antes** de desalojar, y comprobar el resultado **después** del `await`: la entrada
+      // pudo cambiar mientras la petición volaba, que es la misma precaución que ya toma `patch`.
+      await get().flush(id);
+
+      // Si no quedó limpio, la pestaña se queda abierta **con su borrador y su error** (AC-7).
+      // Cerrarla igual sería tirar el trabajo de alguien mientras la interfaz dice que se guardó, que
+      // es el defecto más caro que esta spec podía introducir.
+      if (entryOf(id)?.status !== 'clean') {
+        return { closed: false, next };
+      }
+
       cancelDebounce(id);
       drop(id);
+
+      return { closed: true, next };
     },
 
-    setDraft: (id, draft) => {
+    setDraft: (id, draft, write) => {
       const entry = entryOf(id);
 
       if (entry === undefined || entry.draft === draft) {
         return;
       }
 
-      if (draft === entry.savedContent) {
-        // Deshacer hasta el original no es un cambio pendiente: además de volver a `clean`, cancela
-        // el guardado programado, para no mandar una petición que no cambia nada.
-        cancelDebounce(id);
-        patch(id, { draft, status: 'clean', error: null });
-
-        return;
-      }
-
-      patch(id, { draft, status: 'dirty', error: null });
-      scheduleSave(id);
+      writeDraft(
+        id,
+        draft,
+        recordWrite(entry.undo, {
+          before: entry.draft,
+          after: draft,
+          mergeable: write?.mergeable ?? true,
+          // **El único punto de la `006` que lee el reloj.** El módulo de historial lo recibe como
+          // argumento, así que sus casos se comprueban pasando dos números en vez de moviendo relojes.
+          now: Date.now(),
+          caretBefore: write?.caretBefore,
+          caretAfter: write?.caretAfter,
+        }),
+      );
     },
 
     saveNow: async (id) => {
@@ -361,11 +606,9 @@ export const useEditorStore = create<EditorState>()((set, get) => {
 
       await requestSave(id);
 
-      // Solo se descarta si acabó limpio. Si falló, la entrada se conserva **con su borrador**:
-      // volver al documento tiene que restaurar lo que la persona escribió (AC-28).
-      if (entryOf(id)?.status === 'clean') {
-        drop(id);
-      }
+      // Y **no se descarta nada**. Aquí vivía el `drop` de la `003`; se mudó a `closeTab`, que es
+      // quien sabe si la persona quiso cerrar o solo cambiar de pestaña (enmienda v0.2.0 de la `003`,
+      // pedida por la `005`: sus AC-4 a AC-9).
     },
 
     resolveKeepMine: async (id) => {
@@ -421,6 +664,12 @@ export const useEditorStore = create<EditorState>()((set, get) => {
         error: null,
         serverContent: null,
         serverVersion: null,
+        // La pila **se vacía** (spec `006`, AC-21). Adoptar el texto del servidor cambia el documento
+        // entero, y dejar los pasos anteriores permitiría deshacer «hacia atrás» hasta reintroducir el
+        // conflicto que se acaba de resolver — con un `Ctrl`+`Z` cuyo resultado nadie puede predecir.
+        // Es el único sitio del store, aparte de `setDraft`, que escribe el borrador y tiene que
+        // decidir qué hacer con el historial (`006/spec.md` §1.3).
+        undo: clearHistory(),
       });
     },
 
@@ -429,5 +678,9 @@ export const useEditorStore = create<EditorState>()((set, get) => {
     setViewMode: (id, viewMode) => {
       patch(id, { viewMode });
     },
+
+    undo: (id) => applyHistoryStep(id, undoStep),
+
+    redo: (id) => applyHistoryStep(id, redoStep),
   };
 });

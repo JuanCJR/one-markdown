@@ -1,8 +1,16 @@
 # Spec 004 — Paleta de elementos markdown insertables
 
-- **Versión**: 0.3.0
+- **Versión**: 0.3.1
 - **Estado**: **complete** — **36/36 AC** y **12/12 tareas** cerradas y verificadas el 2026-07-29
-  (T-001…T-012)
+  (T-001…T-012).
+  **La v0.3.1 no reabre nada**: es un patch de documentación pedido por la `006` que amplía el
+  **alcance de un instrumento**, la guarda de pureza de AC-17, sin mover el recuento ni cambiar lo
+  que ese AC exige de los dos módulos de esta spec.
+  **Consecuencia asumida, y es la misma que la `002` y la `003` se dieron al ser enmendadas**: desde
+  el 2026-07-29 **la redacción de AC-17 va por delante del código**. La línea que mete
+  `text-edit.ts` y `undo-history.ts` en `PURE_MODULES` **no la escribe esta spec**: la escriben
+  `T-001` y `T-002` de la `006`, cada una cuando estrena su módulo, porque hoy esos archivos todavía
+  no existen
 - **Fecha**: 2026-07-28 (v0.1.0 draft) · **aprobada el 2026-07-28** con las seis decisiones de §8 resueltas
   · **v0.1.2 el 2026-07-29**: corrección aritmética del catálogo (**16 elementos, no 14**), AC-35 nuevo
   y cinco huecos de especificación ratificados con lo ya implementado
@@ -18,6 +26,16 @@
   literal no requería ninguna flecha); riesgo **#12** nuevo con la regla que lo evita; y la
   extracción de `watchConsole` queda como **deuda con destinatario en la `005`**. **El recuento no
   se mueve: siguen 36 AC y 11 tareas**
+  · **v0.3.1 el 2026-07-29**: **patch de enmienda pedido por la `006-editor-undo`** y aplicado por su
+  `T-000` **sin tocar una línea de código**. La guarda de pureza que vive en `markdown-palette.test.ts`
+  pasa a vigilar también los dos módulos puros que estrena la `006` (`text-edit.ts`,
+  `undo-history.ts`), y **AC-17 se redacta para que la lista de módulos vigilados pueda crecer sin
+  que haya que reescribir el criterio cada vez**. **Patch y no minor**: el recuento **no se mueve**
+  —siguen 36 AC y 12 tareas—, ningún AC cambia de significado para los módulos de esta spec, y lo
+  único que cambia es el alcance de un instrumento, hacia arriba. Se descartó **un archivo de guarda
+  nuevo** para la `006`: sería un **segundo detector con la misma lista de tokens**, es decir la
+  avería que la `005` pagó con los seis ayudantes de e2e duplicados, dos de ellos ya divergidos. El
+  motivo largo está en `006/spec.md` §7.1, y §9.6 de aquí lo da por cobrado
   · **v0.3.0 el 2026-07-29**: **versión de cierre, escrita con T-011 verde**. Es minor por una sola
   razón —**el recuento de tareas se mueve, 11 → 12**— y esa es la regla que la v0.2.1 dejó fijada al
   justificarse a sí misma como patch («el recuento no se mueve»). **T-012** convierte el último
@@ -245,9 +263,15 @@ es quien traduce ese resultado a `setDraft` + `setSelectionRange`.
   el componente por la misma razón que las etiquetas de los botones: son **copia de interfaz**, del
   mismo tipo y con el mismo test que las demás. El componente los **consume**; no los declara.
 
-- **AC-17** — Dados los archivos del núcleo y del catálogo, entonces **no importan** `react`,
-  `react-dom`, `zustand` ni el store, y **no mencionan** `document` ni `window`. Se comprueba leyendo
-  el código fuente, con el mismo patrón que `no-dangerous-html.test.ts` de la `003`, no por revisión.
+- **AC-17** — Dados **los módulos puros vigilados** —los de esta spec son el núcleo y el catálogo—,
+  entonces **no importan** `react`, `react-dom`, `zustand` ni el store, y **no mencionan** `document`
+  ni `window`. Se comprueba leyendo el código fuente, con el mismo patrón que
+  `no-dangerous-html.test.ts` de la `003`, no por revisión.
+  **La lista de módulos vigilados crece con cada spec que estrena un módulo puro, y eso no cambia
+  nada de lo que este AC exige de los suyos** (enmienda **v0.3.1**, pedida por la `006`): la guarda
+  es **una**, con **una** lista de tokens, porque un segundo detector con la misma lista es una copia
+  que puede divergir. **Qué módulos añade cada spec lo dice su propio AC** —la `006` lo hace en su
+  AC-9—, y el recuento vive en la constante `PURE_MODULES` y en **ningún literal**.
 
 - **AC-18** — Dado el catálogo, cuando se recorre entero aplicando cada elemento a un documento
   vacío, entonces **todos** producen un texto distinto del de entrada y una selección dentro de los
@@ -946,6 +970,15 @@ guarda. En la `004` esto no estaba previsto y T-005 tuvo que tocar la cabecera d
 con la lista de artefactos diciendo «solo el `import` de los tipos». El agente lo reportó él mismo,
 el archivo era suyo desde T-001 y no hubo cambio de comportamiento — pero la lista estaba mal, y es
 la clase de desviación que solo sale bien cuando el agente para y avisa.
+
+**Cobrado el 2026-07-29, y salió como esta sección anticipaba** (enmienda **v0.3.1**). La
+`006-editor-undo` estrena **dos** módulos puros —`text-edit.ts` y `undo-history.ts`— y **no escribe
+otra guarda**: amplía la lista `PURE_MODULES` de aquí. Un archivo de guarda propio habría sido un
+**segundo detector con la misma lista de tokens**, que es la avería que la `005` pagó con seis
+ayudantes de e2e duplicados —dos de ellos ya divergidos en firma, midiendo cosas distintas mientras
+creían medir lo mismo—. Y las tareas que estrenan los módulos (`T-001` y `T-002` de la `006`) llevan
+**la cabecera de comentario de cada archivo dentro de su lista de artefactos**, que es exactamente lo
+que a esta spec le faltó en `T-005`. Ver `006/spec.md` §7.1.
 
 ### 9.7 El andamio vacío es parte del RED, no una trampa
 

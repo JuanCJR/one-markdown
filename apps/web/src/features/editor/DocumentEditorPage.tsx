@@ -36,12 +36,19 @@ type LoadState =
   | { readonly status: 'missing' }
   | { readonly status: 'error'; readonly message: string };
 
-/** Orden de las pestañas, que es también el orden en que las recorren las flechas. */
-const VIEW_MODES: readonly ViewMode[] = ['text', 'preview'];
+/**
+ * Orden de las pestañas, que es también el orden en que las recorren las flechas.
+ *
+ * Se **exporta** para que los tests afirmen los rótulos del conmutador contra la enumeración y no
+ * contra un literal (spec `005`, AC-14): así el caso y la interfaz se ponen de acuerdo solos cuando
+ * la enumeración cambie, y no queda ningún recuento escrito a mano que actualizar en dos sitios.
+ */
+export const VIEW_MODES: readonly ViewMode[] = ['text', 'preview', 'split'];
 
-const VIEW_MODE_LABELS: Readonly<Record<ViewMode, string>> = {
+export const VIEW_MODE_LABELS: Readonly<Record<ViewMode, string>> = {
   text: 'Texto',
   preview: 'Vista previa',
+  split: 'Dividida',
 };
 
 export function DocumentEditorPage(): React.JSX.Element {
@@ -223,7 +230,11 @@ export function DocumentEditorPage(): React.JSX.Element {
   // La entrada puede faltar con la carga ya resuelta: al desmontar, `flush` la descarta.
   if (load.status === 'loading' || entry === undefined) {
     return (
-      <p role="status" className="text-sm text-slate-500">
+      // El `aria-label` es de la `005` (AC-26) y no cambia ningún comportamiento: la tira de
+      // pestañas se pinta **mientras** el documento carga, así que en ese instante hay dos regiones
+      // vivas en la página y esta era la anónima. Con dos `role="status"` sin distinguir, quien
+      // recorre la lista de regiones con un lector de pantalla no sabe cuál acaba de hablar.
+      <p role="status" aria-label="Carga del documento" className="text-sm text-slate-500">
         Cargando el documento…
       </p>
     );
@@ -320,8 +331,36 @@ export function DocumentEditorPage(): React.JSX.Element {
 
   const remaining = MAX_DOCUMENT_CONTENT_CHARS - entry.draft.length;
 
+  // Las dos mitades del panel, definidas **una vez** y colocadas de tres formas distintas: en
+  // `split` no hay un editor nuevo ni una vista previa nueva, es la misma pareja de la `003` puesta
+  // lado a lado (`005/spec.md` §1.2). El texto que se edita es el que se previsualiza.
+  const editorTextarea = (
+    <textarea
+      ref={textareaRef}
+      aria-label={`Contenido de «${title}» en markdown`}
+      value={entry.draft}
+      spellCheck={false}
+      onKeyDown={handleTextareaKeyDown}
+      onChange={(event) => {
+        // Único camino por el que cambia el contenido (decisión 10 del plan): la paleta de
+        // la spec `004` llamará a la misma acción y heredará el debounce y la coalescencia.
+        useEditorStore.getState().setDraft(documentId, event.target.value);
+      }}
+      className="h-full min-h-96 w-full resize-none rounded border border-slate-200 bg-white p-4 font-mono text-sm text-slate-800 outline-solid outline-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+    />
+  );
+
+  // El **borrador**, no lo último guardado: se previsualiza lo que se está escribiendo (AC-16).
+  const preview = <MarkdownPreview markdown={entry.draft} />;
+
   return (
-    <article className="mx-auto flex h-full max-w-3xl flex-col gap-4">
+    <article
+      className={`mx-auto flex h-full flex-col gap-4 ${
+        // Dos columnas dentro de 768 px son dos columnas inservibles (`plan.md` decisión 9): el
+        // ancho de la página es **función del modo**, y AC-19 afirma en el navegador que crece.
+        viewMode === 'split' ? 'max-w-6xl' : 'max-w-3xl'
+      }`}
+    >
       <header className="flex flex-col gap-1">
         <nav aria-label="Ruta del documento">
           <ol className="flex flex-wrap items-center text-sm text-slate-500">
@@ -411,11 +450,16 @@ export function DocumentEditorPage(): React.JSX.Element {
       </div>
 
       {/*
-        Va **antes** del panel y solo en modo texto (AC-19, AC-26): quien recorra la página con
-        lector de pantalla o con el tabulador encuentra la paleta antes de entrar a escribir, y no
-        después de haber pasado por dentro del área de texto.
+        Va **antes** del panel y solo donde se escribe —`text` y `split`— (`004` AC-19 y AC-26,
+        `005` AC-18): quien recorra la página con lector de pantalla o con el tabulador encuentra la
+        paleta antes de entrar a escribir, y no después de haber pasado por dentro del área de
+        texto. **Una sola vez** y fuera de la retícula: con vista dividida hay **un** panel de texto,
+        así que hay una paleta, y ponerla dentro de la columna movería el orden de tabulación que
+        fija AC-27.
       */}
-      {viewMode === 'text' ? <MarkdownPalette onInsert={insertElement} /> : null}
+      {viewMode === 'text' || viewMode === 'split' ? (
+        <MarkdownPalette onInsert={insertElement} />
+      ) : null}
 
       <div
         role="tabpanel"
@@ -427,22 +471,28 @@ export function DocumentEditorPage(): React.JSX.Element {
         className="min-h-0 flex-1 outline-solid outline-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
       >
         {viewMode === 'text' ? (
-          <textarea
-            ref={textareaRef}
-            aria-label={`Contenido de «${title}» en markdown`}
-            value={entry.draft}
-            spellCheck={false}
-            onKeyDown={handleTextareaKeyDown}
-            onChange={(event) => {
-              // Único camino por el que cambia el contenido (decisión 10 del plan): la paleta de
-              // la spec `004` llamará a la misma acción y heredará el debounce y la coalescencia.
-              useEditorStore.getState().setDraft(documentId, event.target.value);
-            }}
-            className="h-full min-h-96 w-full resize-none rounded border border-slate-200 bg-white p-4 font-mono text-sm text-slate-800 outline-solid outline-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-          />
+          editorTextarea
+        ) : viewMode === 'preview' ? (
+          preview
         ) : (
-          // El **borrador**, no lo último guardado: se previsualiza lo que se está escribiendo.
-          <MarkdownPreview markdown={entry.draft} />
+          // Un **solo** `role="tabpanel"` también aquí (`plan.md` decisión 10): el patrón *tabs*
+          // tiene un panel visible por definición y `aria-controls` apunta a uno, así que el modo
+          // dividido es «el panel de la vista dividida, que dentro tiene dos regiones con nombre».
+          // Dos `tabpanel` a la vez sería inventarse una variante del patrón.
+          <div className="grid h-full min-h-0 gap-4 md:grid-cols-2">
+            <section aria-label="Texto" className="flex min-h-0 flex-col">
+              {editorTextarea}
+            </section>
+
+            {/*
+              Sin `overflow-auto`: un contenedor que se desplaza y al que no llega el foco no lo
+              puede leer quien va con el teclado (WCAG 2.1.1). Aquí se desplaza el `<main>` del
+              shell, que es lo que ya pasa hoy con la vista previa a pantalla completa.
+            */}
+            <section aria-label="Vista previa" className="min-h-0">
+              {preview}
+            </section>
+          </div>
         )}
       </div>
 

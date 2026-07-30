@@ -1,6 +1,20 @@
 # Spec 001 — Auth: registro, login, JWT access+refresh, bcrypt, MFA TOTP, Redis, rate limit
 
-- **Versión**: 0.1.2 — patch. Ningún AC cambia y ningún límite de producción se toca. La **v0.1.2**
+- **Versión**: 0.1.4 — patch. Ningún AC cambia y ningún límite de producción se toca. La **v0.1.4**
+  registra que el andamiaje e2e volvió a cambiar, esta vez por `T-007` de la spec `006`: los ayudantes
+  compartidos de `apps/web/e2e/support/` pasan a ser **siete** con `watchContentSaves`, que contaba los
+  `PUT …/content` por duplicado en `palette.spec.ts` y `tabs.spec.ts` y que `undo.spec.ts` habría
+  convertido en tercera copia. Las dos copias eran **idénticas carácter por carácter** —comprobado antes
+  de mover, no supuesto—, a diferencia de los seis de la `005`, dos de los cuales ya habían divergido en
+  firma. Detalle en el CHANGELOG, v0.1.4.
+- **Versión anterior**: 0.1.3 — patch. La **v0.1.3**
+  registra que el andamiaje e2e volvió a cambiar, esta vez por `T-001` de la spec `005` (su AC-29):
+  el servidor web de la suite se lleva un **puerto propio, `E2E_WEB_PORT = 5183`**, simétrico con el
+  **3011** que el API ya tenía, y arranca con `--strictPort` para que un puerto ocupado sea un aborto
+  claro y no un cuelgue. Con eso **la suite de navegador y `pnpm dev` pasan a poder coexistir**, y
+  desaparece la precondición «parar `pnpm dev` antes de medir con Playwright» que la `004` había
+  dejado escrita como su riesgo #14. Detalle en el CHANGELOG, v0.1.3.
+- **Versión previa**: 0.1.2 — patch. La **v0.1.2**
   registra que el andamiaje e2e volvió a cambiar, esta vez por `T-015` de la spec `003`: la suite de
   navegador pasa a resetear también el contador **`throttle:workspace:*`**, porque el escenario con
   reintentos de AC-34 de la `003` no cabía en el cupo. **`throttle:documentContent:*` NO se resetea** —la

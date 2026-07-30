@@ -26,6 +26,36 @@ export const AUTOSAVE_DEBOUNCE_MS = 1_500;
 export const CONTENT_COUNTER_THRESHOLD = Math.floor(MAX_DOCUMENT_CONTENT_CHARS * 0.9);
 
 /**
+ * Ventana de inactividad que agrupa el tecleo en **un** paso de deshacer (spec `006`, AC-3, AC-4).
+ *
+ * **No se deriva de `AUTOSAVE_DEBOUNCE_MS` y no debe igualársele**, aunque los dos midan pausas al
+ * escribir: este es **granularidad de historial** y aquel es **tráfico de red**. Atarlos haría que
+ * ajustar la política de peticiones cambiara en silencio qué significa `Ctrl`+`Z`, y al revés.
+ *
+ * Lo que sí está atado es la **relación**, y AC-10 la afirma: que el de historial sea el más corto es
+ * lo que hace que un paso de deshacer sea siempre ≤ lo que se pierde en un cierre forzado. El número
+ * en sí es una convención, no una medida.
+ */
+export const UNDO_GROUP_MS = 500;
+
+/**
+ * Cuánto historial puede acumular un documento, **en caracteres** (spec `006`, AC-7).
+ *
+ * Se lee: «el historial de un documento nunca cuesta más que **una copia más** del documento más
+ * grande que se admite». Con las dos copias que la entrada ya guarda —lo guardado y el borrador—, el
+ * peor caso por pestaña son tres.
+ *
+ * **En caracteres y no en número de pasos**, que era lo que la `004` §9.3 proponía: como una
+ * transacción guarda el reemplazo mínimo y no dos copias del texto, un paso puede medir 1 carácter o
+ * 400.000. Contar pasos sería contar una unidad que no tiene tamaño, y el mismo número describiría
+ * dos mundos separados por cuatro órdenes de magnitud (`006/spec.md` §2.1).
+ *
+ * Derivado y no escrito, por el mismo motivo que el límite de arriba: dos literales iguales en dos
+ * sitios es cómo divergen los límites.
+ */
+export const UNDO_HISTORY_BUDGET_CHARS = MAX_DOCUMENT_CONTENT_CHARS;
+
+/**
  * Único código de dominio al que el editor reacciona con una rama de interfaz propia en vez de con
  * el aviso genérico: lo devuelve el `409` de `PUT /api/workspace/documents/:id/content`.
  */

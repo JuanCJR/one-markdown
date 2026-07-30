@@ -5,13 +5,13 @@ import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { DocumentEditorPage } from './DocumentEditorPage';
+import { DocumentEditorPage, VIEW_MODES, VIEW_MODE_LABELS } from './DocumentEditorPage';
 import {
   AUTOSAVE_DEBOUNCE_MS,
   CONTENT_COUNTER_THRESHOLD,
   DOCUMENT_CONTENT_CONFLICT_CODE,
 } from './editor.constants';
-import { useEditorStore, type EditorEntry } from './editor.store';
+import { useEditorStore, type EditorEntry, type ViewMode } from './editor.store';
 import { routes } from '../../app/routes';
 import {
   apiErrorResponse,
@@ -159,6 +159,32 @@ async function openEditor(routes: Record<string, StubHandler> = {}): Promise<Mou
 }
 
 /**
+ * Monta la aplicación **entera** sobre el documento de prueba y devuelve el doble de red.
+ *
+ * AC-25, AC-26 y AC-27 de la `005` hablan de la página del editor **tal y como se ve**, y la tira de
+ * pestañas la pinta el `AppShell` (`T-007`): sin el shell no hay dos `tablist`, falta la región viva
+ * de las pestañas y el orden de tabulación empieza donde no es. `openEditor` se queda montando solo
+ * la página, que es lo que quieren los casos que no hablan del shell.
+ */
+async function openEditorInApp(extra: Record<string, StubHandler> = {}): Promise<ApiStub> {
+  const api = stubApi({
+    [TREE_ROUTE]: () => jsonResponse(sampleTree()),
+    [GET_ROUTE]: documentRoute({ content: SERVER_TEXT, contentVersion: SERVER_VERSION }),
+    [PUT_ROUTE]: contentSaved(SERVER_VERSION + 1),
+    ...extra,
+  });
+
+  render(
+    <RouterProvider
+      router={createMemoryRouter(routes, { initialEntries: [`/documents/${DOC_ID}`] })}
+    />,
+  );
+  await settle();
+
+  return api;
+}
+
+/**
  * Deja correr las promesas en vuelo y, si se pide, un tramo de temporizador. Sustituye a
  * `findBy*`: con temporizadores falsos, el `waitFor` de Testing Library no los reconoce (busca un
  * `jest` global que en Vitest no existe) y esperaría de verdad.
@@ -213,18 +239,125 @@ function caret(): readonly [number, number] {
 }
 
 function paletteButton(label: string): HTMLElement {
-  return within(screen.getByRole('toolbar', { name: 'Elementos de markdown' })).getByRole('button', {
+  return within(screen.getByRole('toolbar', { name: PALETTE_NAME })).getByRole('button', {
     name: label,
   });
 }
 
-/** Los nombres accesibles de las dos regiones vivas del editor (AC-27). Salen de sus `aria-label`. */
-const SAVE_REGION_NAME = 'Estado del guardado';
-const PALETTE_REGION_NAME = 'Elemento insertado';
+/** Nombre accesible de la paleta de la `004`. Es también el de su `role="toolbar"`. */
+const PALETTE_NAME = 'Elementos de markdown';
 
-/** La región viva del guardado de la `003`, ya no la única `role="status"` de la página (AC-27). */
+/**
+ * Las paletas que hay en la página, **en plural** (005: AC-18).
+ *
+ * Se pregunta por todas y se afirma la **longitud**, no la presencia: «hay una paleta» pasa igual
+ * con dos, y dos paletas es exactamente la regresión que AC-18 vigila —tres documentos cerrados dan
+ * por hecho que con vista dividida habrá dos, y `005/spec.md` §1.2 explica por qué no.
+ */
+function palettes(): readonly HTMLElement[] {
+  return screen.queryAllByRole('toolbar', { name: PALETTE_NAME });
+}
+
+/**
+ * El conmutador de modo de vista, **por su nombre accesible** (005: AC-25).
+ *
+ * Sin nombre no vale: la tira de pestañas de documentos vive en la misma página, así que un
+ * `getByRole('tablist')` pelado deja de ser inequívoco. Y por nombre es además como lo distingue
+ * quien recorre la página con un lector de pantalla.
+ */
+function viewModeTablist(): HTMLElement {
+  return screen.getByRole('tablist', { name: 'Modo de vista' });
+}
+
+/**
+ * Los rótulos que el conmutador tiene que pintar, **derivados de la enumeración** (005: AC-14).
+ *
+ * Ni aquí ni en ningún caso se escribe a mano cuántos son: la `004` escribió «14 elementos» en diez
+ * sitios mientras su propia tabla enumeraba 16, y dos de esos números iban a usarse como aserción.
+ */
+const VIEW_MODE_TAB_LABELS = VIEW_MODES.map((mode) => VIEW_MODE_LABELS[mode]);
+
+/** Cambia de modo como lo haría la persona: pulsando su pestaña. */
+async function selectMode(mode: ViewMode): Promise<void> {
+  await user.click(within(viewModeTablist()).getByRole('tab', { name: VIEW_MODE_LABELS[mode] }));
+}
+
+/**
+ * Las regiones vivas de la página del editor, **por su nombre accesible** (005: AC-26).
+ *
+ * La enumeración vive aquí y en `005/spec.md` AC-26, y **en ningún caso se escribe a mano cuántas
+ * son**: la cuenta se deriva de la lista que el propio caso afirma, para que añadir o quitar una
+ * región no deje un número rancio en una aserción. Las cuatro salen de sus `aria-label`: el guardado
+ * (`003`), la paleta (`004`), las pestañas (`005`) y la carga (`003`, que gana nombre con AC-26).
+ */
+const LIVE_REGION_NAMES = {
+  save: 'Estado del guardado',
+  palette: 'Elemento insertado',
+  tabs: 'Pestañas abiertas',
+  loading: 'Carga del documento',
+} as const;
+
+/** La región viva del guardado de la `003`, ya no la única `role="status"` de la página (AC-26). */
 function saveRegion(): HTMLElement {
-  return screen.getByRole('status', { name: SAVE_REGION_NAME });
+  return screen.getByRole('status', { name: LIVE_REGION_NAMES.save });
+}
+
+/** Las regiones vivas que el caso enumera, **una por nombre** y en el orden en que las enumera. */
+function liveRegionsNamed(names: readonly string[]): readonly HTMLElement[] {
+  return names.map((name) => screen.getByRole('status', { name }));
+}
+
+/**
+ * Los `role="status"` que hay en el documento, leídos del **DOM** y no con `getAllByRole`.
+ *
+ * AC-25 prohíbe pedir un `status` sin nombre, y con motivo: esa consulta es justo la que se lleva
+ * por delante la desambiguación. Pero hace falta afirmar lo contrario que una consulta —que no hay
+ * ninguna región **de más** ni ninguna **anónima**—, y eso se lee del DOM, igual que la `003`
+ * comprueba que no queda ningún `contenteditable`.
+ */
+function liveRegionNodes(): readonly Element[] {
+  return [...document.querySelectorAll('[role="status"]')];
+}
+
+/** Dos regiones vivas anidadas producen anuncios duplicados: ninguna contiene a ninguna otra. */
+function expectNoneNested(regions: readonly HTMLElement[]): void {
+  for (const outer of regions) {
+    for (const inner of regions) {
+      if (outer !== inner) {
+        expect(outer).not.toContainElement(inner);
+      }
+    }
+  }
+}
+
+/**
+ * Cuántas veces se tabula al comprobar AC-27. **No es el número de paradas de la página**: es un
+ * tramo con holgura, porque el criterio es el orden **relativo** de cinco elementos y no una
+ * secuencia cerrada. El recorrido se corta solo al salir del documento.
+ */
+const TAB_SWEEP_STEPS = 15;
+
+/**
+ * Tabula desde el principio del documento y devuelve los elementos que van recibiendo el foco.
+ *
+ * Se corta al volver el foco al `<body>`, que es donde acaba el recorrido tras la última parada.
+ */
+async function tabThrough(steps: number): Promise<readonly HTMLElement[]> {
+  const visited: HTMLElement[] = [];
+
+  for (let step = 0; step < steps; step += 1) {
+    await user.tab();
+
+    const active = document.activeElement;
+
+    if (!(active instanceof HTMLElement) || active === document.body) {
+      break;
+    }
+
+    visited.push(active);
+  }
+
+  return visited;
 }
 
 /**
@@ -237,7 +370,7 @@ function saveRegion(): HTMLElement {
  */
 function liveRegions(): { readonly palette: HTMLElement; readonly save: HTMLElement } {
   return {
-    palette: screen.getByRole('status', { name: PALETTE_REGION_NAME }),
+    palette: screen.getByRole('status', { name: LIVE_REGION_NAMES.palette }),
     save: saveRegion(),
   };
 }
@@ -304,10 +437,14 @@ async function pressShortcut(
 let user: UserEvent;
 
 beforeEach(() => {
-  // Un debounce pendiente del caso anterior vive en un mapa a nivel de módulo del store: `close`
-  // lo cancela, y sin eso podría dispararse a mitad del caso siguiente.
-  useEditorStore.getState().close(DOC_ID);
-  useEditorStore.getState().close(ROOT_DOC_ID);
+  // Aquí había dos `close(id)` para cancelar un debounce pendiente del caso anterior. El `close` de
+  // la `003` **se retiró** con `T-005` de la `005` —descartaba una entrada **sin guardar**, y con
+  // pestañas eso es un camino por el que alguien pierde su trabajo—, y su sustituto `closeTab`
+  // guarda, así que en un `beforeEach` emitiría peticiones. No hace falta ninguno de los dos: el
+  // `afterEach` hace `useRealTimers()`, que **desmonta el reloj falso entero**, así que un
+  // temporizador programado en el caso anterior no puede dispararse en el siguiente. Lo único que
+  // sobrevive es un identificador muerto en el mapa del módulo, y `cancelDebounce` sobre él es un
+  // `clearTimeout` que no hace nada.
   useEditorStore.setState(useEditorStore.getInitialState(), true);
   useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
   useUiStore.setState({ sidebarCollapsed: false });
@@ -346,13 +483,16 @@ describe('DocumentEditorPage — estructura y accesibilidad (AC-22)', () => {
     ]);
   });
 
-  it('ofrece un conmutador de dos pestañas con exactamente una seleccionada', async () => {
+  it('ofrece un conmutador con una pestaña por modo y exactamente una seleccionada', async () => {
     await seedTree();
     await openEditor();
 
-    const tabs = within(screen.getByRole('tablist')).getAllByRole('tab');
+    // El conmutador se pide **por su nombre** (AC-25): con la tira de pestañas de documentos en la
+    // misma página, un `getByRole('tablist')` pelado deja de ser inequívoco. Y la lista esperada se
+    // deriva de la enumeración (AC-14), no de un literal que hay que acordarse de actualizar.
+    const tabs = within(viewModeTablist()).getAllByRole('tab');
 
-    expect(tabs.map((tab) => tab.textContent)).toEqual(['Texto', 'Vista previa']);
+    expect(tabs.map((tab) => tab.textContent)).toEqual(VIEW_MODE_TAB_LABELS);
     expect(tabs.filter((tab) => tab.getAttribute('aria-selected') === 'true')).toHaveLength(1);
     expect(screen.getByRole('tab', { name: 'Texto', selected: true })).toBeInTheDocument();
   });
@@ -480,6 +620,117 @@ describe('DocumentEditorPage — vista previa (AC-24)', () => {
     ).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: /título del servidor/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+  });
+});
+
+describe('DocumentEditorPage — vista dividida (spec 005: AC-14 a AC-18, AC-25)', () => {
+  /** El único panel de la página, que en modo dividido es el que contiene las dos regiones. */
+  function panel(): HTMLElement {
+    return screen.getByRole('tabpanel');
+  }
+
+  it('la enumeración de modos incluye el dividido y el conmutador pinta uno por modo (AC-14)', async () => {
+    await seedTree();
+    await openEditor();
+
+    // La aserción es contra la enumeración importada, no contra un literal: el conmutador y el
+    // caso tienen que quedarse de acuerdo solos cuando la enumeración cambie.
+    expect(VIEW_MODES).toContain<ViewMode>('split');
+    expect(within(viewModeTablist()).getAllByRole('tab').map((tab) => tab.textContent)).toEqual(
+      VIEW_MODE_TAB_LABELS,
+    );
+  });
+
+  it('en modo dividido el texto y la vista previa están los dos, en UN solo panel (AC-15)', async () => {
+    await seedTree();
+    await openEditor();
+
+    await selectMode('split');
+
+    const heading = screen.getByRole('heading', { name: 'Título del servidor', level: 1 });
+
+    // Un solo `tabpanel` (decisión 10 del plan): el patrón *tabs* tiene uno por definición, y dos a
+    // la vez sería inventarse una variante. Las dos mitades son **regiones con nombre** dentro.
+    expect(screen.getAllByRole('tabpanel')).toHaveLength(1);
+    expect(within(panel()).getByRole('region', { name: 'Texto' })).toContainElement(textarea());
+    expect(within(panel()).getByRole('region', { name: 'Vista previa' })).toContainElement(heading);
+  });
+
+  it('en modo dividido la vista previa pinta el BORRADOR, sin esperar al guardado (AC-16)', async () => {
+    await seedTree();
+    const { api } = await openEditor({ [PUT_ROUTE]: contentSaved(SERVER_VERSION + 1) });
+
+    await selectMode('split');
+    await user.clear(textarea());
+    await user.type(textarea(), '# Lo que estoy escribiendo');
+
+    // **Antes** de avanzar el temporizador de 1,5 s a propósito: si se avanzara, el caso dejaría de
+    // distinguir «la vista previa pinta el borrador» de «pinta lo último guardado».
+    expect(api.callsTo(PUT_ROUTE)).toHaveLength(0);
+    expect(entry()).toMatchObject({
+      draft: '# Lo que estoy escribiendo',
+      savedContent: SERVER_TEXT,
+    });
+    expect(
+      within(panel()).getByRole('heading', { name: 'Lo que estoy escribiendo', level: 1 }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /título del servidor/i })).not.toBeInTheDocument();
+  });
+
+  it('el modo es POR DOCUMENTO: cada pestaña conserva el suyo al alternar (AC-17)', async () => {
+    await seedTree();
+    const { router } = await openEditor({
+      [`GET /api/workspace/documents/${ROOT_DOC_ID}`]: () =>
+        jsonResponse(markdownDocument({ id: ROOT_DOC_ID, title: 'En la raíz', directoryId: null })),
+    });
+
+    await selectMode('split');
+
+    await act(async () => {
+      await router.navigate(`/documents/${ROOT_DOC_ID}`);
+    });
+    await settle();
+
+    // El documento recién abierto arranca en texto: el modo del otro no se le pega.
+    expect(screen.getByRole('heading', { name: 'En la raíz', level: 2 })).toBeInTheDocument();
+    expect(
+      screen.getByRole('tab', { name: VIEW_MODE_LABELS.text, selected: true }),
+    ).toBeInTheDocument();
+
+    await act(async () => {
+      await router.navigate(`/documents/${DOC_ID}`);
+    });
+    await settle();
+
+    expect(
+      screen.getByRole('tab', { name: VIEW_MODE_LABELS.split, selected: true }),
+    ).toBeInTheDocument();
+  });
+
+  it('hay UNA paleta en texto y UNA en dividida, y ninguna en vista previa (AC-18)', async () => {
+    await seedTree();
+    await openEditor();
+
+    expect(palettes()).toHaveLength(1);
+
+    // Con vista dividida hay **un** panel de texto, así que hay **una** paleta: la longitud es la
+    // aserción, porque la presencia pasaría igual con dos (`005/spec.md` §1.2).
+    await selectMode('split');
+    expect(palettes()).toHaveLength(1);
+
+    // Insertar en un área de texto que no se ve no es una funcionalidad, es desconcierto.
+    await selectMode('preview');
+    expect(palettes()).toHaveLength(0);
+
+    await selectMode('text');
+    expect(palettes()).toHaveLength(1);
+  });
+
+  it('el conmutador lleva nombre accesible propio, distinto del de cualquier otro (AC-25)', async () => {
+    await seedTree();
+    await openEditor();
+
+    expect(viewModeTablist()).toHaveAccessibleName('Modo de vista');
   });
 });
 
@@ -655,7 +906,7 @@ describe('DocumentEditorPage — resolución del conflicto (AC-20)', () => {
 });
 
 describe('DocumentEditorPage — desmontaje (AC-28)', () => {
-  it('fuerza el guardado pendiente al desmontar y descarta la entrada si sale bien', async () => {
+  it('fuerza el guardado pendiente al desmontar y CONSERVA la entrada (005: AC-8, AC-9)', async () => {
     await seedTree();
     const { api, unmount } = await openEditor({ [PUT_ROUTE]: contentSaved(SERVER_VERSION + 1) });
 
@@ -664,9 +915,20 @@ describe('DocumentEditorPage — desmontaje (AC-28)', () => {
     unmount();
     await settle();
 
+    // La mitad que **no** cambia: el guardado pendiente se fuerza igual (AC-28 de la `003`, AC-9 de
+    // la `005`). Desmontar sigue sin bloquear la navegación y sigue sin perder nada.
     expect(api.callsTo(PUT_ROUTE)).toHaveLength(1);
     expect(sentContent(api.callsTo(PUT_ROUTE)[0])).toBe(`${SERVER_TEXT}lo último que escribí`);
-    expect(useEditorStore.getState().entries[DOC_ID]).toBeUndefined();
+
+    // La mitad que sí: hasta la enmienda (v0.2.0 de la `003`) este caso afirmaba
+    // `toBeUndefined()`. Desmontar es **cambiar de pestaña**, no cerrarla, y desalojar aquí tiraría
+    // el modo de vista —que la `003` quería conservar expresamente— y, desde la `006`, el historial
+    // de deshacer. Quien desaloja es `closeTab`, y solo tras comprobar que el guardado salió bien.
+    expect(useEditorStore.getState().entries[DOC_ID]).toBeDefined();
+    expect(useEditorStore.getState().entries[DOC_ID]?.draft).toBe(
+      `${SERVER_TEXT}lo último que escribí`,
+    );
+    expect(useEditorStore.getState().openIds).toEqual([DOC_ID]);
   });
 
   it('conserva el borrador si el guardado forzado falla, para restaurarlo al volver', async () => {
@@ -888,25 +1150,29 @@ describe('DocumentEditorPage — paleta de markdown (spec 004: AC-19 a AC-23, AC
     await seedTree();
     await openEditor({ [PUT_ROUTE]: contentSaved(SERVER_VERSION + 1) });
 
+    // Las dos se piden **por nombre** y la cuenta sale de esa misma lista (005: AC-25 y AC-26): un
+    // `getAllByRole('status')` pelado —como estaba escrito hasta aquí— es una consulta sin
+    // desambiguar, y el `2` era un número a mano que la tira de pestañas convertiría en mentira.
+    const named = [LIVE_REGION_NAMES.save, LIVE_REGION_NAMES.palette];
+
     // **Antes** de insertar las dos ya están montadas y la de la paleta está vacía. Es la mitad del
     // AC que la v0.2.0 corrigió: una región viva que entra en el DOM con su primer anuncio dentro no
     // es un cambio que el lector pueda observar, es una aparición, y en NVDA o JAWS puede no oírse.
-    expect(screen.getAllByRole('status')).toHaveLength(2);
+    expect(liveRegionNodes()).toHaveLength(liveRegionsNamed(named).length);
     expect(liveRegions().palette).toBeEmptyDOMElement();
 
     await user.click(paletteButton('Negrita'));
 
-    const regions = screen.getAllByRole('status');
+    const regions = liveRegionsNamed(named);
 
-    expect(regions).toHaveLength(2);
+    expect(liveRegionNodes()).toHaveLength(regions.length);
 
     const { palette, save } = liveRegions();
 
     // Dos regiones vivas anidadas producen anuncios duplicados: la misma aserción con la que la
     // `003` separa `status` de `alert`.
     expect(palette).not.toBe(save);
-    expect(palette).not.toContainElement(save);
-    expect(save).not.toContainElement(palette);
+    expectNoneNested(regions);
     expect(palette).toHaveTextContent('Insertado: Negrita');
     expect(save).toHaveTextContent('Cambios sin guardar');
   });
@@ -1094,5 +1360,124 @@ describe('DocumentEditorPage — casos heredados del andamio de la 002 (AC-31)',
 
     expect(screen.getByRole('alert')).toHaveTextContent('El servidor no pudo responder');
     expect(api.callsTo(TREE_ROUTE)).toHaveLength(0);
+  });
+});
+
+/**
+ * Barrido de accesibilidad de la página **entera** (spec `005`: AC-25, AC-26, AC-27).
+ *
+ * Todo este bloque monta la aplicación con `openEditorInApp` y no solo la página: lo que se afirma
+ * aquí —dos `tablist`, las regiones vivas y el orden de tabulación— solo existe con el `AppShell`
+ * pintando la tira de pestañas por encima del `<main>`.
+ */
+describe('DocumentEditorPage — accesibilidad de la página entera (spec 005: AC-25 a AC-27)', () => {
+  it('los dos tablist de la página llevan nombre accesible y son distintos (AC-25)', async () => {
+    await openEditorInApp();
+
+    const documentTabs = screen.getByRole('tablist', { name: 'Documentos abiertos' });
+    const viewSwitcher = viewModeTablist();
+
+    expect(documentTabs).not.toBe(viewSwitcher);
+    expect(documentTabs).toHaveAccessibleName('Documentos abiertos');
+    expect(viewSwitcher).toHaveAccessibleName('Modo de vista');
+
+    // Y ninguno **de más**: un tercer `tablist` sería uno que ninguna consulta desambigua. Se lee del
+    // DOM por el mismo motivo que las regiones vivas —pedir un `tablist` sin nombre es lo que AC-25
+    // prohíbe—, y el orden es el del documento: la tira está por encima del `<main>`.
+    expect([...document.querySelectorAll('[role="tablist"]')]).toEqual([documentTabs, viewSwitcher]);
+  });
+
+  it('en modo texto conviven las tres regiones vivas con nombre, ninguna dentro de otra (AC-26)', async () => {
+    await openEditorInApp();
+
+    const regions = liveRegionsNamed([
+      LIVE_REGION_NAMES.save,
+      LIVE_REGION_NAMES.palette,
+      LIVE_REGION_NAMES.tabs,
+    ]);
+
+    expect(liveRegionNodes()).toHaveLength(regions.length);
+    expectNoneNested(regions);
+  });
+
+  it('en modo dividido son esas mismas tres: ni una cuarta ni una anónima (AC-26)', async () => {
+    await openEditorInApp();
+
+    await selectMode('split');
+
+    const regions = liveRegionsNamed([
+      LIVE_REGION_NAMES.save,
+      LIVE_REGION_NAMES.palette,
+      LIVE_REGION_NAMES.tabs,
+    ]);
+
+    expect(liveRegionNodes()).toHaveLength(regions.length);
+    expectNoneNested(regions);
+  });
+
+  it('mientras el documento carga hay dos regiones vivas y la de la carga TIENE nombre (AC-26)', async () => {
+    // El motivo del `aria-label` de la carga, y por eso este caso monta el shell: la tira de pestañas
+    // se pinta **mientras** el documento carga, así que en ese instante hay dos regiones vivas y una
+    // de ellas era anónima.
+    const pending = deferredResponse();
+
+    await openEditorInApp({ [GET_ROUTE]: () => pending.response });
+
+    try {
+      const regions = liveRegionsNamed([LIVE_REGION_NAMES.tabs, LIVE_REGION_NAMES.loading]);
+
+      expect(screen.getByRole('status', { name: LIVE_REGION_NAMES.loading })).toHaveTextContent(
+        /cargando el documento/i,
+      );
+      expect(liveRegionNodes()).toHaveLength(regions.length);
+      expectNoneNested(regions);
+    } finally {
+      // La lectura se resuelve **pase lo que pase**, y el `finally` no es celo: `open` cachea la
+      // lectura en vuelo en un mapa de **módulo** (`readsInFlight`, AC-10) que ningún `beforeEach`
+      // limpia. Dejarla colgada haría que el caso siguiente abriera el documento contra una promesa
+      // que no llega nunca —pestañas vacías y `openIds` a cero—, así que el rojo saldría en el caso
+      // de al lado y no aquí. Medido: el rojo de este caso arrastró al de AC-27.
+      pending.resolveWith(
+        jsonResponse(lunes({ content: SERVER_TEXT, contentVersion: SERVER_VERSION })),
+      );
+    }
+
+    await settle();
+
+    // Y al llegar el documento la de la carga se va: las que quedan son las tres del modo texto.
+    expect(
+      screen.queryByRole('status', { name: LIVE_REGION_NAMES.loading }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('el orden de tabulación relativo es tira → conmutador → Guardar → paleta → área de texto (AC-27)', async () => {
+    await openEditorInApp();
+
+    // El criterio es el orden **relativo** de estos cinco y no una secuencia cerrada: por medio hay
+    // paradas del shell (plegar la barra lateral, el árbol, la cabecera) que no son de este AC. Y
+    // «Guardar» está enumerado a propósito: vive entre el conmutador y la paleta, y escribir un orden
+    // que lo ignore es el error exacto que la `004` tuvo que corregir en su AC-26.
+    const stops: readonly (readonly [string, HTMLElement])[] = [
+      // Por título **no exacto** (AC-24): el nombre accesible de la pestaña lleva dentro su estado y
+      // cómo se cierra, así que un nombre exacto se rompería en cuanto el documento se ensuciara.
+      ['tira de pestañas', screen.getByRole('tab', { name: /«Lunes»/ })],
+      [
+        'conmutador de vista',
+        within(viewModeTablist()).getByRole('tab', { name: VIEW_MODE_LABELS.text }),
+      ],
+      ['Guardar', screen.getByRole('button', { name: 'Guardar' })],
+      ['paleta', paletteButton('Negrita')],
+      ['área de texto', textareaNode()],
+    ];
+
+    const visited = await tabThrough(TAB_SWEEP_STEPS);
+    const reached = stops.map(([label, node]) => [label, visited.indexOf(node)] as const);
+
+    // Primero, que el recorrido llegue a los cinco: un `-1` es una parada que el tabulador no alcanza,
+    // y ese fallo se lee mucho peor disfrazado de orden equivocado.
+    expect(reached.filter(([, position]) => position === -1)).toEqual([]);
+    expect([...reached].sort((a, b) => a[1] - b[1]).map(([label]) => label)).toEqual(
+      stops.map(([label]) => label),
+    );
   });
 });

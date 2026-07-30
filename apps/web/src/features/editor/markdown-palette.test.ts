@@ -273,7 +273,18 @@ describe('catálogo de elementos markdown', () => {
  * igual de bien hasta el día en que hiciera falta reutilizarlo en la spec `005` con dos paneles
  * abiertos. Lo que lo rompe es el paso del tiempo, y el paso del tiempo se vigila sobre el archivo.
  */
-const PURE_MODULES = ['markdown-insert.ts', 'markdown-palette.ts'] as const;
+/**
+ * La lista **crece con cada spec que estrena un módulo puro**, y eso no cambia lo que AC-17 exige de
+ * los dos de la `004` (enmienda v0.3.1 de esa spec, pedida por la `006`). La guarda es **una**, con
+ * **una** lista de tokens: un segundo archivo con el mismo detector sería una copia que puede
+ * divergir, que es la avería que la `005` pagó con seis ayudantes de e2e duplicados.
+ */
+const PURE_MODULES = [
+  'markdown-insert.ts',
+  'markdown-palette.ts',
+  'text-edit.ts',
+  'undo-history.ts',
+] as const;
 
 const FORBIDDEN_TOKENS = [
   "from 'react'",
@@ -306,15 +317,18 @@ describe('el detector de dependencias del entorno se comprueba a sí mismo', () 
   });
 });
 
-describe.each(PURE_MODULES)('`%s` no conoce el navegador ni el estado (AC-17)', (module) => {
-  const source = readFileSync(join(MODULE_DIRECTORY, module), 'utf8');
+describe.each(PURE_MODULES)(
+  '`%s` no conoce el navegador ni el estado (`004` AC-17 · `006` AC-9)',
+  (module) => {
+    const source = readFileSync(join(MODULE_DIRECTORY, module), 'utf8');
 
-  it('se ha leído el módulo de verdad (si no, la guarda no comprobaría nada)', () => {
-    expect(source.length).toBeGreaterThan(500);
-    expect(source).toContain('export');
-  });
+    it('se ha leído el módulo de verdad (si no, la guarda no comprobaría nada)', () => {
+      expect(source.length).toBeGreaterThan(500);
+      expect(source).toContain('export');
+    });
 
-  it('no menciona ninguno de los tokens prohibidos', () => {
-    expect(forbiddenTokensIn(source)).toEqual([]);
-  });
-});
+    it('no menciona ninguno de los tokens prohibidos', () => {
+      expect(forbiddenTokensIn(source)).toEqual([]);
+    });
+  },
+);

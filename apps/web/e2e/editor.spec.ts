@@ -1,9 +1,13 @@
-import { randomUUID } from 'node:crypto';
+import { expect } from '@playwright/test';
 
-import { expect, test as base, type Locator, type Page } from '@playwright/test';
-
-import { resetLoginThrottleCounter, resetWorkspaceThrottleCounter } from './support/services';
-import { signIn, type E2eSession } from './support/session';
+import {
+  createDocument,
+  SAVE_REGION_NAME,
+  test,
+  textarea,
+  uniqueTitle,
+  watchConsole,
+} from './support/editor-e2e';
 import { MARKDOWN_XSS_CORPUS } from '../src/test/markdown-xss-corpus';
 
 /**
@@ -23,6 +27,11 @@ import { MARKDOWN_XSS_CORPUS } from '../src/test/markdown-xss-corpus';
  * y no se copia. Copiarlo es la forma silenciosa de que la verificación en navegador acabe probando
  * menos cargas que la de jsdom: se añade una carga al original y esta suite sigue tan verde como
  * siempre, sin cubrirla.
+ *
+ * Y por el mismo motivo, desde la `005` (AC-30), lo que este archivo comparte con `palette.spec.ts`
+ * se **importa** de `support/editor-e2e.ts` en vez de copiarse. Lo vigila
+ * `src/test/e2e-support.test.ts`, que lee este fuente: dos copias de un ayudante son dos
+ * comprobaciones que se creen la misma hasta el día en que divergen.
  */
 
 /** Elementos que la vista previa no puede crear jamás, sea cual sea la entrada (`plan.md` §2.4). */
@@ -52,12 +61,16 @@ const ALLOWED_SRC_PROTOCOLS = ['http:', 'https:'] as const;
 const PROVOKED_CONFLICT_RESPONSE = /status of 409 \(Conflict\)/;
 
 /**
- * El nombre accesible de la región viva del guardado (`004`: AC-27). La paleta monta la **suya**
- * desde el primer render, así que `getByRole('status')` a secas resuelve a dos elementos y entra en
- * violación de modo estricto: aquí se pide por nombre, que es también como las distingue quien
- * recorre la página con un lector de pantalla.
+ * Por qué las pestañas del conmutador se piden con `exact: true` en este archivo.
+ *
+ * Desde la `005` la página tiene **dos** `tablist`, y el nombre accesible de una pestaña de documento
+ * **lleva el título dentro** (««Notas» · Supr para cerrar»). La coincidencia por defecto de Playwright
+ * es por **subcadena**, así que un documento titulado «Texto» o «Vista previa» haría que la consulta
+ * resolviera a dos elementos y el caso muriera por violación de modo estricto — un rojo que no tendría
+ * nada que ver con lo que este archivo mide. Hoy los títulos llevan un uuid y no colisionan, así que
+ * esto es **endurecimiento y no un arreglo**: la mina estaba puesta y no había disparado. La destapó
+ * `tabs.spec.ts` al escribirse, con ese mensaje exacto.
  */
-const SAVE_REGION_NAME = 'Estado del guardado';
 
 declare global {
   interface Window {
@@ -69,39 +82,12 @@ declare global {
   }
 }
 
-/**
- * La sesión de cada caso, en un *fixture* automático.
- *
- * La cuenta es la **compartida** que `global-setup.ts` crea una sola vez (AC-35 de la `002`): un alta
- * cuesta del cupo de cinco por IP cada quince minutos, el más escaso de todos, y este archivo no mide
- * el registro. Lo que sí gasta es una entrada por caso, y el cupo de entradas (10/min) se agotaría con
- * los reintentos; lo que se pierde con ese reset —y quién cubre ese límite— está escrito en
- * `support/services.ts`.
- *
- * El cupo de la **superficie del workspace** (120/min por IP) se pone a cero por la misma razón y en
- * el mismo sitio —el **límite** del caso, nunca a mitad de una secuencia—: es el que aprieta en esta
- * suite (AC-34), y este archivo es el que más lo gasta. Lo que se pierde con ese reset y quién lo
- * cubre está escrito, con las cifras medidas, junto a `resetWorkspaceThrottleCounter`.
- *
- * `auto: true` porque el caso de AC-32 no pide el `Bearer` pero necesita la sesión igual: sin él, un
- * *fixture* perezoso no llegaría a ejecutarse y ese caso empezaría sin haber entrado.
- */
-const test = base.extend<{ session: E2eSession }>({
-  session: [
-    async ({ page }, use) => {
-      await Promise.all([resetLoginThrottleCounter(), resetWorkspaceThrottleCounter()]);
-      await use(await signIn(page));
-    },
-    { auto: true },
-  ],
-});
-
 test.describe('Editor en el navegador (AC-26, AC-32, AC-33)', () => {
   test('escribir, guardar, recargar y previsualizar sin errores de consola (AC-32)', async ({
     page,
   }) => {
     const consoleErrors = watchConsole(page);
-    const title = uniqueTitle('recorrido');
+    const title = uniqueTitle('Editor', 'recorrido');
     const markdown = '# Diario de julio\n\n- primera nota\n- segunda nota';
 
     await page.goto('/');
@@ -146,7 +132,7 @@ test.describe('Editor en el navegador (AC-26, AC-32, AC-33)', () => {
 
     // Y en vista previa, el encabezado y la lista tienen que salir como **elementos**, no como el
     // texto con sus almohadillas y sus guiones.
-    await page.getByRole('tab', { name: 'Vista previa' }).click();
+    await page.getByRole('tab', { name: 'Vista previa', exact: true }).click();
 
     const preview = page.getByRole('tabpanel');
 
@@ -163,7 +149,7 @@ test.describe('Editor en el navegador (AC-26, AC-32, AC-33)', () => {
     session,
   }) => {
     const consoleErrors = watchConsole(page, PROVOKED_CONFLICT_RESPONSE);
-    const title = uniqueTitle('conflicto');
+    const title = uniqueTitle('Editor', 'conflicto');
     const mine = '# Mi versión\n\nEsto es lo que estaba escribiendo.';
     const theirs = '# La otra pestaña\n\nEsto lo guardó otro sitio.';
 
@@ -256,7 +242,7 @@ test.describe('Editor en el navegador (AC-26, AC-32, AC-33)', () => {
       window.prompt = trip(window.prompt.bind(window));
     });
 
-    const title = uniqueTitle('corpus');
+    const title = uniqueTitle('Editor', 'corpus');
     const documentId = await createDocument(page, session.authorization, title);
 
     await page.goto(`/documents/${documentId}`);
@@ -270,9 +256,9 @@ test.describe('Editor en el navegador (AC-26, AC-32, AC-33)', () => {
     const preview = page.getByRole('tabpanel');
 
     for (const payload of MARKDOWN_XSS_CORPUS) {
-      await page.getByRole('tab', { name: 'Texto' }).click();
+      await page.getByRole('tab', { name: 'Texto', exact: true }).click();
       await textarea(page, title).fill(payload.markdown);
-      await page.getByRole('tab', { name: 'Vista previa' }).click();
+      await page.getByRole('tab', { name: 'Vista previa', exact: true }).click();
 
       const rendered = await preview.evaluate(
         (container, protocols) => {
@@ -353,65 +339,3 @@ test.describe('Editor en el navegador (AC-26, AC-32, AC-33)', () => {
     expect(consoleErrors()).toEqual([]);
   });
 });
-
-/** El textarea del modo texto, por su nombre accesible, que lleva el título del documento. */
-function textarea(page: Page, title: string): Locator {
-  return page.getByRole('textbox', { name: `Contenido de «${title}» en markdown` });
-}
-
-/**
- * Título único por caso. La cuenta es **compartida** y los casos corren en paralelo, así que dos
- * documentos con el mismo título en la raíz chocarían con un `409 DOCUMENT_TITLE_TAKEN` que no
- * tiene nada que ver con lo que se está midiendo.
- */
-function uniqueTitle(purpose: string): string {
-  return `Editor ${purpose} ${randomUUID().slice(0, 8)}`;
-}
-
-/**
- * Recoge los errores de consola y de página, y devuelve los que no estaban permitidos.
- *
- * `pageerror` va al mismo saco a propósito: una excepción sin capturar es tan defecto como un error
- * de consola, y separarlas invita a comprobar solo una.
- */
-function watchConsole(page: Page, ...tolerated: readonly RegExp[]): () => readonly string[] {
-  const messages: string[] = [];
-
-  page.on('console', (message) => {
-    if (message.type() === 'error') {
-      messages.push(message.text());
-    }
-  });
-  page.on('pageerror', (error) => {
-    messages.push(error.message);
-  });
-
-  return () => messages.filter((message) => !tolerated.some((pattern) => pattern.test(message)));
-}
-
-/**
- * Un documento vacío en la raíz, por API. Devuelve su `id`.
- *
- * El `Bearer` viene del *fixture* `session`, que lo saca del `login` que ya se hacía. Antes se
- * arrancaba la aplicación en `/` solo para tomarlo prestado de la petición del árbol, y ese arranque
- * costaba un `GET /workspace/tree` por caso contra el cupo que aprieta (AC-34). Los detalles, en
- * `support/session.ts`.
- */
-async function createDocument(
-  page: Page,
-  authorization: string,
-  title: string,
-): Promise<string> {
-  const created = await page.request.post('/api/workspace/documents', {
-    headers: { authorization },
-    data: { title, directoryId: null },
-  });
-
-  if (!created.ok()) {
-    throw new Error(
-      `No se pudo crear el documento: POST /api/workspace/documents devolvió ${String(created.status())} ${await created.text()}`,
-    );
-  }
-
-  return ((await created.json()) as { id: string }).id;
-}

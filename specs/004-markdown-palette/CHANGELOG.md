@@ -2,6 +2,45 @@
 
 Formato: `## vX.Y.Z — YYYY-MM-DD` + motivo del cambio.
 
+## v0.3.1 — 2026-07-29
+
+**Patch de enmienda pedido por la `006-editor-undo`**, aplicado por su `T-000` **sin tocar una línea
+de código**. Amplía el **alcance de un instrumento**, no el alcance de la spec.
+
+- **Qué cambia**: la guarda de pureza que vive en `apps/web/src/features/editor/markdown-palette.test.ts`
+  —la que lee el fuente de los módulos vigilados y falla si alguno aprende algo del navegador o del
+  estado— pasa a vigilar también los **dos módulos puros que estrena la `006`**: `text-edit.ts` y
+  `undo-history.ts`. Y **AC-17 se redacta para que la lista pueda crecer** sin reescribir el criterio
+  cada vez: qué módulos añade cada spec lo dice **su propio AC** (la `006` lo hace en su AC-9), y el
+  recuento vive en la constante `PURE_MODULES` y en **ningún literal**.
+- **Por qué ahí y no en un archivo nuevo**: es **una** guarda con **una** lista de tokens. Un segundo
+  archivo con el mismo detector sería una segunda copia que puede divergir — exactamente la avería
+  que la `005` pagó con los **seis** ayudantes de e2e, **dos de ellos ya divergidos en firma**,
+  midiendo cosas distintas mientras creían medir lo mismo. Además, **§9.6 de esta spec ya lo había
+  anticipado por escrito**: «la `006` lo volverá a necesitar en cuanto tenga un módulo de historial
+  puro». Lo que hacía falta era la lista, no otro detector.
+- **Por qué es patch y no minor**: **el recuento no se mueve** —siguen **36 AC** y **12 tareas**—,
+  ningún AC cambia de significado para los dos módulos de esta spec, y ningún artefacto entra ni
+  sale. Es el criterio con el que la v0.1.1 de esta misma spec y la v0.1.1 de la `005` se
+  justificaron como patch. **El argumento contrario queda escrito, porque era legítimo**: AC-17 sí
+  cambia de **redacción**, y por la letra de `specs/README.md` («minor — agrega alcance nuevo») se
+  podría defender un minor. Se elige patch porque lo que el AC **exige** —que el núcleo y el catálogo
+  no conozcan el navegador ni el estado— es palabra por palabra lo mismo que exigía ayer; lo que
+  crece es la lista de archivos a los que **otra** spec le pide lo mismo.
+- **Consecuencia asumida, y es la misma que se dieron la `002` y la `003` al ser enmendadas**: desde
+  hoy **la redacción de AC-17 va por delante del código**. La línea que mete los dos módulos en
+  `PURE_MODULES` **no la escribe esta enmienda**: la escriben `T-001` y `T-002` de la `006`, cada una
+  cuando estrena su módulo, porque hoy esos archivos **todavía no existen** — y añadirlos a la lista
+  antes pondría la guarda en rojo por un archivo ausente, que es el fallo de resolución que §9.7
+  enseña a no confundir con un RED.
+- **§9.6 queda dada por cobrada**: la lección se escribió pensando en esta situación y la situación
+  llegó. Las dos tareas que estrenan módulo llevan **la cabecera de comentario del archivo dentro de
+  su lista de artefactos**, que es exactamente lo que a esta spec le faltó en `T-005`.
+- **Verificación de que no se tocó código** (la guarda de la enmienda, mismo procedimiento que
+  `T-000` de la `005`): `pnpm test` desde estado limpio **antes y después**, con recuentos idénticos
+  —`shared` **81** · `apps/web` **21 archivos / 524** · api unit **21 suites / 305**— y el estado del
+  árbol bajo `apps/**` y `packages/**` **sin una sola diferencia** respecto al de antes de empezar.
+
 ## v0.3.0 — 2026-07-29
 
 **Versión de cierre.** Se escribe con **T-011 verde y verificada**, y deja la spec en **complete**:

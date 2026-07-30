@@ -2,6 +2,51 @@
 
 Formato: `## vX.Y.Z — YYYY-MM-DD` + motivo del cambio.
 
+## v0.2.0 — 2026-07-29
+
+**Minor de enmienda, pedido por la spec `005` y aplicado por su `T-000` sin tocar una línea de
+código.** Dos AC cambian de redacción y **el recuento no se mueve**: siguen **34 AC · 17 tareas**.
+
+**(1) `AC-28` pierde su segunda mitad.** Decía «el guardado pendiente se **fuerza** antes de
+desmontar; **si tiene éxito, la entrada del documento se descarta del store**; y si falla, la entrada
+se conserva con su `draft`». El descarte **deja de ocurrir al navegar** y pasa a ser competencia de
+**cerrar una pestaña**. Las otras dos mitades se quedan **literales**.
+
+**Por qué.** Esta spec ya había asignado esa decisión: su `plan.md`, decisión 9, dice que el estado
+vive indexado por id y que «lo que `005` cambiará es la **política de desalojo**, no la forma». En la
+`003` navegar fuera **era** cerrar, así que descartar era correcto; con pestañas son dos gestos
+distintos con dos resultados distintos. Mantener el descarte obligaría a releer el documento del
+servidor en cada salto entre pestañas y tiraría el modo de vista **que esta misma spec quería
+conservar** —el comentario de `ViewMode` en `editor.store.ts` dice literalmente «la spec `005` lo
+conserva al volver a su pestaña sin trabajo extra», y con el descarte eso era imposible—.
+
+**(2) `AC-22` pasa de dos modos a tres**, con `'split'`, y su redacción deja de llevar el número: dice
+«un `role="tab"` por cada modo de vista», porque el número se deriva de la enumeración `VIEW_MODES` y
+escribirlo aquí sería un segundo sitio donde mantenerlo. Es la lección que la `004` pagó al escribir
+«14 elementos» en diez sitios mientras su propia tabla enumeraba 16. La línea de §4 «Ver texto y
+vista previa a la vez» deja de estar fuera de alcance y queda **tachada, no borrada**: lo que decía a
+continuación es justo lo que hizo barata la ampliación.
+
+**Por qué minor y no major.** Lo que AC-28 le promete a la persona —no perder lo que escribió al
+navegar— **no se rompe: se refuerza**, porque el borrador pasa a conservarse también cuando el
+guardado tuvo éxito. Lo que cambia es el **mecanismo interno**, y obliga a tocar tests que hoy están
+verdes: es exactamente el criterio con el que la **v0.4.0 de la `002`** se declaró minor siendo
+aditiva. **El argumento contrario queda escrito porque era legítimo**: por la letra de
+`specs/README.md` («major — cambia comportamiento observable ya implementado») esto sería **v1.0.0**,
+y el descarte de la entrada **es** observable desde el store, con un test verde que lo afirma. Se
+eligió la lectura por la garantía y no por la letra (decisión **E** de `005/spec.md` §8.1, resuelta
+por el usuario el 2026-07-29), y se deja dicho para que nadie tenga que reconstruir por qué.
+
+**Consecuencia asumida y escrita en los tres sitios donde se lee** —el `Estado` de la spec, cada uno
+de los dos AC, y las dos filas de §7—: desde el 2026-07-29 **`AC-22` y `AC-28` van por delante del
+código**. Los implementan `T-005` y `T-008` de la `005`. Es el mismo trato que la `002` se dio a sí
+misma con los cinco AC de su v0.4.0.
+
+**Verificado**: `rm -rf packages/shared/dist && pnpm test` → `shared` **81** · `apps/web` 19 archivos
+/ **470** · api unit 21 suites / **305**, corrido **antes y después** de la enmienda con resultado
+idéntico — que es justamente lo que demuestra que no se tocó código, junto con un
+`git status --porcelain apps packages` **vacío**.
+
 ## v0.1.5 — 2026-07-29
 
 **Patch de precisión escrito desde la `004`, sin tocar una línea de código, ningún AC y ningún

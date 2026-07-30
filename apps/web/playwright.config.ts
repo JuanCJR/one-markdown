@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 
-import { apiServerEnv, E2E_API_ORIGIN, E2E_WEB_ORIGIN } from './e2e/support/dev-env';
+import { apiServerEnv, E2E_API_ORIGIN, E2E_WEB_ORIGIN, E2E_WEB_PORT } from './e2e/support/dev-env';
 
 const isCI = process.env['CI'] !== undefined;
 
@@ -40,7 +40,16 @@ export default defineConfig({
       // de `optimizeDeps` seguía vivo; se retira a propósito (AC-34): quien fuerza la
       // reoptimización es ahora `vite.config.ts`, que es donde el arreglo alcanza también a quien
       // desarrolla. Una suite que compensa un defecto del producto deja de poder verlo.
-      command: 'pnpm dev',
+      // `--port` en la línea de órdenes y no en `vite.config.ts`: la CLI de Vite gana a la
+      // configuración, así que la suite se lleva su puerto sin tocar un archivo que es contrato de
+      // las specs `000` y `002` y que lleva un bloque de comentario que nadie debería releer para
+      // cambiar un puerto. El 5173 se queda para quien desarrolla (spec `005`, AC-29).
+      //
+      // `--strictPort` no es adorno: sin él, ante un puerto ocupado Vite se muda al siguiente libre
+      // **en silencio** y Playwright se queda esperando en una URL donde no hay nadie hasta agotar su
+      // tiempo. Sería cambiar un aborto claro por un cuelgue oscuro, que es empeorar justo el
+      // problema que esto arregla.
+      command: `pnpm dev --port ${String(E2E_WEB_PORT)} --strictPort`,
       url: E2E_WEB_ORIGIN,
       // El dev server tiene que ser el nuestro: uno reutilizado de `pnpm dev` proxearía al API de
       // desarrollo (3001) y la suite mediría el backend equivocado sin decirlo.

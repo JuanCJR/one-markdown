@@ -1,7 +1,27 @@
 # Spec 003 — Editor: vista texto/preview, guardado y sanitización del preview
 
-- **Versión**: 0.1.5 — **patch de precisión, escrito desde la `004` el 2026-07-29 y sin tocar código
-  ni AC**. La spec sigue **complete, 34/34 AC · 17/17 tareas**. Único cambio: las notas de cierre
+- **Versión**: 0.2.0 — **minor de enmienda, pedido por la spec `005` y aplicado por su `T-000` el
+  2026-07-29 sin tocar una línea de código.** Dos AC cambian de redacción y **el recuento no se
+  mueve**: siguen **34 AC · 17 tareas**.
+  **(1) `AC-28` pierde su segunda mitad.** Decía «si tiene éxito, la entrada del documento **se
+  descarta** del store»; el descarte deja de ocurrir al navegar y pasa a ser competencia de **cerrar
+  una pestaña**, que es la política de desalojo que esta misma spec dejó asignada a la `005`
+  (decisión 9 de `plan.md`). Las otras dos mitades —forzar el guardado pendiente antes de desmontar, y
+  conservar la entrada **con su `draft`** si el guardado falla— **se quedan literales**.
+  **(2) `AC-22` pasa de dos modos a tres**, con `'split'`. Es **aditivo**: las dos pestañas de hoy
+  siguen existiendo con su rótulo y su comportamiento.
+  **Por qué minor y no major**, decidido el 2026-07-29 (decisión **E** de `005/spec.md` §8.1): lo que
+  AC-28 le promete a la persona —no perder lo que escribió al navegar— **no se rompe, se refuerza**,
+  porque el borrador pasa a conservarse también cuando el guardado tuvo éxito. Lo que cambia es el
+  **mecanismo interno**, y obliga a tocar tests que hoy están verdes: es exactamente el criterio con
+  el que la **v0.4.0 de la `002`** se declaró minor siendo aditiva. **El argumento contrario queda
+  escrito porque era legítimo**: por la letra de `specs/README.md` («major — cambia comportamiento
+  observable ya implementado») esto sería **v1.0.0**, y el descarte de la entrada **es** observable
+  desde el store, con un test verde que lo afirma. Se elige la lectura por la garantía y no por la
+  letra, y se deja dicho para que nadie tenga que reconstruir por qué. Detalle en el CHANGELOG,
+  v0.2.0, y el motivo completo en `005/spec.md` §6.
+- **Versión anterior**: 0.1.5 — **patch de precisión, escrito desde la `004` el 2026-07-29 y sin tocar
+  código ni AC**. La spec sigue **complete, 34/34 AC · 17/17 tareas**. Único cambio: las notas de cierre
   daban la cifra de cupo «la suite gasta **4 de 120**» **sin decir en qué ventana se mide**, y es
   **por corrida**; bajo el comando de verificación de su propio AC-34 (`--retries=2 --repeat-each=3`)
   el pico real era **12 de 120**, porque la suite dura ~23 s y las tres repeticiones caen **dentro de
@@ -10,7 +30,7 @@
   `004` heredó esa cifra dentro de un criterio que **sí** llevaba número (su AC-33) y la convirtió en
   un AC autocontradictorio, y porque la `005` va a leer estas notas para dimensionar su presupuesto.
   Detalle en el CHANGELOG, v0.1.5.
-- **Versión anterior**: 0.1.4 — **patch de cierre**. **Cerró la spec entera**: `T-013`, `T-014` y `T-015`
+- **Y antes**: 0.1.4 — **patch de cierre**. **Cerró la spec entera**: `T-013`, `T-014` y `T-015`
   implementadas y verificadas, con lo que la spec pasa a **34/34 AC · 17/17 tareas**. No añade alcance ni
   cambia ningún contrato. Lo que sí hace, además de cerrar, es **corregir una afirmación de la v0.1.2 que
   la implementación desmintió**: `plan.md` §2.2.1 decía que `rehype-sanitize` era **redundante**, y al
@@ -39,8 +59,16 @@
   opción que el plan recomendaba, y que `T-000` está hecha. Se sigue el mismo convenio que en `001` y
   `002`: **aprobar no salta a 1.0.0** — lo que cambia al aprobar es el `Estado`; la versión sube solo
   porque el contenido de §5 cambió
-- **Estado**: **complete** (2026-07-28) — **34/34 AC** verificados y **17/17 tareas** cerradas, todas con su comando corrido y su salida real. Fue **approved** el mismo día **sin cambios de alcance**: las cinco decisiones se aceptaron
+- **Estado**: **complete** (2026-07-29) —
+  **34/34 AC** verificados y **17/17 tareas** cerradas, todas con su comando corrido y su salida real.
+  Fue **approved** el 2026-07-28 **sin cambios de alcance**: las cinco decisiones se aceptaron
   tal como estaban escritas.
+  **La enmienda de la v0.2.0 quedó implementada y verificada el mismo día** por `T-005` y `T-008` de
+  la **`005`**: la entrada deja de descartarse al navegar y el conmutador pasa a tres modos. Durante
+  unas horas del 2026-07-29 **`AC-22` y `AC-28` fueron por delante del código** —se escribió así, y no
+  «34/34 verificados» a secas, porque era lo cierto en ese momento—; ya no lo van. Es el mismo trato —y por el mismo motivo— que la `002` se dio a sí
+  misma con los cinco AC de su v0.4.0: dejar «34/34 verificados» a secas habría sido más cómodo y
+  falso.
   **Cifras del cierre**, corridas de una vez: `shared` **81** · `apps/web` 16 archivos / **321** · api
   unit 21 suites / **305** · api e2e 22 suites / **511** (40,2 s) · `pnpm test:e2e` **8** ·
   `--retries=2 --repeat-each=3` **24 passed, sin un solo `429`** (AC-34) · `typecheck` y `lint` en **0**
@@ -314,11 +342,17 @@ fingir cobertura.
 
 - **AC-22** — Dado un documento abierto, cuando se renderiza la página, entonces hay: un `h2` con el
   título, la ruta del documento (`nav` con el breadcrumb, heredado de la `002`), un conmutador
-  `role="tablist"` con dos `role="tab"` («Texto» y «Vista previa») donde exactamente uno tiene
+  `role="tablist"` con **un `role="tab"` por cada modo de vista**, donde exactamente uno tiene
   `aria-selected="true"` y el panel correspondiente es un `role="tabpanel"` asociado por
   `aria-labelledby`, y una región de estado de guardado con `role="status"` (educada: «Guardando…» no
   es una alerta). Los errores de guardado van en un contenedor **`role="alert"`** aparte.
   _Verificado por_: unit de componente con Testing Library.
+  _Enmienda de la `005` (v0.2.0, 2026-07-29)_: los modos pasan de **dos** («Texto», «Vista previa») a
+  **tres**, con **«Dividida»**. Es **aditivo**: los dos primeros siguen existiendo con su rótulo y su
+  comportamiento. La redacción pasa a decir «uno por cada modo» y **no** un número, porque el número
+  se deriva de la enumeración `VIEW_MODES` y escribirlo aquí sería un segundo sitio donde mantenerlo —
+  que es el defecto que la `004` pagó al escribir «14 elementos» mientras su tabla enumeraba 16. Lo
+  implementa `T-008` de la `005` (su AC-14).
 
 - **AC-23** — Dado el modo texto, entonces el panel contiene **un solo** control editable, un
   `<textarea>` con nombre accesible, cuyo valor es el `draft`; escribir en él llama a `setDraft`; y el
@@ -392,12 +426,20 @@ fingir cobertura.
   _Verificado por_: unit de componente.
 
 - **AC-28** — Dado el editor con cambios sin guardar, cuando se navega a otro documento o fuera de la
-  aplicación, entonces el guardado pendiente se **fuerza** antes de desmontar; si tiene éxito, la
-  entrada del documento se descarta del store; y si falla, la entrada **se conserva con su `draft`**,
-  de modo que volver a ese documento restaura el texto sin guardar en vez de mostrar el del servidor.
-  La navegación **no se bloquea** en ningún caso.
+  aplicación, entonces el guardado pendiente se **fuerza** antes de desmontar; y la entrada **se
+  conserva con su `draft`**, de modo que volver a ese documento restaura el texto tal como estaba en
+  vez de mostrar el del servidor. La navegación **no se bloquea** en ningún caso.
   _Verificado por_: unit del store y de componente (montar, ensuciar, desmontar, comprobar la petición
-  y el estado resultante en las dos ramas).
+  y el estado resultante en las dos ramas, la que guardó y la que falló).
+  _Enmienda de la `005` (v0.2.0, 2026-07-29)_: la redacción decía «si tiene éxito, la entrada del
+  documento **se descarta** del store; y si falla, la entrada se conserva con su `draft`». **El
+  descarte deja de ocurrir al navegar** y pasa a ser competencia de **cerrar una pestaña**, que es la
+  política de desalojo que esta misma spec dejó asignada a la `005` (decisión 9 de `plan.md`: «lo que
+  `005` cambiará es la política de desalojo, no la forma»). **Las otras dos mitades se quedan
+  literales**, y la garantía que este AC le da a la persona **se refuerza**: el borrador se conserva
+  ahora también cuando el guardado tuvo éxito, así que volver a un documento devuelve siempre lo que
+  había —incluido su modo de vista—. Lo implementa `T-005` de la `005` (sus AC-8 y AC-9), y el motivo
+  completo está en `005/spec.md` §6.1.
 
 - **AC-29** — Dado el editor sucio, entonces hay un manejador de `beforeunload` registrado que llama a
   `preventDefault` al dispararse; y en cuanto el estado vuelve a `clean`, el manejador está retirado y
@@ -491,8 +533,11 @@ fingir cobertura.
   actual», y el bucle de guardado recibe siempre el `id` como argumento. `005` cambiará la **política
   de desalojo** de ese diccionario (hoy: como mucho una entrada, la del documento abierto), no su
   forma. En `003` se abre **un documento a la vez**.
-- **Ver texto y vista previa a la vez.** El conmutador de AC-22 es de **dos modos excluyentes**. La
-  disposición lado a lado es alcance de `005`. Lo que `003` garantiza es que añadir un modo `'split'` es
+- **Ver texto y vista previa a la vez.** ~~El conmutador de AC-22 es de **dos modos excluyentes**.~~
+  **Dejó de estar fuera de alcance el 2026-07-29** (enmienda v0.2.0): el conmutador de AC-22 pasa a
+  tener **tres** modos y **lo implementa la `005`** (su `T-008`). Se mantiene la frase original tachada
+  y no borrada porque lo que decía a continuación es justo lo que hizo barata la ampliación.
+  La disposición lado a lado es alcance de `005`. Lo que `003` garantiza es que añadir un modo `'split'` es
   un cambio de **disposición**, no de estado de guardado.
   _Resuelto el 2026-07-28 (decisión E de §5, y fijado en `CLAUDE.md`)_: «split view» significa **texto y
   preview lado a lado del mismo documento**, no dos documentos distintos. Con eso, el split de `005` es
@@ -654,13 +699,13 @@ dejarlo implícito.
 | AC-19 | `apps/web/src/features/editor/editor.store.test.ts` (tres ramas de error) | T-012 |
 | AC-20 | `apps/web/src/features/editor/editor.store.test.ts` (dos resoluciones) + `DocumentEditorPage.test.tsx` (el diálogo que las ofrece) | T-012, T-013 |
 | AC-21 | `apps/web/src/features/editor/editor.store.test.ts` (`429` sin reintento) | T-012 |
-| AC-22 | `apps/web/src/features/editor/DocumentEditorPage.test.tsx` | T-013 |
+| AC-22 | `apps/web/src/features/editor/DocumentEditorPage.test.tsx` · **el tercer modo (`'split'`), por `T-008` de la `005`** | T-013 · **`005`/T-008** |
 | AC-23 | `apps/web/src/features/editor/DocumentEditorPage.test.tsx` (textarea y teclado) | T-013 |
 | AC-24 | `apps/web/src/features/editor/MarkdownPreview.test.tsx` (elementos y GFM) | T-011 |
 | AC-25 | `apps/web/src/features/editor/MarkdownPreview.test.tsx` (corpus) + `apps/web/src/features/editor/no-dangerous-html.test.ts` | T-011 |
 | AC-26 | `apps/web/e2e/editor.spec.ts` (corpus en Chromium) | T-014 |
 | AC-27 | `apps/web/src/features/editor/DocumentEditorPage.test.tsx` (`Ctrl`+`S`) | T-013 |
-| AC-28 | `apps/web/src/features/editor/editor.store.test.ts` + `DocumentEditorPage.test.tsx` (desmontaje) | T-012, T-013 |
+| AC-28 | `apps/web/src/features/editor/editor.store.test.ts` + `DocumentEditorPage.test.tsx` (desmontaje) · **la entrada deja de descartarse, por `T-005` de la `005`** | T-012, T-013 · **`005`/T-005** |
 | AC-29 | `apps/web/src/features/editor/DocumentEditorPage.test.tsx` (`beforeunload`) | T-013 |
 | AC-30 | `apps/web/src/features/editor/DocumentEditorPage.test.tsx` + `editor.store.test.ts` | T-012, T-013 |
 | AC-31 | `apps/web/src/features/editor/DocumentEditorPage.test.tsx` (casos heredados + aserción negativa) | T-013 |
