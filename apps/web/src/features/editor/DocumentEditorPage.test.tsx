@@ -1,11 +1,21 @@
-import { MAX_DOCUMENT_CONTENT_CHARS, type MarkdownDocument, type WorkspaceTree } from '@one-markdown/shared';
+import {
+  MAX_DOCUMENT_CONTENT_CHARS,
+  type MarkdownDocument,
+  type WorkspaceTree,
+} from '@one-markdown/shared';
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent, { type UserEvent } from '@testing-library/user-event';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { DocumentEditorPage, VIEW_MODES, VIEW_MODE_LABELS } from './DocumentEditorPage';
+import {
+  DocumentEditorPage,
+  HISTORY_SHORTCUT_KEYS,
+  VIEW_MODES,
+  VIEW_MODE_LABELS,
+} from './DocumentEditorPage';
+import { MARKDOWN_PALETTE } from './markdown-palette';
 import {
   AUTOSAVE_DEBOUNCE_MS,
   CONTENT_COUNTER_THRESHOLD,
@@ -417,11 +427,15 @@ async function pressShortcut(
   target: HTMLElement,
   key: string,
   modifier: 'ctrl' | 'meta' = 'ctrl',
+  // Cuarto parámetro y no un objeto de opciones: lo añade la `006` para `Ctrl`+`Shift`+`Z` y cambiar
+  // la firma obligaría a tocar las llamadas de la `004`, que no ganan nada con ello.
+  shift = false,
 ): Promise<boolean> {
   const event = new KeyboardEvent('keydown', {
     key,
     ctrlKey: modifier === 'ctrl',
     metaKey: modifier === 'meta',
+    shiftKey: shift,
     bubbles: true,
     cancelable: true,
   });
@@ -636,9 +650,11 @@ describe('DocumentEditorPage — vista dividida (spec 005: AC-14 a AC-18, AC-25)
     // La aserción es contra la enumeración importada, no contra un literal: el conmutador y el
     // caso tienen que quedarse de acuerdo solos cuando la enumeración cambie.
     expect(VIEW_MODES).toContain<ViewMode>('split');
-    expect(within(viewModeTablist()).getAllByRole('tab').map((tab) => tab.textContent)).toEqual(
-      VIEW_MODE_TAB_LABELS,
-    );
+    expect(
+      within(viewModeTablist())
+        .getAllByRole('tab')
+        .map((tab) => tab.textContent),
+    ).toEqual(VIEW_MODE_TAB_LABELS);
   });
 
   it('en modo dividido el texto y la vista previa están los dos, en UN solo panel (AC-15)', async () => {
@@ -1384,7 +1400,10 @@ describe('DocumentEditorPage — accesibilidad de la página entera (spec 005: A
     // Y ninguno **de más**: un tercer `tablist` sería uno que ninguna consulta desambigua. Se lee del
     // DOM por el mismo motivo que las regiones vivas —pedir un `tablist` sin nombre es lo que AC-25
     // prohíbe—, y el orden es el del documento: la tira está por encima del `<main>`.
-    expect([...document.querySelectorAll('[role="tablist"]')]).toEqual([documentTabs, viewSwitcher]);
+    expect([...document.querySelectorAll('[role="tablist"]')]).toEqual([
+      documentTabs,
+      viewSwitcher,
+    ]);
   });
 
   it('en modo texto conviven las tres regiones vivas con nombre, ninguna dentro de otra (AC-26)', async () => {
@@ -1479,5 +1498,260 @@ describe('DocumentEditorPage — accesibilidad de la página entera (spec 005: A
     expect([...reached].sort((a, b) => a[1] - b[1]).map(([label]) => label)).toEqual(
       stops.map(([label]) => label),
     );
+  });
+});
+
+/**
+ * Atajos de historial (spec `006`: AC-23, AC-24, AC-25, AC-26, y la mitad de cableado de AC-11).
+ *
+ * Van **en el área de escritura** y no en la ventana, igual que los `Ctrl`/`Cmd`+`B`/`I`/`K` de la
+ * `004` y al revés que el `Ctrl`+`S` de la `003`: guardar es una acción de la página entera, y
+ * deshacer solo significa algo donde se está escribiendo.
+ */
+describe('DocumentEditorPage — atajos de deshacer (spec 006: AC-23…AC-26)', () => {
+  const TITLE_AT = [2, 8] as const;
+
+  it('Ctrl+Z deshace la última inserción y llama a preventDefault (AC-23)', async () => {
+    await seedTree();
+    await openEditor({ [PUT_ROUTE]: contentSaved(SERVER_VERSION + 1) });
+
+    await user.click(paletteButton('Negrita'));
+
+    expect(entry().draft).toBe('**texto en negrita**# Título del servidor\n');
+
+    const prevented = await pressShortcut(textarea(), 'z');
+
+    expect(entry().draft).toBe(SERVER_TEXT);
+    // La otra mitad del AC: sin `preventDefault` el deshacer **nativo** también correría, y a partir
+    // de la primera escritura programática ese es el que miente.
+    expect(prevented).toBe(true);
+  });
+
+  it('Cmd+Z hace lo mismo que Ctrl+Z (AC-23)', async () => {
+    await seedTree();
+    await openEditor({ [PUT_ROUTE]: contentSaved(SERVER_VERSION + 1) });
+
+    await user.click(paletteButton('Negrita'));
+    await pressShortcut(textarea(), 'z', 'meta');
+
+    expect(entry().draft).toBe(SERVER_TEXT);
+  });
+
+  it('Ctrl+Shift+Z rehace, y NO deshace (AC-24)', async () => {
+    await seedTree();
+    await openEditor({ [PUT_ROUTE]: contentSaved(SERVER_VERSION + 1) });
+
+    await user.click(paletteButton('Negrita'));
+
+    const inserted = entry().draft;
+
+    await pressShortcut(textarea(), 'z');
+
+    expect(entry().draft).toBe(SERVER_TEXT);
+
+    const prevented = await pressShortcut(textarea(), 'z', 'ctrl', true);
+
+    expect(entry().draft).toBe(inserted);
+    expect(prevented).toBe(true);
+  });
+
+  it('Ctrl+Y también rehace (AC-24)', async () => {
+    await seedTree();
+    await openEditor({ [PUT_ROUTE]: contentSaved(SERVER_VERSION + 1) });
+
+    await user.click(paletteButton('Negrita'));
+
+    const inserted = entry().draft;
+
+    await pressShortcut(textarea(), 'z');
+
+    // **Sin esta línea el caso pasaba con la página sin tocar**: «el texto vuelve a la inserción» es
+    // cierto también si ni deshacer ni rehacer hacen nada. Afirmar el paso intermedio es lo que lo
+    // convierte en una comprobación en vez de en una coincidencia.
+    expect(entry().draft).toBe(SERVER_TEXT);
+
+    await pressShortcut(textarea(), 'y');
+
+    expect(entry().draft).toBe(inserted);
+  });
+
+  it('ninguna fila del catálogo de la paleta reclama una tecla de historial (AC-25)', () => {
+    const claimed = MARKDOWN_PALETTE.filter(
+      (element) =>
+        element.shortcut !== undefined && HISTORY_SHORTCUT_KEYS.includes(element.shortcut),
+    );
+
+    // El cruce de **dos enumeraciones**, sin ningún número escrito a mano: añadir mañana un elemento
+    // con `shortcut: 'z'` rompería `Ctrl`+`Z` en silencio, y este caso es lo único que lo impide.
+    expect(claimed).toEqual([]);
+  });
+
+  it('fuera del área de escritura los atajos no hacen nada (AC-26)', async () => {
+    await seedTree();
+    await openEditor({ [PUT_ROUTE]: contentSaved(SERVER_VERSION + 1) });
+
+    await user.click(paletteButton('Negrita'));
+
+    const inserted = entry().draft;
+
+    await pressShortcut(screen.getByRole('button', { name: 'Guardar' }), 'z');
+
+    // Deshacer desde otro control de la página editaría un documento a espaldas de quien lo pulsó.
+    expect(entry().draft).toBe(inserted);
+  });
+
+  it('deshacer una inserción devuelve la SELECCIÓN que había, no un cursor suelto (AC-11)', async () => {
+    await seedTree();
+    await openEditor({ [PUT_ROUTE]: contentSaved(SERVER_VERSION + 1) });
+
+    const node = textareaNode();
+
+    node.focus();
+    node.setSelectionRange(...TITLE_AT);
+
+    await user.click(paletteButton('Negrita'));
+
+    expect(entry().draft).toBe('# **Título** del servidor\n');
+    expect(caret()).toEqual([4, 10]);
+
+    await pressShortcut(textarea(), 'z');
+
+    expect(entry().draft).toBe(SERVER_TEXT);
+    // La mitad de AC-11 que solo se ve desde la página: si `insertElement` dejara de pasar las dos
+    // selecciones, el store derivaría un cursor colapsado y esto sería `[2, 2]`.
+    expect(caret()).toEqual([...TITLE_AT]);
+  });
+});
+
+/**
+ * Los dos controles visibles del historial (spec `006`: AC-27…AC-31).
+ *
+ * **No son accesibilidad opcional, son la mitad de la funcionalidad.** Sin ellos, deshacer solo existe
+ * para quien usa teclado físico; y cuando la cota de memoria desaloja los pasos viejos, el botón
+ * deshabilitado es **la única señal** que distingue «se acabó el historial» de «esto está roto».
+ */
+describe('DocumentEditorPage — controles de historial (spec 006: AC-27…AC-31)', () => {
+  const UNDO_NAME = 'Deshacer · Ctrl+Z';
+  const REDO_NAME = 'Rehacer · Ctrl+Shift+Z';
+  const TITLE_AT = [2, 8] as const;
+
+  function undoButton(): HTMLElement {
+    return screen.getByRole('button', { name: UNDO_NAME });
+  }
+
+  function redoButton(): HTMLElement {
+    return screen.getByRole('button', { name: REDO_NAME });
+  }
+
+  it('los dos controles dicen su atajo en el nombre accesible (AC-27)', async () => {
+    await seedTree();
+    await openEditor({ [PUT_ROUTE]: contentSaved(SERVER_VERSION + 1) });
+
+    // El mecanismo va **en el nombre**, como la «×» de la `005` dice `· Supr para cerrar`: un atajo
+    // que no se anuncia en ninguna parte solo lo usa quien ya lo sabía.
+    expect(undoButton()).toBeInTheDocument();
+    expect(redoButton()).toBeInTheDocument();
+  });
+
+  it('cada control está deshabilitado exactamente cuando su lado de la pila está vacío (AC-28)', async () => {
+    await seedTree();
+    await openEditor({ [PUT_ROUTE]: contentSaved(SERVER_VERSION + 1) });
+
+    // 1) Nada hecho todavía: no hay nada que deshacer ni que rehacer.
+    expect(undoButton()).toBeDisabled();
+    expect(redoButton()).toBeDisabled();
+
+    await user.click(paletteButton('Negrita'));
+
+    // 2) Un paso hecho.
+    expect(undoButton()).toBeEnabled();
+    expect(redoButton()).toBeDisabled();
+
+    await pressShortcut(textarea(), 'z');
+
+    // 3) Deshecho: ya no queda pasado, pero sí futuro.
+    expect(undoButton()).toBeDisabled();
+    expect(redoButton()).toBeEnabled();
+
+    await pressShortcut(textarea(), 'z', 'ctrl', true);
+
+    // 4) Rehecho: se vuelve al estado 2. Es lo que hace que el deshabilitado no sea un billete de ida.
+    expect(undoButton()).toBeEnabled();
+    expect(redoButton()).toBeDisabled();
+  });
+
+  it('están donde se escribe —texto y dividida— y no en vista previa (AC-29)', async () => {
+    await seedTree();
+    await openEditor({ [PUT_ROUTE]: contentSaved(SERVER_VERSION + 1) });
+
+    expect(undoButton()).toBeInTheDocument();
+
+    await selectMode('preview');
+
+    // Misma regla que la paleta: deshacer es una acción de edición, y en vista previa no se edita.
+    expect(screen.queryByRole('button', { name: UNDO_NAME })).toBeNull();
+    expect(screen.queryByRole('button', { name: REDO_NAME })).toBeNull();
+
+    await selectMode('split');
+
+    expect(undoButton()).toBeInTheDocument();
+    expect(redoButton()).toBeInTheDocument();
+  });
+
+  it('el botón restaura la selección SIN robar el foco al pulsarlo con Enter (AC-30)', async () => {
+    await seedTree();
+    await openEditor({ [PUT_ROUTE]: contentSaved(SERVER_VERSION + 1) });
+
+    const node = textareaNode();
+
+    node.focus();
+    node.setSelectionRange(...TITLE_AT);
+
+    await user.click(paletteButton('Negrita'));
+
+    expect(entry().draft).toBe('# **Título** del servidor\n');
+
+    const button = undoButton();
+
+    button.focus();
+    await user.keyboard('{Enter}');
+
+    expect(entry().draft).toBe(SERVER_TEXT);
+    expect(caret()).toEqual([...TITLE_AT]);
+    // **Sin esto, la segunda pulsación de `Enter` escribiría un salto de línea en el documento**: el
+    // foco se habría ido al área de texto. Es un defecto que solo aparece navegando con teclado, o
+    // sea con el público exacto para el que existe el botón.
+    expect(button).toHaveFocus();
+  });
+
+  it('el atajo sí deja el foco donde estaba, en el área de escritura (AC-30)', async () => {
+    await seedTree();
+    await openEditor({ [PUT_ROUTE]: contentSaved(SERVER_VERSION + 1) });
+
+    await user.click(paletteButton('Negrita'));
+    textareaNode().focus();
+
+    await pressShortcut(textarea(), 'z');
+
+    expect(textareaNode()).toHaveFocus();
+  });
+
+  it('los controles NO añaden ninguna región viva (AC-31)', async () => {
+    await seedTree();
+    await openEditor({ [PUT_ROUTE]: contentSaved(SERVER_VERSION + 1) });
+
+    // La cuenta sale de **la enumeración de nombres**, no de un literal: si mañana alguien añade una
+    // quinta región, este caso lo dice; y si le quita el nombre a una, también.
+    const named = [LIVE_REGION_NAMES.save, LIVE_REGION_NAMES.palette];
+
+    expect(liveRegionNodes()).toHaveLength(liveRegionsNamed(named).length);
+
+    await user.click(paletteButton('Negrita'));
+    await pressShortcut(textarea(), 'z');
+
+    // Deshacer no anuncia nada, y es una decisión escrita (§9.1, decisión B): la página ya tiene
+    // cuatro regiones vivas y una quinta que se dispara en cada `Ctrl`+`Z` de una ráfaga es la clase
+    // de aviso que enseña a ignorar los avisos. La señal que queda es el botón deshabilitado.
+    expect(liveRegionNodes()).toHaveLength(liveRegionsNamed(named).length);
   });
 });

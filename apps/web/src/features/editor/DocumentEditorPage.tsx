@@ -45,6 +45,29 @@ type LoadState =
  */
 export const VIEW_MODES: readonly ViewMode[] = ['text', 'preview', 'split'];
 
+/**
+ * Las teclas que reclama el historial, con `Ctrl`/`Cmd` siempre (spec `006`, AC-23, AC-24).
+ *
+ * Se **exporta** para que AC-25 la cruce con el catálogo de la paleta y el cruce salga vacío: añadir
+ * mañana un elemento con `shortcut: 'z'` rompería `Ctrl`+`Z` en silencio, y el recuento vive en estas
+ * dos enumeraciones y en **ningún literal**.
+ *
+ * `y` está por Windows, donde rehacer se ha teclado siempre así. **Ninguna suite de este repositorio
+ * puede comprobar que Firefox sobre Windows entregue `Ctrl`+`Y` a la página** antes de hacer lo suyo:
+ * `playwright.config.ts` tiene un único *project*, Chromium. Lo que AC-24 afirma es que **nuestro
+ * manejador** responde, no que el navegador lo deje llegar (`006/spec.md` §9.3).
+ */
+export const HISTORY_SHORTCUT_KEYS: readonly string[] = ['z', 'y'];
+
+/**
+ * Los dos controles visibles del historial. Enumeración y no dos bloques copiados: el rótulo, el atajo
+ * que se anuncia y el lado de la pila que los habilita viven en **una** fila cada uno.
+ */
+const HISTORY_CONTROLS = [
+  { direction: 'undo', label: 'Deshacer', shortcut: 'Ctrl+Z' },
+  { direction: 'redo', label: 'Rehacer', shortcut: 'Ctrl+Shift+Z' },
+] as const;
+
 export const VIEW_MODE_LABELS: Readonly<Record<ViewMode, string>> = {
   text: 'Texto',
   preview: 'Vista previa',
@@ -66,7 +89,17 @@ export function DocumentEditorPage(): React.JSX.Element {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   // Selección que hay que aplicar **después** de que el valor nuevo aterrice en el DOM. Es un `ref`
   // y no estado porque no se pinta: en `useState` sería un render extra por inserción.
-  const pendingSelection = useRef<{ readonly start: number; readonly end: number } | null>(null);
+  const pendingSelection = useRef<{
+    readonly start: number;
+    readonly end: number;
+    /**
+     * Si además hay que **llevar el foco** al área de escritura. La paleta y los atajos dicen que sí
+     * —el foco ya está ahí o tiene que volver ahí—; los botones de historial dicen que **no**, y ese
+     * `false` es AC-30 entero: enfocar desde el botón haría que la segunda pulsación de `Enter`
+     * escribiera un salto de línea en el documento.
+     */
+    readonly focus: boolean;
+  } | null>(null);
   const baseId = useId();
 
   const status = entry?.status ?? 'clean';
@@ -179,9 +212,13 @@ export function DocumentEditorPage(): React.JSX.Element {
       return;
     }
 
-    // El `focus()` va antes que el rango y no es adorno: es lo que hace que AC-22 —documento
-    // vacío, el área de escritura sin haber tenido nunca el foco— acabe donde tiene que acabar.
-    node.focus();
+    // El `focus()` va antes que el rango y no es adorno: es lo que hace que AC-22 de la `004`
+    // —documento vacío, el área de escritura sin haber tenido nunca el foco— acabe donde tiene que
+    // acabar. Desde la `006` es **condicional**: ver el comentario de `pendingSelection`.
+    if (target.focus) {
+      node.focus();
+    }
+
     node.setSelectionRange(target.start, target.end);
   });
 
@@ -275,8 +312,15 @@ export function DocumentEditorPage(): React.JSX.Element {
       selectionEnd: node.selectionEnd,
     });
 
-    pendingSelection.current = { start: next.selectionStart, end: next.selectionEnd };
-    useEditorStore.getState().setDraft(documentId, next.text);
+    pendingSelection.current = { start: next.selectionStart, end: next.selectionEnd, focus: true };
+    // Un gesto único es **un** paso de deshacer, nunca fundido con el tecleo de al lado; y las dos
+    // selecciones van exactas porque aquí la derivación del store no valdría: envolver texto en
+    // negrita deja un cursor donde había una selección, y deshacer tiene que devolver la selección.
+    useEditorStore.getState().setDraft(documentId, next.text, {
+      mergeable: false,
+      caretBefore: { start: node.selectionStart, end: node.selectionEnd },
+      caretAfter: { start: next.selectionStart, end: next.selectionEnd },
+    });
   };
 
   /**
@@ -297,6 +341,28 @@ export function DocumentEditorPage(): React.JSX.Element {
     }
 
     const key = event.key.toLowerCase();
+
+    // **El historial va primero**, y el orden no es indiferente: AC-25 impide que un elemento del
+    // catálogo reclame `z` o `y`, y este orden es el cinturón por si alguna vez esa guarda cae.
+    if (HISTORY_SHORTCUT_KEYS.includes(key)) {
+      // Sin esto correría **además** el deshacer nativo del navegador, que desde la primera escritura
+      // programática ya no describe el historial real del documento. Retirar esa red de seguridad es
+      // deliberado: la red ya mentía (`006/spec.md`, riesgo #3).
+      event.preventDefault();
+
+      const store = useEditorStore.getState();
+      const caret = key === 'y' || event.shiftKey ? store.redo(documentId) : store.undo(documentId);
+
+      if (caret !== null) {
+        // El mismo mecanismo que la paleta (`004/plan.md` §4.3): la selección se aplica **después** de
+        // que el valor nuevo aterrice en el DOM, porque React manda el caret al final de un control
+        // controlado al que se le asigna un valor distinto de `e.target.value`.
+        pendingSelection.current = { start: caret.start, end: caret.end, focus: true };
+      }
+
+      return;
+    }
+
     const element = MARKDOWN_PALETTE.find((candidate) => candidate.shortcut === key);
 
     if (element === undefined) {
@@ -305,6 +371,24 @@ export function DocumentEditorPage(): React.JSX.Element {
 
     event.preventDefault();
     insertElement(element);
+  };
+
+  /**
+   * Un paso de historial pedido **desde un botón**, no desde el teclado.
+   *
+   * La única diferencia con el atajo es `focus: false`, y es la que sostiene AC-30: el control
+   * devuelve la selección al área de escritura pero **deja el foco donde estaba**, que es en el propio
+   * botón. Enfocar aquí convertiría la segunda pulsación de `Enter` en un salto de línea dentro del
+   * documento — un defecto que solo aparece navegando con teclado, o sea con el público exacto para el
+   * que existe el botón.
+   */
+  const stepHistory = (direction: 'undo' | 'redo'): void => {
+    const store = useEditorStore.getState();
+    const caret = direction === 'undo' ? store.undo(documentId) : store.redo(documentId);
+
+    if (caret !== null) {
+      pendingSelection.current = { start: caret.start, end: caret.end, focus: false };
+    }
   };
 
   const handleTablistKeyDown = (event: React.KeyboardEvent<HTMLDivElement>): void => {
@@ -424,6 +508,36 @@ export function DocumentEditorPage(): React.JSX.Element {
                 : `Quedan ${remaining.toLocaleString('es-ES')} caracteres`}
             </p>
           )}
+
+          {/*
+            Solo donde se escribe —`text` y `split`—, igual que la paleta (AC-29): deshacer es una
+            acción de edición, y en vista previa no se edita. `disabled` y no `aria-disabled`: el
+            estado tiene que ser el de verdad, y es además **la única señal** que distingue «se acabó
+            el historial» de «esto está roto» cuando la cota de memoria desaloja los pasos viejos.
+          */}
+          {viewMode === 'text' || viewMode === 'split' ? (
+            <div className="flex items-center gap-1">
+              {HISTORY_CONTROLS.map((control) => (
+                <button
+                  key={control.direction}
+                  type="button"
+                  // El atajo va **en el nombre accesible**, como la «×» de la `005` dice «Supr para
+                  // cerrar»: un atajo que no se anuncia en ninguna parte solo lo usa quien ya lo sabía.
+                  aria-label={`${control.label} · ${control.shortcut}`}
+                  disabled={
+                    (control.direction === 'undo' ? entry.undo.past : entry.undo.future).length ===
+                    0
+                  }
+                  onClick={() => {
+                    stepHistory(control.direction);
+                  }}
+                  className="min-h-9 min-w-9 rounded-md border border-slate-300 px-3 py-1 text-sm font-medium text-slate-700 outline-solid outline-0 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400 disabled:hover:bg-transparent"
+                >
+                  {control.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
 
           <button
             type="button"

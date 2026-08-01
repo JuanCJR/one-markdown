@@ -3014,11 +3014,13 @@ de deshacer.
 
 Detalle completo en `specs/006-editor-undo/tasks.md`. Spec **aprobada el 2026-07-29 en v0.1.1**, con
 **las cuatro decisiones de §9.1 resueltas el mismo día, las cuatro en la opción recomendada**.
-**Cinco tareas cerradas y verificadas el 2026-07-29** (`T-000`, `T-001`, `T-002`, `T-003`, `T-007`).
-Quedan **`T-004`, `T-005`, `T-006`, `T-008` y `T-009`**. Todas las implementó el orchestrator.
-**Cifras a este punto**: `apps/web` **23 archivos / 589** · `shared` **81** · api unit **21 suites /
-305** · `pnpm test:e2e` **11 passed (14,9 s)** · `typecheck` y `lint` en **0**. La `004` queda en
-**v0.3.1** y la `001` en **v0.1.4**.
+**Fase cerrada: 10/10 tareas.** La spec `006` queda **complete** en **v0.1.3**, y con ella se salda
+el último defecto que el proyecto había aceptado a sabiendas dejar roto. Todas las tareas las
+implementó el orchestrator.
+**Cifras del cierre**: `apps/web` **23 archivos / 607** · `shared` **81** · api unit **21 suites /
+305** · api e2e **22 suites / 511** · `pnpm test:e2e` **12** · `--retries=2 --repeat-each=3` **36
+passed sin un solo `429`** · `typecheck` y `lint` en **0**. Pico de `workspace` **31 de 120 por
+corrida** (criterio < 60). La `004` queda en **v0.3.1** y la `001` en **v0.1.4**.
 
 **10 tareas** (`T-000`…`T-009`), **ocho de `frontend`** y dos de `orchestrator` — `T-000`, que no
 toca código, y `T-009`, la de cierre, que solo edita `specs/**` e `IMPLEMENTATION.md`.
@@ -3202,9 +3204,42 @@ paralelo, la cadena `T-001 → T-002 → T-003` y **`T-007`**, que no comparte u
       test**, arrastrado por el `typecheck` del cambio de tipo. El RED se recuperó **de verdad**
       —andamio, medición, restauración— y no por mutación, así que la señal es la que TDD pide; pero el
       orden fue el equivocado y queda registrado en vez de maquillado.
-- [ ] **T-004** · frontend · Frontera con guardado y conflicto (AC-18…AC-22) — **pendiente**
-- [ ] **T-005** · frontend · Atajos acotados al área de escritura (AC-23…AC-26) — **pendiente**
-- [ ] **T-006** · frontend · Los dos controles y el foco (AC-27…AC-31) — **pendiente**
+- [x] **T-004** · orchestrator · Frontera con guardado y conflicto (AC-18…AC-22) — 2026-07-30
+      **Los cinco casos pasaron desde el primer intento, así que no hay RED que reportar**, y se dice
+      en vez de fabricar uno. Dos motivos distintos: AC-18, AC-19 y AC-20 **no piden código propio**
+      —los hereda de que deshacer pase por la misma ruta que teclear, que es lo que compró la decisión
+      8 del plan—; y la línea de AC-21 (`undo: clearHistory()`) **se había escrito ya en `T-003`**, en
+      el mismo lote del store. Eso es un desliz de alcance mío entre tareas, no del diseño.
+      **Verificado por mutación, una a una**: **(A)** quitar `undo: clearHistory()` → cae **AC-21**;
+      **(B)** hacer que deshacer escriba con `patch` directo en vez de por la ruta única → caen
+      **AC-18** y **AC-19**; **(C)** hacer que deshacer fuerce el guardado en vez de programarlo → cae
+      **AC-20**. **AC-20 sobrevivió a la (B)**, y por eso hizo falta la (C): sin ella no habría
+      constancia de que ese AC mida algo. Restaurado y verde: **60 passed** en `editor.store.test.ts`.
+- [x] **T-005** · orchestrator · Atajos acotados al área de escritura (AC-23…AC-26, AC-11 cableado) — 2026-07-30
+      RED de la aserción: **6 rojos**. GREEN: **62 passed** en el archivo, **23 archivos / 601** en el
+      paquete; `typecheck` y `lint` en **0**.
+      **Un caso mío nacía roto y hubo que endurecerlo antes de implementar.** El de `Ctrl`+`Y` afirmaba
+      «tras deshacer y rehacer el texto vuelve a la inserción», y eso **también es cierto si ni
+      deshacer ni rehacer hacen nada**: pasaba en verde con la página sin tocar. Se le añadió la
+      aserción del **paso intermedio**, y con ella el RED subió de 5 a 6 rojos. Es la pregunta que la
+      spec exige por AC —«¿qué mutación lo haría caer?»— aplicada al propio test.
+      **Y un rojo que no era de la aserción**: el de AC-25 salió como `TypeError` porque
+      `HISTORY_SHORTCUT_KEYS` aún no existía — ruido de andamiaje (§9.7 de la `004`); lo correcto habría
+      sido exportar la enumeración vacía antes de escribir el caso. Los otros cinco sí eran de aserción.
+      **El caso de AC-26 pasó desde el principio**: guarda negativa que una página sin manejador
+      satisface por construcción. Queda como regresión.
+- [x] **T-006** · orchestrator · Los dos controles y el foco (AC-27…AC-31) — 2026-08-01
+      RED: **4 rojos** (`Unable to find an accessible element with the role "button" and name
+      "Deshacer · Ctrl+Z"`). GREEN: **68 passed** en el archivo, **23 archivos / 607** en el paquete;
+      `typecheck` y `lint` en **0**.
+      **Dos casos pasaron desde el principio y se dice cuáles y por qué**: el del foco con atajo —el
+      `useLayoutEffect` ya enfocaba, así que es guarda de regresión de lo que dejó `T-005`— y el de
+      AC-31, que con los botones aún sin existir no podía fallar; **con los botones puestos sí mide
+      algo**, porque cae en cuanto alguien añada una quinta región viva.
+      **El campo `focus` de `pendingSelection` es AC-30 entero**: la paleta y los atajos pasan `true`,
+      los botones `false`. Sin él, la segunda pulsación de `Enter` sobre el botón escribiría un salto
+      de línea en el documento — un defecto que solo aparece navegando con teclado, o sea con el
+      público exacto para el que existe el botón.
 - [x] **T-007** · orchestrator · `watchContentSaves` a `support/` (AC-36) — 2026-07-29
       RED: se amplió el inventario de la guarda **antes** de mover nada, y señaló los dos archivos que
       lo declaraban por su cuenta (`expected [ …(2) ] to deeply equal []`). GREEN: `test e2e-support` →
@@ -3217,8 +3252,56 @@ paralelo, la cadena `T-001 → T-002 → T-003` y **`T-007`**, que no comparte u
       `import type { Page }` sin usar (`TS6133`), retirado. `palette.spec.ts` sí lo sigue usando.
       La **`001` sube a v0.1.4** con su entrada de cierre —`e2e/support/**` es contrato suyo— y sus
       ayudantes compartidos pasan a ser **siete**.
-- [ ] **T-008** · frontend · Navegador: el defecto y el tamaño de objetivo (AC-32, AC-33) — **pendiente**
-- [ ] **T-009** · orchestrator · Cierre: alcance y presupuesto (AC-34, AC-35) — **pendiente**
+- [x] **T-008** · orchestrator · Navegador: el defecto y el tamaño de objetivo (AC-32, AC-33) — 2026-08-01
+      El caso pasa, y **el comportamiento roto quedó medido con un contrafáctico** en vez de recordado:
+      se desactivó el manejador de historial de la página, se corrió el caso y se restauró.
+      **Resultado, y es más concreto que lo que la spec suponía**: sin nuestra pila, `Ctrl`+`Z` en
+      Chromium **no hace absolutamente nada** — el `<textarea>` se queda en
+      `hola mundo**texto en negrita**` tras **14 reintentos en 5 s**. §1.1 de la spec decía «restaura
+      un estado anterior a la inserción, deshace dos pasos, o nada»; con una inserción programática
+      justo antes, la pila nativa queda tan invalidada que **la tecla no tiene efecto**. Se precisa la
+      spec con la medición delante (**v0.1.3**).
+      El caso recorre **los dos caminos** —atajo y botón—, que llegan al store por rutas distintas y de
+      los cuales solo el segundo existe para quien no usa teclado físico. Suite de navegador entera:
+      **12 passed** (eran 11).
+      **Presupuesto afirmado como cota y no como número exacto, con el motivo escrito**: entre las
+      acciones del navegador pasan tiempos que el caso no controla, así que el debounce puede vencer
+      una vez o dos. Afirmar un número exacto sería afirmar el reloj de la máquina.
+- [x] **T-009** · orchestrator · Cierre: alcance y presupuesto (AC-34, AC-35) — 2026-08-01
+      **AC-34**: `git status --porcelain packages apps/api` **vacío** · `shared` **81** · api unit
+      **305** · api e2e **511**, idénticos a los del cierre de la `005`. **Tercera spec seguida sin
+      tocar `packages/shared` ni `apps/api`.**
+      **AC-35(a)**: pico de `workspace` **31 de 120 por corrida** (criterio < 60), sondeando Redis
+      **dentro del contenedor** y con el instrumento **validado antes contra un valor conocido**
+      (se escribió un 42 y se leyó un 42). Eran **28** en la `005`; las tres de diferencia son el
+      documento que crea el caso nuevo, así que la cifra se explica en vez de aceptarse a ojo.
+      **AC-35(b)**: `--retries=2 --repeat-each=3` → **36 passed sin un solo `429`**, y **sin cifra**,
+      a propósito.
+      **Dos fallos de instrumento, y el aviso de esta misma tarea se cobró en su propia ejecución.**
+      **(1)** La primera corrida de `--repeat-each` dio «cero `429`» y **no valía**: se había lanzado
+      `rm -rf packages/shared/dist` **en paralelo** con la suite —le quitó el módulo debajo— y el `--`
+      extra llegó literal a Playwright. **La suite no ejecutó un solo caso.** Otro cero de un
+      instrumento desconectado, por otra puerta que la de la `005`. **La regla se amplía**: los
+      comandos se corren desde estado limpio **y de uno en uno**; preparar el estado mientras algo lo
+      usa es desconectarlo.
+      **(2)** Repetida bien, salió un rojo **real y ajeno**: `smoke.spec.ts` casaba `getByText(/404/)`
+      con **dos** elementos, porque el título aleatorio de un documento de otra suite —`Pestañas
+      izquierda 02740494`— contiene «404» dentro del hex. **Violación de modo estricto latente desde
+      siempre**, que solo aparece con el árbol poblado y que **cada suite nueva hace más probable**.
+      Arreglado con `getByRole('heading', { name: /404/ })`. **El archivo no estaba en la lista de
+      artefactos de `T-008`** y queda dicho en vez de arreglado en silencio: una línea, consulta
+      estrictamente más fuerte, ningún AC tocado. Misma lección que la `T-012` de la `004`.
+
+**Fase 8 cerrada: 10/10 tareas.** La spec `006` queda **complete** en **v0.1.3**. Con ella, el
+producto de `CLAUDE.md` está implementado **y** el último defecto conocido que el proyecto había
+aceptado a sabiendas queda saldado: `Ctrl`+`Z` deshace una inserción de la paleta, devolviendo el
+texto **y la selección** que había.
+
+**Lo que queda sin cobertura automática, escrito sin adornar**: cómo locuta un lector real el cambio
+del `<textarea>` tras deshacer · si Firefox sobre Windows entrega `Ctrl`+`Y` a la página (la suite es
+**Chromium-only**, un único *project*) · cuántos bytes ocupa el historial en el montón de V8 —AC-17
+mide el **coste declarado en caracteres**, que es el que la cota usa—. **Ninguna de las tres tiene un
+test que finja lo contrario**, y ninguna es deuda de código: son revisiones manuales declaradas.
 
 ### El riesgo #10 de la `005`, cobrado tal cual (2026-07-29)
 

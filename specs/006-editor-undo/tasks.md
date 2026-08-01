@@ -3,9 +3,8 @@
 Spec: `spec.md` **v0.1.1** (**approved** el 2026-07-29, con las cuatro decisiones de §9.1 resueltas) ·
 Plan: `plan.md`
 
-**Estado a 2026-07-29: cinco tareas cerradas y verificadas — `T-000`, `T-001`, `T-002`, `T-003` y
-`T-007`.** Quedan `T-004`, `T-005`, `T-006`, `T-008` y `T-009`. La `004` queda en **v0.3.1** y la `001`
-en **v0.1.4**.
+**Estado: las 10 tareas cerradas y verificadas (`T-000`…`T-009`). La spec queda `complete` en
+v0.1.3.** La `004` queda en **v0.3.1** y la `001` en **v0.1.4**.
 
 **Diez tareas** (`T-000`…`T-009`). **Ocho son de `frontend`** y dos de `orchestrator`: `T-000`, que
 **no toca una línea de código**, y `T-009`, la de cierre, que solo edita `specs/**` e
@@ -209,7 +208,7 @@ mismo motivo, que el radio de un cambio incluye todo lo que construye un valor d
       `openedAt` incluido, va dentro de `UndoState`. Si te ves necesitando un `Map` de módulo, **para
       y reporta**: significa que el diseño de `spec.md` §2.3 no se sostiene.
 
-- [ ] **T-004** · `frontend` · La frontera con el guardado y con el conflicto
+- [x] **T-004** · `frontend` · La frontera con el guardado y con el conflicto — **hecha**
       **AC**: AC-18, AC-19, AC-20, AC-21, AC-22
       **Depende de**: T-003
       **Artefactos**: `apps/web/src/features/editor/editor.store.ts` (**solo** `resolveTakeServer`) ·
@@ -227,8 +226,22 @@ mismo motivo, que el radio de un cambio incluye todo lo que construye un valor d
       código es `resolveTakeServer`, que añade `undo: clearHistory()` a su `patch`.
       **DONE**: `pnpm --filter @one-markdown/web test editor.store` en verde · `typecheck` y `lint`
       en **0**
+      **HECHA.** **Los cinco casos pasaron desde el primer intento, así que no hay RED que reportar**, y
+      se dice en vez de fabricar uno. Dos motivos distintos: AC-18, AC-19 y AC-20 **no piden código
+      propio** —los hereda de que deshacer pase por la misma ruta que teclear, que es justo lo que
+      compró la decisión 8 del plan—; y la línea de AC-21 (`undo: clearHistory()` en
+      `resolveTakeServer`) **se había escrito ya en `T-003`**, en el mismo lote de cambios del store.
+      Eso último es un desliz de alcance mío entre tareas, no del diseño, y queda anotado.
+      **Verificado por mutación, una a una, porque un verde sin rojo no demuestra nada por sí solo**:
+      **(A)** quitar `undo: clearHistory()` → cae **AC-21** (`expected { …(4) } to deeply equal`);
+      **(B)** hacer que deshacer escriba con `patch` directo en vez de por la ruta única → caen
+      **AC-18** y **AC-19** (`to match object { status: 'dirty' }`, `{ status: 'clean' }`);
+      **(C)** hacer que deshacer fuerce el guardado en vez de programarlo → cae **AC-20**
+      (`expected [ {…} ] to have a length of +0`). **AC-20 sobrevivió a la mutación (B)**, y por eso
+      hizo falta la (C): sin ella no habría constancia de que ese AC mida algo.
+      Resultado: **60 passed** en `editor.store.test.ts`.
 
-- [ ] **T-005** · `frontend` · Los atajos, acotados al área de escritura, y la guarda de colisión
+- [x] **T-005** · `frontend` · Los atajos, acotados al área de escritura, y la guarda de colisión — **hecha**
       **AC**: AC-23, AC-24, AC-25, AC-26, **AC-11 en su mitad de cableado**
       **Depende de**: T-003 (no de T-004)
       **Artefactos**: `apps/web/src/features/editor/DocumentEditorPage.tsx` (**solo**
@@ -255,8 +268,23 @@ mismo motivo, que el radio de un cambio incluye todo lo que construye un valor d
       abiertos») y **cuatro** `role="status"`. Toda consulta va **por nombre accesible**;
       `filter({ hasText })` no lee `aria-label` y deja el test verde ante la regresión que dice
       vigilar (`T-012` de la `004`).
+      **HECHA.** RED de la aserción: **6 rojos** (`expected '**texto en negrita**…' to be '# Título del
+      servidor\n'`). GREEN: **62 passed** en el archivo, **23 archivos / 601** en el paquete;
+      `typecheck` y `lint` en **0**.
+      **Un caso mío nacía roto y hubo que endurecerlo antes de implementar.** El de `Ctrl`+`Y` afirmaba
+      «tras deshacer y rehacer el texto vuelve a la inserción», y eso **también es cierto si ni
+      deshacer ni rehacer hacen nada**: pasaba en verde con la página sin tocar. Se le añadió la
+      aserción del **paso intermedio** —tras `Ctrl`+`Z` el texto es el del servidor—, y con ella el
+      recuento del RED subió de 5 a 6. Es la pregunta que la spec exige por AC —«¿qué mutación lo haría
+      caer?»— aplicada al propio test: si no se te ocurre ninguna, el AC no mide lo que crees.
+      **Y un rojo que no era de la aserción**: el de AC-25 salió como `TypeError: Cannot read
+      properties of undefined`, porque `HISTORY_SHORTCUT_KEYS` todavía no existía. Es ruido de
+      andamiaje —§9.7 de la `004`—, y lo correcto habría sido exportar la enumeración vacía antes de
+      escribir el caso. Los otros cinco sí eran de aserción.
+      **El caso de AC-26 pasó desde el principio**: es una guarda negativa (un atajo fuera del área no
+      hace nada) y una página sin manejador la satisface por construcción. Queda como regresión.
 
-- [ ] **T-006** · `frontend` · Los dos controles visibles, su estado y el foco que no se roba
+- [x] **T-006** · `frontend` · Los dos controles visibles, su estado y el foco que no se roba — **hecha**
       **AC**: AC-27, AC-28, AC-29, AC-30, AC-31
       **Depende de**: T-005. La decisión **B** ya está resuelta —**no se añade región viva**—, así que
       esta tarea no tiene ningún bloqueo de spec pendiente.
@@ -280,6 +308,17 @@ mismo motivo, que el radio de un cambio incluye todo lo que construye un valor d
       activarse, la **segunda** pulsación de `Enter` sobre el botón escribe un salto de línea en el
       documento. Es un defecto que solo aparece navegando con teclado, que es exactamente el público
       para el que existe el botón.
+      **HECHA.** RED: **4 rojos** (`Unable to find an accessible element with the role "button" and
+      name "Deshacer · Ctrl+Z"`). GREEN: **68 passed** en el archivo, **23 archivos / 607** en el
+      paquete; `typecheck` y `lint` en **0**.
+      **Dos casos pasaron desde el principio y se dice cuáles y por qué**: el del foco con atajo —el
+      `useLayoutEffect` ya enfocaba, así que es guarda de regresión de lo que `T-005` dejó hecho— y el
+      de AC-31, que con los botones aún sin existir no podía fallar; **con los botones puestos sí mide
+      algo**, porque cae en cuanto alguien añada una quinta región viva.
+      **Implementación**: `pendingSelection` gana el campo `focus`, y ese booleano **es AC-30 entero**
+      —la paleta y los atajos pasan `true`, los botones `false`—. Los dos controles salen de una
+      enumeración `HISTORY_CONTROLS` con su rótulo, su atajo y el lado de la pila que los habilita, para
+      no tener dos bloques copiados que puedan divergir.
 
 - [x] **T-007** · `frontend` · `watchContentSaves` a `support/`, y la guarda que lo vigila — **hecha el 2026-07-29**
       **AC**: AC-36
@@ -315,7 +354,7 @@ mismo motivo, que el radio de un cambio incluye todo lo que construye un valor d
       La **`001` sube a v0.1.4** con su entrada de cierre: `e2e/support/**` es contrato suyo, y sus
       ayudantes compartidos pasan a ser **siete**.
 
-- [ ] **T-008** · `frontend` · Navegador: el defecto que esta spec arregla, y el tamaño de objetivo
+- [x] **T-008** · `frontend` · Navegador: el defecto que esta spec arregla, y el tamaño de objetivo — **hecha**
       **AC**: AC-32, AC-33
       **Depende de**: T-006, T-007
       **Artefactos**: `apps/web/e2e/undo.spec.ts` (**nuevo**)
@@ -334,8 +373,22 @@ mismo motivo, que el radio de un cambio incluye todo lo que construye un valor d
       a `Meta` en macOS y a `Control` en Windows/Linux (verificado en la documentación de Playwright
       1.62). Y **se usa `watchContentSaves` de `support/`**, no una copia: la extracción es de
       `T-007` precisamente para que este archivo no sea la tercera.
+      **HECHA.** El caso pasa en verde, y **el comportamiento roto quedó medido con un contrafáctico**
+      en vez de recordado: se desactivó el manejador de historial de la página, se corrió el caso y se
+      restauró. Resultado — **sin nuestra pila, `Ctrl`+`Z` en Chromium no hace absolutamente nada**: el
+      `<textarea>` se queda en `hola mundo**texto en negrita**` tras **14 reintentos en 5 s**.
+      **Es más concreto que lo que la spec suponía** (§1.1 decía «restaura un estado anterior a la
+      inserción, deshace dos pasos, o nada»): en este escenario, con una inserción programática justo
+      antes, la pila nativa queda tan invalidada que la tecla **no tiene efecto**. La spec se precisa
+      con la medición delante en la **v0.1.3**.
+      **El caso recorre los dos caminos, y no es repetirse**: el atajo y el botón llegan al store por
+      rutas distintas, y la del botón es la única que existe para quien no usa teclado físico.
+      **Presupuesto afirmado como cota y no como número exacto, con el motivo escrito**: entre las
+      acciones del navegador pasan tiempos que el caso no controla, así que el debounce puede vencer
+      una vez o dos. Afirmar un número exacto sería afirmar el reloj de la máquina; la cota (≤ 4)
+      protege lo que importa, que las seis escrituras no produzcan una petición cada una.
 
-- [ ] **T-009** · `orchestrator` · Cierre: alcance verificado y presupuesto con sus ventanas
+- [x] **T-009** · `orchestrator` · Cierre: alcance verificado y presupuesto con sus ventanas — **hecha**
       **AC**: AC-34, AC-35
       **Depende de**: T-008
       **Artefactos**: `specs/006-editor-undo/spec.md` (`Estado`, versión de cierre) ·
@@ -357,6 +410,22 @@ mismo motivo, que el radio de un cambio incluye todo lo que construye un valor d
       paquete solo** antes de llamarlo regresión: bajo presión de memoria un test con `testTimeout`
       de 5 s revienta y arrastra a los de al lado. Se reconoce por la **duración**. **No se sube el
       `testTimeout`.**
+      **HECHA.** **AC-34**: `git status --porcelain packages apps/api` **vacío** · `shared` **81** ·
+      api unit **21 suites / 305** · api e2e **22 suites / 511**, idénticos a los del cierre de la
+      `005`. **AC-35(a)**: pico de `workspace` **31 de 120 por corrida** (criterio < 60), sondeando
+      Redis dentro del contenedor y con el instrumento validado antes contra un valor conocido (**42**).
+      **AC-35(b)**: `--retries=2 --repeat-each=3` → **36 passed sin un solo `429`**, y **sin cifra**, a
+      propósito.
+      **Y el aviso (2) de esta misma tarea se cobró en su propia ejecución, con una vuelta de tuerca**:
+      la primera corrida de `--repeat-each` dio «cero `429`» y **no valía**, porque se había lanzado
+      `rm -rf packages/shared/dist` **en paralelo** con la suite y el `--` extra llegó literal a
+      Playwright — la suite no ejecutó un solo caso. Un cero de un instrumento desconectado, otra vez y
+      por otra puerta. **La regla se amplía**: los comandos se corren desde estado limpio **y de uno en
+      uno**; preparar el estado mientras algo lo usa es desconectarlo.
+      **Un rojo real y ajeno, destapado por la repetición**: `smoke.spec.ts` casaba `getByText(/404/)`
+      con **dos** elementos porque el título aleatorio de un documento de otra suite contenía «404» en
+      su hex. Latente desde siempre, más probable con cada suite que crea documentos. Arreglado por
+      rol; **el archivo no estaba en la lista de artefactos** y queda dicho.
 
 ---
 

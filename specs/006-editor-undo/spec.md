@@ -1,17 +1,32 @@
 # Spec 006 — Pila de deshacer/rehacer propia del editor
 
-- **Versión**: 0.1.1
-- **Estado**: **approved** (2026-07-29) — **36 AC** en seis bloques y **10 tareas**
-  (`T-000`…`T-009`), **ocho de `frontend`** y dos de `orchestrator` — `T-000`, que no toca código,
-  y `T-009`, la de cierre, que solo edita `specs/**` e `IMPLEMENTATION.md`.
+- **Versión**: 0.1.3
+- **Estado**: **complete** (2026-08-01) — **36/36 AC** y **10/10 tareas** verificadas, todas con su
+  comando corrido y su salida real.
+  **Cifras del cierre**: `apps/web` **23 archivos / 607** · `shared` **81** · api unit **21 suites /
+  305** · api e2e **22 suites / 511** · `pnpm test:e2e` **12** · `--retries=2 --repeat-each=3`
+  **36 passed sin un solo `429`** · `typecheck` y `lint` en **0**.
+  **Presupuesto, con su ventana pegada**: pico de `workspace` **31 de 120 por corrida** (criterio
+  < 60), sondeando Redis **dentro del contenedor** y con el instrumento **validado contra un valor
+  conocido** antes de creerse la medida.
+  **Salvedad de cobertura vigente**: las tres cosas de §9.3 siguen siendo revisión **manual** y
+  ninguna tiene un test que finja lo contrario.
+  Antes del cierre — **36 AC** en seis bloques y **10 tareas**
+  (`T-000`…`T-009`), **ocho de `frontend`** y dos de `orchestrator`.
   **Las cuatro decisiones de §9.1 quedaron resueltas el 2026-07-29, las cuatro en la opción
-  recomendada**, así que ningún AC cambia de redacción y ningún artefacto entra ni sale.
-  **`T-000` está hecha y verificada** (la `004` queda en **v0.3.1**); **las nueve tareas de código
-  siguen sin empezar**, en espera de la señal de arranque del usuario.
+  recomendada**, así que ningún AC cambió de redacción y ningún artefacto entró ni salió.
+  La `004` queda en **v0.3.1** y la `001` en **v0.1.4**.
   **Convenio de versionado al aprobar, por consistencia con las specs `001` a `005`**: aprobar **no**
-  salta a 1.0.0 y **no** sube la versión — lo que cambia es el `Estado`. La v0.1.1 sube por el
-  contenido de §9.1, no por la aprobación
-- **Fecha**: 2026-07-29 (v0.1.0 draft) · **v0.1.1 el 2026-07-29**: se resuelven las cuatro decisiones
+  salta a 1.0.0 y **no** sube la versión — lo que cambia es el `Estado`
+- **Fecha**: 2026-07-29 (v0.1.0 draft) · **v0.1.3 el 2026-08-01**: **versión de cierre**, y es
+  **patch**: el recuento **no se mueve** —siguen 36 AC y 10 tareas—, ningún AC cambia lo que exige y
+  ningún artefacto entra ni sale. Trae dos precisiones escritas **con la medición delante**:
+  **(a)** §1.1 decía que con la pila nativa `Ctrl`+`Z` «restaura un estado anterior a la inserción,
+  deshace dos pasos, o no hace nada»; medido en Chromium con un contrafáctico, en este escenario **no
+  hace absolutamente nada**, y la pila nativa no queda impredecible sino **inservible**;
+  **(b)** el pico de `workspace` sube de 28 a **31 de 120 por corrida**, y las tres peticiones de
+  diferencia son el documento que crea el caso nuevo · **v0.1.2 el 2026-07-29**: corrección de
+  `plan.md` §4.2 con `T-001` verde, sin mover el recuento · **v0.1.1 el 2026-07-29**: se resuelven las cuatro decisiones
   abiertas. **Es patch y no minor porque el recuento no se mueve**: siguen **36 AC** y **10 tareas**,
   ningún AC cambia de redacción y ningún artefacto entra ni sale — mismo criterio con el que la
   v0.1.1 de la `004` y la v0.1.1 de la `005` se justificaron como patch
@@ -49,6 +64,13 @@ decir, cada vez que el programa asigna un valor distinto de `event.target.value`
 contenido del elemento, y esa reescritura **no entra en la pila nativa del navegador**: la invalida.
 A partir de ahí la pila nativa deja de describir el historial real del documento, y `Ctrl`+`Z`
 restaura un estado anterior a la inserción, deshace dos pasos, o no hace nada.
+
+**Medido en Chromium al cerrar la spec (v0.1.3), y es más concreto que esa frase**: con una inserción
+de la paleta justo antes, `Ctrl`+`Z` **no hace absolutamente nada**. El contrafáctico —desactivar el
+manejador de historial, correr el caso de `e2e/undo.spec.ts` y restaurar— dejó el `<textarea>` en
+`hola mundo**texto en negrita**` tras **14 reintentos en 5 s**. La pila nativa no queda impredecible:
+queda **inservible**, que es un caso particular de lo que decía esta sección y el que de verdad
+ocurre.
 
 La consecuencia está **aceptada por escrito** desde el 2026-07-28 (decisión **B** de la `004`), y se
 aceptó a condición de que el remedio quedara planificado en vez de convertirse en una nota al pie.

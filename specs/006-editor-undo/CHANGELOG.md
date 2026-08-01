@@ -2,6 +2,47 @@
 
 Formato: `## vX.Y.Z — YYYY-MM-DD` + motivo del cambio.
 
+## v0.1.3 — 2026-08-01
+
+**Versión de cierre. La spec queda `complete`: 36/36 AC y 10/10 tareas.** Es **patch** y no minor
+porque **el recuento no se mueve** —siguen 36 AC y 10 tareas—, ningún AC cambia lo que exige y ningún
+artefacto entra ni sale. Lo que trae son **dos precisiones escritas con la medición delante**.
+
+- **Cifras del cierre**: `apps/web` **23 archivos / 607** · `shared` **81** · api unit **21 suites /
+  305** · api e2e **22 suites / 511** · `pnpm test:e2e` **12** · `--retries=2 --repeat-each=3`
+  **36 passed sin un solo `429`** · `typecheck` y `lint` en **0** · `git status --porcelain packages
+  apps/api` **vacío** (AC-34).
+- **Precisión (a) — §1.1, con el contrafáctico delante.** Decía que con la pila nativa `Ctrl`+`Z`
+  «restaura un estado anterior a la inserción, deshace dos pasos, o no hace nada». **Medido**: se
+  desactivó el manejador de historial de la página, se corrió `e2e/undo.spec.ts` y se restauró; en
+  Chromium, con una inserción de la paleta justo antes, `Ctrl`+`Z` **no hace absolutamente nada** —el
+  `<textarea>` se queda en `hola mundo**texto en negrita**` tras **14 reintentos en 5 s**—. La pila
+  nativa no queda impredecible: queda **inservible**. Es un caso particular de lo que la spec decía, y
+  el que de verdad ocurre.
+- **Precisión (b) — el presupuesto sube de 28 a 31 de 120 por corrida** (criterio < 60). Las tres
+  peticiones de diferencia son el documento que crea el caso nuevo, así que la cifra se explica y no
+  se acepta a ojo. Medido sondeando Redis **dentro del contenedor**, con el instrumento **validado
+  antes contra un valor conocido** — la lección que la `005` pagó con un `pico=0` falso.
+- **Dos fallos de instrumento durante el cierre, los dos registrados porque los dos enseñan algo.**
+  **(1)** La primera corrida de `--retries=2 --repeat-each=3` dio «cero `429`» y **no valía**: se
+  había lanzado `rm -rf packages/shared/dist` en paralelo, que le quitó el módulo debajo, y el `--`
+  extra llegó literal a Playwright. La suite **no ejecutó un solo caso**, así que el cero era del
+  instrumento y no del contador — exactamente el modo de fallo de la `005`, por otra puerta. **(2)**
+  Repetida bien, salió un rojo **real y ajeno** en `smoke.spec.ts`: `getByText(/404/)` casaba con
+  **dos** elementos porque el título aleatorio de un documento de otra suite —`Pestañas izquierda
+  02740494`— contiene «404» dentro del hex. Violación de modo estricto **latente desde siempre**, que
+  solo aparece con el árbol poblado y que **cada suite nueva hace más probable**. Arreglado con
+  `getByRole('heading', { name: /404/ })`.
+  **`smoke.spec.ts` no estaba en la lista de artefactos de `T-008`**, y queda dicho en vez de
+  arreglado en silencio: una línea, consulta estrictamente más fuerte, ningún AC tocado. Misma lección
+  que la `T-012` de la `004` — una consulta que puede resolver a otra cosa es una mina puesta para
+  otro.
+- **Lo que queda sin cobertura automática, sin adornar** (§9.3, sin cambios): cómo locuta un lector
+  real el cambio del `<textarea>` tras deshacer · si Firefox sobre Windows entrega `Ctrl`+`Y` a la
+  página (la suite es **Chromium-only**) · cuántos bytes ocupa el historial en el montón de V8 —AC-17
+  mide el **coste declarado en caracteres**, que es el que la cota usa—. **Ninguna tiene un test que
+  finja lo contrario.**
+
 ## v0.1.2 — 2026-07-29
 
 **Patch escrito con `T-001` verde. No mueve nada**: siguen **36 AC** y **10 tareas**, ningún AC cambia

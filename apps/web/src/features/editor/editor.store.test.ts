@@ -449,6 +449,35 @@ describe('useEditorStore — resolución del conflicto (AC-20)', () => {
     });
   });
 
+  it('resolveTakeServer VACÍA la pila de deshacer (spec 006, AC-21)', async () => {
+    await reachConflict(() => jsonResponse(contentSaved(SERVER_VERSION + 6)));
+
+    // Antes de resolver hay historial: lo dejó el `setDraft` que provocó el conflicto.
+    expect(entry().undo.past.length).toBeGreaterThan(0);
+
+    await useEditorStore.getState().resolveTakeServer(DOC_ID);
+
+    // Adoptar el texto del servidor cambia el documento entero. Dejar los pasos anteriores permitiría
+    // deshacer «hacia atrás» hasta reintroducir el conflicto que se acaba de resolver.
+    expect(entry().undo).toEqual({ past: [], future: [], cost: 0, openedAt: null });
+    expect(useEditorStore.getState().undo(DOC_ID)).toBeNull();
+    expect(entry().draft).toBe('lo de la otra pestaña');
+  });
+
+  it('resolveKeepMine NO toca la pila: deshacer sigue funcionando después (spec 006, AC-22)', async () => {
+    await reachConflict(() => jsonResponse(contentSaved(SERVER_VERSION + 6)));
+
+    const before = entry().undo.past.length;
+
+    await useEditorStore.getState().resolveKeepMine(DOC_ID);
+
+    // Es correcto porque `resolveKeepMine` **no cambia el borrador**: escribe el mismo valor que ya
+    // tenía. Lo que cambia es lo guardado y la versión, que no son historial (`006/spec.md` §1.3).
+    expect(entry().undo.past).toHaveLength(before);
+    expect(useEditorStore.getState().undo(DOC_ID)).not.toBeNull();
+    expect(entry().draft).toBe(SERVER_TEXT);
+  });
+
   it('resolveTakeServer adopta el texto del servidor sin emitir ningún PUT', async () => {
     const api = await reachConflict(() => jsonResponse(contentSaved(SERVER_VERSION + 6)));
 
@@ -994,5 +1023,101 @@ describe('useEditorStore — historial de deshacer (spec 006: AC-11…AC-17)', (
     // decisión de `spec.md` §2, y la que se cae si alguien vuelve a guardar el texto entero.
     expect(entry().undo.cost).toBeLessThan(100);
     expect(entry().undo.past).toHaveLength(1);
+  });
+});
+
+/**
+ * La frontera entre el historial y el guardado (spec `006`: AC-18, AC-19, AC-20).
+ *
+ * Los tres AC de este bloque **no piden código propio**: son consecuencia de que deshacer escriba por
+ * la misma ruta que teclear. Se afirman igual, y precisamente por eso: lo que vigilan es que nadie
+ * abra mañana una ruta paralela «para deshacer» y se lleve por delante el debounce y la coalescencia
+ * sin que ningún test se entere.
+ */
+describe('useEditorStore — deshacer y el guardado (spec 006: AC-18, AC-19, AC-20)', () => {
+  /** Guardado que siempre funciona, con la versión subiendo como lo haría el servidor. */
+  function savingRoutes(): Record<string, StubHandler> {
+    let saves = 0;
+
+    return {
+      [PUT_ROUTE]: () => {
+        saves += 1;
+
+        return jsonResponse(contentSaved(SERVER_VERSION + saves));
+      },
+    };
+  }
+
+  it('deshacer después de guardar vuelve a ensuciar y emite otro PUT (AC-18)', async () => {
+    const api = await openDocument(savingRoutes());
+
+    useEditorStore.getState().setDraft(DOC_ID, 'primera versión', { mergeable: false });
+    await vi.advanceTimersByTimeAsync(AUTOSAVE_DEBOUNCE_MS);
+
+    useEditorStore.getState().setDraft(DOC_ID, 'segunda versión', { mergeable: false });
+    await vi.advanceTimersByTimeAsync(AUTOSAVE_DEBOUNCE_MS);
+
+    expect(api.callsTo(PUT_ROUTE)).toHaveLength(2);
+    expect(entry()).toMatchObject({ status: 'clean', savedContent: 'segunda versión' });
+
+    // Deshacer **cruza la frontera del guardado**: el documento realmente cambió, así que vuelve a
+    // estar sucio y el cambio se manda. La alternativa —parar el deshacer en el último guardado— haría
+    // que `Ctrl`+`Z` no hiciera casi nunca nada, porque el guardado automático ocurre cada 1.500 ms.
+    expect(useEditorStore.getState().undo(DOC_ID)).not.toBeNull();
+    expect(entry()).toMatchObject({ status: 'dirty', draft: 'primera versión' });
+
+    await vi.advanceTimersByTimeAsync(AUTOSAVE_DEBOUNCE_MS);
+
+    const puts = api.callsTo(PUT_ROUTE);
+
+    expect(puts).toHaveLength(3);
+    expect(sentContent(puts[2])).toBe('primera versión');
+  });
+
+  it('deshacer hasta el texto ya guardado deja limpio y no emite nada (AC-19)', async () => {
+    const api = await openDocument(savingRoutes());
+
+    useEditorStore.getState().setDraft(DOC_ID, 'guardado', { mergeable: false });
+    await vi.advanceTimersByTimeAsync(AUTOSAVE_DEBOUNCE_MS);
+
+    expect(api.callsTo(PUT_ROUTE)).toHaveLength(1);
+
+    useEditorStore.getState().setDraft(DOC_ID, 'sin guardar', { mergeable: false });
+
+    expect(entry().status).toBe('dirty');
+    expect(useEditorStore.getState().undo(DOC_ID)).not.toBeNull();
+
+    // La rama que `setDraft` ya tenía, heredada sin una línea nueva: volver a lo guardado no es un
+    // cambio pendiente, así que además de quedar limpio **cancela** el guardado programado.
+    expect(entry()).toMatchObject({ status: 'clean', draft: 'guardado' });
+
+    await vi.advanceTimersByTimeAsync(AUTOSAVE_DEBOUNCE_MS * 4);
+
+    expect(api.callsTo(PUT_ROUTE)).toHaveLength(1);
+  });
+
+  it('una ráfaga de deshacer produce UNA petición, no una por paso (AC-20)', async () => {
+    const api = await openDocument(savingRoutes());
+    const store = useEditorStore.getState();
+
+    store.setDraft(DOC_ID, 'uno', { mergeable: false });
+    store.setDraft(DOC_ID, 'uno dos', { mergeable: false });
+    store.setDraft(DOC_ID, 'uno dos tres', { mergeable: false });
+    store.setDraft(DOC_ID, 'uno dos tres cuatro', { mergeable: false });
+
+    store.undo(DOC_ID);
+    store.undo(DOC_ID);
+
+    expect(entry().draft).toBe('uno dos');
+    expect(api.callsTo(PUT_ROUTE)).toHaveLength(0);
+
+    await vi.advanceTimersByTimeAsync(AUTOSAVE_DEBOUNCE_MS);
+
+    const puts = api.callsTo(PUT_ROUTE);
+
+    // Seis escrituras —cuatro de tecleo y dos de deshacer— y **una** petición: el debounce y la
+    // coalescencia de la `003`, heredados por pasar por la misma ruta.
+    expect(puts).toHaveLength(1);
+    expect(sentContent(puts[0])).toBe('uno dos');
   });
 });

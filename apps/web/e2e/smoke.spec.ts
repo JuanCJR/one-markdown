@@ -48,7 +48,13 @@ test.describe('Smoke (AC-11)', () => {
   test('una ruta desconocida muestra el 404 sin perder la navegación', async ({ page }) => {
     await page.goto('/ruta-que-no-existe');
 
-    await expect(page.getByText(/404/)).toBeVisible();
+    // **Por rol y no por texto suelto** (arreglo de la `006`): `getByText(/404/)` casaba también con
+    // cualquier documento del árbol cuyo título aleatorio contuviera «404» dentro del hex —pasó de
+    // verdad con «Pestañas izquierda 02740494»—, y eso es violación de modo estricto: dos elementos.
+    // El rojo era **real y ajeno**, aparecía solo cuando el árbol tenía documentos de otros casos, y
+    // se hace más probable con cada suite que crea documentos. Misma lección que la `T-012` de la
+    // `004`: una consulta que puede resolver a otra cosa es una mina puesta para otro.
+    await expect(page.getByRole('heading', { name: /404/ })).toBeVisible();
     await expect(page.getByRole('navigation')).toBeVisible();
   });
 
