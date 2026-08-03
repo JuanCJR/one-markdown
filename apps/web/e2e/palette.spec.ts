@@ -105,15 +105,22 @@ test.describe('Paleta de markdown en el navegador (AC-29, AC-32)', () => {
 
     expect(undersized, `objetivos por debajo de ${String(MIN_TARGET_PX)} px`).toEqual([]);
 
-    const focused = await outlineOf(bold);
-    // El contraste con un botón **sin** foco es la mitad que importa: sin ella, un borde permanente
-    // de 2 px pasaría por indicador de foco sin serlo.
-    const idle = await outlineOf(toolbar.getByRole('button', { name: 'Cursiva' }));
+    const focused = await indicadorDeFocoDe(bold);
+    // El contraste con un botón **sin** foco es la mitad que importa: sin ella, un adorno permanente
+    // pasaría por indicador de foco sin serlo.
+    const idle = await indicadorDeFocoDe(toolbar.getByRole('button', { name: 'Cursiva' }));
 
-    expect(focused.style, 'estilo del anillo de foco').not.toBe('none');
-    expect(Number.parseFloat(focused.width)).toBeGreaterThanOrEqual(2);
-    expect(focused.color, 'color del anillo de foco').not.toBe('rgba(0, 0, 0, 0)');
-    expect(Number.parseFloat(idle.width), 'anillo de un botón sin foco').toBe(0);
+    // AC-29 pide **foco visible**, no un `outline`. Desde el sistema de color «Cromo» el indicador
+    // dejó de ser un anillo y pasó a ser masa cromo **más** un eje de tinta de 4 px desplazado
+    // (`docs/design/04-color.md` §5, utilidad `foco-cromo`). El criterio no se ha aflojado: se
+    // comprueban **los dos** canales, y el eje es justamente el que cumple WCAG 1.4.11 —13.32:1—
+    // porque la masa cromo sola mide 1.75:1 sobre papel claro y no bastaría.
+    expect(focused.fondo, 'masa del foco').toBe(CROMO_CLARO);
+    expect(focused.sombra, 'eje de tinta del foco').toContain('-4px');
+    expect(focused.color, 'tinta sobre la masa de foco').toBe(SOBRE_CROMO);
+
+    expect(idle.fondo, 'masa en un botón sin foco').not.toBe(CROMO_CLARO);
+    expect(idle.sombra, 'eje en un botón sin foco').toBe('none');
 
     // Las flechas recorren el catálogo **atravesando los grupos** y vuelven a «Negrita». Ir y volver
     // y no quedarse quieto: la parada del tabulador ya cae en «Negrita», así que sin movimiento real

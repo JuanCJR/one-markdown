@@ -6,8 +6,8 @@ verificación ejecute algo» suena a burocracia hasta que se lee que tres comand
 `No test files found` y nadie lo notó durante dos specs.
 
 **Por qué vive aquí y no dentro de los ficheros de agente.** Los agentes pasan a ser **generados**
-desde `harness.yml` y las plantillas del repositorio del método. Este registro es del proyecto, no del
-método: no se genera nunca, no se porta, y sobrevive a cualquier `harness update`. Un proyecto nuevo
+desde `showi.yml` y las plantillas del repositorio del método. Este registro es del proyecto, no del
+método: no se genera nunca, no se porta, y sobrevive a cualquier `showi update`. Un proyecto nuevo
 empieza este documento vacío y lo llena con lo suyo.
 
 Léelo antes de la primera tarea de una sesión. Sirve para reconocer un defecto rápido, no para

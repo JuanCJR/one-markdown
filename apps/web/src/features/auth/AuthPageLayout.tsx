@@ -42,6 +42,7 @@ export function AuthSubmitButton({ children, busy }: AuthSubmitButtonProps): Rea
       type="submit"
       disabled={busy}
       aria-busy={busy}
+      data-cromo="primaria"
       className="min-h-11 w-full bg-cromo px-4 py-2 font-black text-sobre-cromo outline-none hover:bg-tinta hover:text-sup-base focus-visible:foco-cromo disabled:cursor-not-allowed disabled:inerte disabled:text-tinta-desactivada"
     >
       {children}

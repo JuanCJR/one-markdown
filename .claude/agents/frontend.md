@@ -151,5 +151,5 @@ harness.
 
 **Léelo antes de la primera tarea de una sesión.**
 
-Vive fuera de este archivo a propósito: este archivo pasa a ser **generado** desde `harness.yml`, y el
+Vive fuera de este archivo a propósito: este archivo pasa a ser **generado** desde `showi.yml`, y el
 registro es del proyecto, no del método. Un proyecto nuevo lo empieza vacío.

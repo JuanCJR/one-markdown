@@ -50,7 +50,7 @@ el comando de verificación ejecute algo» suena a burocracia hasta que se lee q
 salían con `No test files found` y nadie lo notó.
 
 Vive en **`docs/harness/defectos.md`**, fuera de los ficheros de agente, porque esos ficheros pasan a
-ser **generados** desde `harness.yml` y un `update` se lo llevaría por delante. El registro es del
+ser **generados** desde `showi.yml` y un `update` se lo llevaría por delante. El registro es del
 proyecto, no del método: no se genera, no se porta, y un proyecto nuevo lo empieza vacío.
 
 ## La instrumentación

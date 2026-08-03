@@ -3,7 +3,7 @@ import { useId, useState } from 'react';
 import { nameLabelOf } from './CreateNodeForm';
 import {
   DialogActions,
-  DIALOG_PRIMARY_CLASS,
+  DIALOG_PRIMARY_PROPS,
   DIALOG_SECONDARY_CLASS,
   ModalDialog,
 } from './ModalDialog';
@@ -66,7 +66,7 @@ export function RenameNodeDialog({
             Cancelar
           </button>
 
-          <button type="submit" disabled={pending} className={DIALOG_PRIMARY_CLASS}>
+          <button type="submit" disabled={pending} {...DIALOG_PRIMARY_PROPS}>
             Guardar
           </button>
         </DialogActions>

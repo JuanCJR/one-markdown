@@ -4,12 +4,33 @@
    un archivo de configuración que en este proyecto no existe. */
 @import 'tailwindcss';
 @import './styles/tokens-cromo.css';
+@import './styles/tokens-cromo-sistema.css';
 
 /* Puente con Tailwind. `inline` es lo que hace que `bg-sup-base` compile a
    `background-color: var(--sup-base)` en vez de al valor congelado: así el conmutador de tema
    cambia el color sin duplicar ni una clase. Sin `inline` habría que generar variantes `dark:`
    para cada utilidad y el override local por `data-tema` dejaría de funcionar. */
 @theme inline {
+  /* La paleta heredada se borra ENTERA. A partir de aquí las utilidades del blanco puro, de los
+     grises y de los azules heredados no existen en el build: la prohibición del sistema de color deja de
+     ser una revisión y pasa a ser un error de compilación, que es lo que decide
+     `docs/design/04-color.md` §3. El guard (`src/design/color-guard.test.ts`) sigue existiendo
+     porque una clase inexistente no rompe el build —solo deja el elemento sin color—, y hace falta
+     que alguien lo grite.
+
+     Va lo PRIMERO del bloque: `initial` borra lo declarado antes, así que los tokens del sistema
+     tienen que venir después o se borrarían ellos también. */
+  --color-*: initial;
+
+  /* `transparent` y `currentColor` no son paleta: son palabras clave de CSS. Caen con el borrado
+     —viven en el mismo namespace `--color-*`— y hay que devolverlas, o `border-transparent` (la
+     pestaña inactiva, que reserva el espacio del borde para que el layout no salte) y
+     `fill-current` (los iconos del árbol, que heredan la tinta de su fila) dejan de existir en
+     silencio. Ninguna de las dos aporta un color: aportan «ninguno» y «el que ya haya». */
+  --color-transparent: transparent;
+  --color-current: currentColor;
+  --color-inherit: inherit;
+
   --color-sup-base: var(--sup-base);
   --color-sup-elevada: var(--sup-elevada);
   --color-sup-hundida: var(--sup-hundida);
@@ -30,23 +51,6 @@
   --font-sans: ui-sans-serif, system-ui, sans-serif;
   --font-mono: ui-monospace, 'Cascadia Code', 'Source Code Pro', monospace;
 }
-
-/* PENDIENTE · borrar la paleta heredada.
-   `docs/design/04-color.md` §3 decide `--color-*: initial`, que borra la paleta entera de Tailwind
-   y convierte la prohibición del blanco puro y de los grises heredados en un error de compilación
-   en vez de en una revisión. No se activa todavía **porque no está el restyle**: quedan usos de la paleta
-   heredada en pantallas que aún no se han migrado, y borrarla ahora las dejaría sin color en
-   silencio, sin romper el build. La cuenta exacta, para que no sea una promesa vaga:
-
-     rg -c --stats 'bg-(white|black|slate|gray|zinc|neutral|stone)-?|text-slate-|border-slate-|blue-[0-9]|red-[0-9]|amber-[0-9]' apps/web/src
-
-   El día que esa cuenta llegue a cero, se descomenta la línea y la prohibición pasa a compilación.
-   Mientras tanto la sostiene `src/design/color-guard.test.ts`.
-
-@theme inline {
-  --color-*: initial;
-}
-*/
 
 /* Textura de inerte. El único gradiente del sistema; cualquier otro `gradient` en el código es
    una infracción (§4, regla 5). */

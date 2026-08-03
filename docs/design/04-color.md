@@ -202,25 +202,17 @@ el valor y el segundo canal; pero es tu decisión, no mía, y hasta que la tomes
 propia spec. Hasta entonces el tema **no viaja entre dispositivos**, y eso es una decisión escrita,
 no un olvido.
 
-**Estado en el repositorio.** Implementado y con tests
-(`apps/web/src/shared/theme/tema.ts`, `TemaSwitcher.tsx`, 13 tests), pero **sin montar en la app**:
+**Estado en el repositorio: montado y en uso.** `apps/web/src/shared/theme/tema.ts` y
+`TemaSwitcher.tsx` (13 tests), el script de arranque en `index.html`, el conmutador en la cabecera
+de `AppShell.tsx` y `tokens-cromo-sistema.css` importado desde `index.css`.
 
-- `index.html` no lleva todavía el script de arranque.
-- `AppShell.tsx` no monta `<TemaSwitcher />`.
-- `index.css` no importa `tokens-cromo-sistema.css`.
+Verificado en la app real, no solo en test: al elegir `Oscuro` el documento queda con
+`data-tema="oscuro"`, `localStorage.om-tema = "oscuro"` y `--sup-base` computa `oklch(0.1901 …)`;
+al volver a `Sistema` se borran las dos cosas y manda `prefers-color-scheme`.
 
-El motivo es medible: quedan **192 usos de la paleta heredada** (`slate`, `blue`, `red`) en 26
-archivos sin migrar a tokens. Con el tema oscuro activo, esas pantallas quedarían con fondo
-`#141411` y texto `slate-900`. La muestra sí carga las tres opciones y sirve para revisar el sistema
-entero, que es para lo que está.
-
-```bash
-rg -c --stats 'bg-(white|black|slate|gray|zinc|neutral|stone)-?|text-slate-|border-slate-|blue-[0-9]|red-[0-9]|amber-[0-9]' apps/web/src
-```
-
-Cuando esa cuenta llegue a cero: importar `tokens-cromo-sistema.css`, añadir el script de arranque,
-montar `<TemaSwitcher />` y descomentar `--color-*: initial` en `index.css` (que borra la paleta de
-Tailwind entera y convierte la prohibición en error de compilación, no en revisión).
+Aviso para quien verifique esto con capturas: cambiar el tema solo cambia variables CSS, y una
+captura disparada inmediatamente después puede devolver el fotograma anterior —me pasó dos veces
+seguidas y parecía un tema roto—. El dato que vale es `getComputedStyle`, no la imagen.
 
 ## 8 · Presupuesto de acento — regla verificable
 

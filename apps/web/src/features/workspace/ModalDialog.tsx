@@ -109,7 +109,16 @@ export const DIALOG_BUTTON_CLASS =
 
 export const DIALOG_SECONDARY_CLASS = `${DIALOG_BUTTON_CLASS} border border-hair-control text-tinta-secundaria hover:bg-tinta hover:text-sup-base`;
 
-export const DIALOG_PRIMARY_CLASS = `${DIALOG_BUTTON_CLASS} bg-cromo font-black text-sobre-cromo hover:bg-tinta hover:text-sup-base`;
+/**
+ * La acción primaria es la única masa cromo de un diálogo, y va como **props** y no como cadena de
+ * clases a propósito: el presupuesto de acento (`docs/design/04-color.md` §8) exige que todo lo que
+ * use cromo de fondo lleve `data-cromo`, y una constante que solo trajera el `className` haría
+ * trivial olvidarlo en el sexto sitio. Aquí no se pueden separar.
+ */
+export const DIALOG_PRIMARY_PROPS = {
+  className: `${DIALOG_BUTTON_CLASS} bg-cromo font-black text-sobre-cromo hover:bg-tinta hover:text-sup-base`,
+  'data-cromo': 'primaria',
+} as const;
 
 export const DIALOG_DANGER_CLASS = `${DIALOG_BUTTON_CLASS} bg-tinta text-sup-base hover:bg-sup-base hover:text-tinta`;
 

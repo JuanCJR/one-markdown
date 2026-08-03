@@ -4,6 +4,7 @@ import { useAuthStore } from '../features/auth/auth.store';
 import { DocumentTabs, EDITOR_PANEL_ID } from '../features/editor/DocumentTabs';
 import { WorkspaceTreeView } from '../features/workspace/WorkspaceTreeView';
 import { useUiStore } from '../shared/store/ui.store';
+import { TemaSwitcher } from '../shared/theme/TemaSwitcher';
 
 /**
  * Layout persistente de la aplicación: navegación (árbol de documentos) + contenido.
@@ -48,6 +49,14 @@ export function AppShell(): React.JSX.Element {
           <h1 className="text-lg font-semibold">One Markdown</h1>
 
           <div className="flex items-center gap-4 text-sm">
+            {/*
+              El conmutador de tema vive aquí, en la cabecera, y no en una pantalla de ajustes de
+              apariencia: `/settings/security` sigue siendo la única pantalla de ajustes
+              (`docs/design/04-color.md` §7). No gasta presupuesto de acento: se dice con peso y
+              tinta, porque cromo es para «el presente» y para la acción primaria.
+            */}
+            <TemaSwitcher />
+
             {user === null ? null : <span className="text-tinta-secundaria">{user.email}</span>}
 
             <Link

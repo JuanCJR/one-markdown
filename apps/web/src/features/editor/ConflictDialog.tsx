@@ -1,7 +1,7 @@
 import {
   DialogActions,
   ModalDialog,
-  DIALOG_PRIMARY_CLASS,
+  DIALOG_PRIMARY_PROPS,
   DIALOG_SECONDARY_CLASS,
 } from '../workspace/ModalDialog';
 
@@ -57,7 +57,7 @@ export function ConflictDialog({
           data-autofocus
           onClick={onKeepMine}
           disabled={busy}
-          className={DIALOG_PRIMARY_CLASS}
+          {...DIALOG_PRIMARY_PROPS}
         >
           Conservar mi versión
         </button>

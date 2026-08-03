@@ -4,6 +4,24 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>One Markdown</title>
+
+    <!--
+      Tema, antes del primer pintado. Va aquí y no en React a propósito: si esperásemos a montar,
+      quien tenga el tema oscuro vería un destello de papel claro en cada carga.
+
+      Inline y sin `defer` porque tiene que correr antes de que el navegador pinte nada. Sin
+      `localStorage`, o con la preferencia en «sistema», no se escribe el atributo y manda el
+      sistema operativo (`prefers-color-scheme`, en `styles/tokens-cromo-sistema.css`).
+      El contrato —la llave `om-tema` y los dos valores— es el mismo de `shared/theme/tema.ts`.
+    -->
+    <script>
+      try {
+        var tema = localStorage.getItem('om-tema');
+        if (tema === 'claro' || tema === 'oscuro') document.documentElement.dataset.tema = tema;
+      } catch (error) {
+        /* Modo privado o cookies bloqueadas: manda el sistema operativo y no se rompe el arranque. */
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

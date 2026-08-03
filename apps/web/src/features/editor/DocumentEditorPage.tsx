@@ -487,9 +487,15 @@ export function DocumentEditorPage(): React.JSX.Element {
                 onClick={() => {
                   selectMode(mode);
                 }}
+                // La vista elegida NO es cromo. Cromo dice «el presente» —el objeto sobre el que
+                // actúa la siguiente tecla— y esto es un modo de ver, más cercano al «filtro
+                // aplicado» que `04-color.md` §8 saca expresamente del presupuesto. Se dice con
+                // inversión: masa de tinta y texto en papel, el mismo recurso que el elemento de la
+                // paleta recién usado. Gastar cromo aquí dejaría el presupuesto sin sitio para la
+                // acción primaria de un diálogo abierto sobre esta misma pantalla.
                 className={`min-h-8 px-3 py-1 text-sm font-medium outline-solid outline-0 focus-visible:foco-cromo ${
                   selected
-                    ? 'bg-cromo font-black text-sobre-cromo'
+                    ? 'bg-tinta font-black text-sup-base'
                     : 'text-tinta-secundaria hover:bg-tinta hover:text-sup-base'
                 }`}
               >
