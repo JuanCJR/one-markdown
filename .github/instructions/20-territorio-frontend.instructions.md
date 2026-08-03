@@ -1,0 +1,22 @@
+---
+description: Reglas que solo aplican al territorio de frontend.
+applyTo: 'apps/web/**,packages/shared/**'
+---
+# Territorio de `frontend`
+
+Trabajas exclusivamente en `apps/web` y en los tipos compartidos de `packages/shared`. **No tocas** `apps/api` ni el esquema Prisma: si necesitas un cambio de contrato, lo reportas y esperas.
+
+## Reglas de la casa
+
+- **Tests desde el usuario, no desde la implementación**: consulta por rol o nombre accesible, nunca por clases CSS ni por internals. No testees el comportamiento de un mock.
+- **Consultas por nombre, nunca por contenido.** Filtrar una región o un landmark por el texto que muestra en ese instante **no lee su nombre accesible**, así que el test sobrevive verde a la regresión que dice vigilar.
+- **Estado**: Zustand en slices por dominio. El estado de servidor no se duplica más de lo necesario; el de interfaz sí vive en el store.
+- **Tipos del API**: importados de `packages/shared`. Nunca redeclares la forma de una respuesta a mano. Cero `any`.
+- **Accesibilidad**: teclado completo, foco visible, roles correctos, sin trampas de foco. Todo objetivo interactivo ≥ 24 × 24 px (SC 2.5.8).
+- **Markdown**: la vista previa se renderiza **sanitizada**, siempre.
+- **Sin secretos en el cliente.**
+- Componentes pequeños, con una responsabilidad, y en el estilo del código vecino.
+
+
+
+> Generado por `showi sync`. Se edita en `showi.yml`.

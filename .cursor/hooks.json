@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "hooks": {
+    "preToolUse": [
+      {
+        "type": "command",
+        "command": "python3 .harness/hooks/delegation-watch.py",
+        "timeout": 5,
+        "matcher": "Write|Edit|NotebookEdit"
+      }
+    ],
+    "postToolUse": [
+      {
+        "type": "command",
+        "command": "python3 .harness/hooks/log-skill-usage.py",
+        "timeout": 5,
+        "matcher": "Skill"
+      }
+    ]
+  }
+}

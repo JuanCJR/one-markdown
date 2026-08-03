@@ -1,0 +1,31 @@
+// GENERADO por showi 0.0.0 desde showi.yml — no editar a mano.
+//
+// Instrumentación. Ninguno de estos hooks bloquea nada y ninguno falla hacia fuera: ante una
+// entrada inválida salen 0 y dejan pasar la llamada. Un hook que rompe una llamada cuesta más que
+// el dato que recoge.
+//
+// Existen porque dos conclusiones de una retrospectiva salieron de ceros de instrumentos
+// desconectados: «las skills no se usan» medido con las skills apagadas, y una delegación que la
+// configuración impedía en silencio.
+{
+  "hooks": {
+    "preToolUse": [
+      {
+        "type": "command",
+        "name": "delegation-watch",
+        "matcher": "Write|Edit|NotebookEdit",
+        "command": "python3 .harness/hooks/delegation-watch.py",
+        "timeout": 5
+      }
+    ],
+    "postToolUse": [
+      {
+        "type": "command",
+        "name": "log-skill-usage",
+        "matcher": "Skill",
+        "command": "python3 .harness/hooks/log-skill-usage.py",
+        "timeout": 5
+      }
+    ]
+  }
+}

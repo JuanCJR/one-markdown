@@ -1,37 +1,12 @@
 ---
 name: testing-anti-patterns
-description: Never test mock behavior. Never add test-only methods to production classes. Understand dependencies before mocking. Language-agnostic principles with TypeScript/Jest and Python/pytest examples.
-when_to_use: when writing or changing tests, adding mocks, or tempted to add test-only methods to production code
-version: 3.0.0
-tags:
-  - testing
-  - typescript
-  - javascript
-  - python
-  - pytest
-  - jest
-  - mocking
-  - tdd
-  - anti-patterns
-progressive_disclosure:
-  entry_point:
-    summary: "Avoid testing mocks, test-only production methods, and incomplete mocking. Test real behavior, not mock behavior. Covers TypeScript/Jest and Python/pytest."
-    when_to_use: "When writing tests, adding mocks, reviewing test failures, or tempted to add test-only methods to production code."
-    quick_start: "1. Ask: 'Am I testing real behavior?' 2. Check: 'Is this method only for tests?' 3. Verify: 'Do I understand what I'm mocking?' 4. Confirm: 'Is my mock complete?' 5. Apply: TDD prevents these patterns"
-  references:
-    - core-anti-patterns.md
-    - completeness-anti-patterns.md
-    - detection-guide.md
-    - tdd-connection.md
-    - python-examples.md
-related_skills:
-  - toolchains-typescript-testing-jest
-  - toolchains-typescript-testing-vitest
-  - toolchains-python-testing-pytest
-  - universal-debugging-systematic-debugging
-  - universal-debugging-verification-before-completion
+description: >-
+  Never test mock behavior. Never add test-only methods to production classes.
+  Understand dependencies before mocking. Language-agnostic principles with
+  TypeScript/Jest and Python/pytest examples.
+disable-model-invocation: true
+user-invocable: false
 ---
-
 # Testing Anti-Patterns
 
 ## Overview

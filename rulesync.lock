@@ -1,0 +1,145 @@
+{
+  "lockfileVersion": 1,
+  "sources": {
+    "vercel-labs/agent-skills": {
+      "requestedRef": "main",
+      "resolvedRef": "7c180d9044c9ae2b442b567aad4e42a28dd5ed62",
+      "resolvedAt": "2026-08-03T19:47:10.794Z",
+      "skills": {
+        "composition-patterns": {
+          "integrity": "sha256-575757e3e25761c8c562d6e395d29f0b76c98b1273c0bd72d88e6ab1bc9c7d42"
+        },
+        "react-best-practices": {
+          "integrity": "sha256-ca7b0c0c6e5f2750043f7f0cd72d16ac4e2abc48f9b5500d047a4b77a2506212"
+        },
+        "web-design-guidelines": {
+          "integrity": "sha256-f3bc47f890f42a44db1007ab390709ec368e4b8c089baee6b0007182236ac474"
+        }
+      }
+    },
+    "kadajett/agent-nestjs-skills": {
+      "requestedRef": "main",
+      "resolvedRef": "3986e0cede33958e000f959031cbee0cd83c2941",
+      "resolvedAt": "2026-08-03T19:47:24.944Z",
+      "skills": {
+        "nestjs-best-practices": {
+          "integrity": "sha256-f697e4a8fc1d9649a930678638a839443b5abf223f350aaf021a7b66c1d66159"
+        }
+      }
+    },
+    "prisma/skills": {
+      "requestedRef": "main",
+      "resolvedRef": "1a9f427e9fe2137298abbcc1a6f372db92e8c40d",
+      "resolvedAt": "2026-08-03T19:47:29.314Z",
+      "skills": {
+        "prisma-database-setup": {
+          "integrity": "sha256-096a453686e4fa09e7632434e42c44358f7291945d61bb9b060e5e2de1dc33ba"
+        }
+      }
+    },
+    "ccheney/robust-skills": {
+      "requestedRef": "main",
+      "resolvedRef": "4cc951a6005844c3d779b41fa0ad8f900b6417ad",
+      "resolvedAt": "2026-08-03T19:47:33.484Z",
+      "skills": {
+        "clean-ddd-hexagonal": {
+          "integrity": "sha256-bf258d4f286facb85790583c3825582f669fcc40a2cc6d295055d46a5603aa1d"
+        }
+      }
+    },
+    "affaan-m/everything-claude-code": {
+      "requestedRef": "main",
+      "resolvedRef": "0c1d7be9a750627fb2a6534c78a998cc46d03f9c",
+      "resolvedAt": "2026-08-03T19:47:38.445Z",
+      "skills": {
+        "accessibility": {
+          "integrity": "sha256-e3e619dc21f1c04050a9be143bb0ec3bd7e56fc08f9bd919488ee98bf50c202a"
+        },
+        "security-review": {
+          "integrity": "sha256-568f952eba9cf3def4ad15d2d8799a29e15a283108896c4227457ccd6d038cfc"
+        }
+      }
+    },
+    "bobmatnyc/claude-mpm-skills:universal/testing": {
+      "requestedRef": "main",
+      "resolvedRef": "718070a7d622921b01687799a1f9613f36c6f615",
+      "resolvedAt": "2026-08-03T19:47:42.493Z",
+      "skills": {
+        "testing-anti-patterns": {
+          "integrity": "sha256-f4cbd0adc08408f83d92e3e72878322cc6de0d727d2f92bca1584ecf992e932a"
+        }
+      }
+    },
+    "bobmatnyc/claude-mpm-skills:toolchains/javascript/testing": {
+      "requestedRef": "main",
+      "resolvedRef": "718070a7d622921b01687799a1f9613f36c6f615",
+      "resolvedAt": "2026-08-03T19:47:44.421Z",
+      "skills": {
+        "playwright": {
+          "integrity": "sha256-3a878049de22a0009f3767648bed24c6ef196ab7f4cb67322045bdca08b3f1e5"
+        }
+      }
+    },
+    "bobmatnyc/claude-mpm-skills:toolchains/typescript/state": {
+      "requestedRef": "main",
+      "resolvedRef": "718070a7d622921b01687799a1f9613f36c6f615",
+      "resolvedAt": "2026-08-03T19:47:46.835Z",
+      "skills": {
+        "zustand": {
+          "integrity": "sha256-28411366f5e45263e5fcce9d72e25aafd7845850183cdb6986101a66f1d9843e"
+        }
+      }
+    },
+    "wshobson/agents:plugins/javascript-typescript/skills": {
+      "requestedRef": "main",
+      "resolvedRef": "c4b82b0ad771190355eb8e204b1329732a18449a",
+      "resolvedAt": "2026-08-03T19:47:48.995Z",
+      "skills": {
+        "typescript-advanced-types": {
+          "integrity": "sha256-5cfece01370706036b65eae88c2c7ad9fa6f7a72dfd7ef58d65c666e3d8ee1a2"
+        }
+      }
+    },
+    "giuseppe-trisciuoglio/developer-kit:plugins/developer-kit-typescript/skills": {
+      "requestedRef": "main",
+      "resolvedRef": "306f428f278d83722afdea44a7398dc46dab967f",
+      "resolvedAt": "2026-08-03T19:47:53.255Z",
+      "skills": {
+        "tailwind-css-patterns": {
+          "integrity": "sha256-99bba0245457b130d69c3f3cf2cecc38e99dc65e5b1a6fbde5187e211dcd699f"
+        }
+      }
+    },
+    "juancjr/showi-harness@v0.1.0": {
+      "requestedRef": "v0.1.0",
+      "resolvedRef": "ff41ad3d40aec7ebbbaffdb34d8093b00eeaf0d5",
+      "resolvedAt": "2026-08-03T19:49:18.497Z",
+      "skills": {
+        "spec-driven-development": {
+          "integrity": "sha256-22473984976b62945c1594f2eebb7d8bea6594bd87e3a3ca5872ebd2b91f407e"
+        },
+        "stop-and-report": {
+          "integrity": "sha256-1207086e280b582bb4dd0eea761624f66876ee787e41934e24723aae83567c74"
+        },
+        "test-driven-development-tdd": {
+          "integrity": "sha256-3dde5c7829e053920c86cad47e5083c1b72b34c2e1bb92990da5d68fd7be4b7b"
+        },
+        "verification-and-measurement": {
+          "integrity": "sha256-d25738cb56ab4b5968d9b45a1b9a6b79f68566d7af70e9f9e4b20c26f48009bf"
+        }
+      },
+      "rules": {
+        "metodo": {
+          "integrity": "sha256-c93230fc2d3971aa2ecb73e6eff51ae0de04b0a42e8a56bbd207f138aab19195"
+        }
+      },
+      "ruleSelection": [
+        "metodo"
+      ],
+      "rulesPath": "rules",
+      "resolvedRuleNames": [
+        "metodo"
+      ]
+    }
+  }
+}

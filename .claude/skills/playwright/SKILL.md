@@ -1,11 +1,10 @@
 ---
 name: playwright
-description: "Playwright modern end-to-end testing framework with cross-browser automation, auto-wait, and built-in test runner. Use when writing, fixing or debugging browser end-to-end tests: locators, auto-wait, fixtures, projects, traces and flakiness."
-progressive_disclosure:
-  entry_point:
-    summary: "Playwright modern end-to-end testing framework with cross-browser automation, auto-wait, and built-in test runner"
-    when_to_use: "When writing tests, implementing playwright-e2e-testing, or ensuring code quality."
-    quick_start: "1. Review the core concepts below. 2. Apply patterns to your use case. 3. Follow best practices for implementation."
+description: >-
+  Playwright modern end-to-end testing framework with cross-browser automation,
+  auto-wait, and built-in test runner
+disable-model-invocation: true
+user-invocable: false
 ---
 # Playwright E2E Testing Skill
 

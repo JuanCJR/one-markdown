@@ -1,0 +1,28 @@
+{
+  "chat.tools.terminal.autoApprove": {
+    "pnpm install": true,
+    "pnpm add:*": true,
+    "pnpm dev:*": true,
+    "pnpm build:*": true,
+    "pnpm test:*": true,
+    "pnpm lint:*": true,
+    "pnpm typecheck:*": true,
+    "pnpm --filter:*": true,
+    "pnpm -r:*": true,
+    "pnpm exec:*": true,
+    "npx prisma:*": true,
+    "npx nest:*": true,
+    "npx vitest:*": true,
+    "npx playwright:*": true,
+    "git status:*": true,
+    "git diff:*": true,
+    "git log:*": true,
+    "git add:*": true,
+    "docker compose up:*": true,
+    "docker compose ps:*": true,
+    "docker compose logs:*": true,
+    "git push:*": false,
+    "npx prisma migrate reset:*": false,
+    "docker compose down -v:*": false
+  }
+}

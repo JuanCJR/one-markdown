@@ -1,0 +1,21 @@
+# Lo que produce `showi sync` + `rulesync generate` desde `showi.yml`. Se versiona a propósito
+# —quien clona y abre cualquier IDE tiene el harness sin ejecutar nada— pero no se lee en un diff:
+# una actualización del método toca los seis destinos a la vez.
+#
+# `linguist-generated` hace que GitHub lo colapse por defecto y no lo cuente en las estadísticas
+# del repositorio.
+.claude/**      linguist-generated=true
+.cursor/**      linguist-generated=true
+.github/skills/**       linguist-generated=true
+.github/agents/**       linguist-generated=true
+.github/instructions/** linguist-generated=true
+.github/hooks/**        linguist-generated=true
+.opencode/**    linguist-generated=true
+.kiro/**        linguist-generated=true
+.agents/**      linguist-generated=true
+AGENTS.md       linguist-generated=true
+CLAUDE.md       linguist-generated=true
+opencode.jsonc  linguist-generated=true
+
+# Los hooks son fuente copiada, no generada: se leen y se revisan.
+.harness/hooks/*.py     -linguist-generated

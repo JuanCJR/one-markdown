@@ -1,17 +1,12 @@
 ---
 name: zustand
-description: Minimal, unopinionated state management library for React with simple hook-based API, no providers, and minimal boilerplate for global state without Redux complexity. Use when creating or modifying a store, slice, selector, or persisted state, and when debugging re-renders caused by store subscriptions.
-progressive_disclosure:
-  entry_point:
-    - summary
-    - when_to_use
-    - quick_start
-  full_content: true
-  token_estimates:
-    entry: 70
-    full: 4500
+description: >-
+  Minimal, unopinionated state management library for React with simple
+  hook-based API, no providers, and minimal boilerplate for global state without
+  Redux complexity.
+disable-model-invocation: true
+user-invocable: false
 ---
-
 # Zustand State Management
 
 ## Summary

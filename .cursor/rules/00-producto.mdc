@@ -1,0 +1,49 @@
+---
+description: Qué es este proyecto y cómo se trabaja en él.
+---
+
+# One Markdown
+
+Gestor de markdown con árbol de categorías/directorios, editor texto/preview, paleta de elementos markdown, tabs y split view.
+
+## Quién hace qué
+
+Cualquier cambio significativo entra por `orchestrator`, dueño de los documentos de
+especificación y del de seguimiento. Nadie más los edita. Quien implementa solo ejecuta tareas ya
+especificadas, en TDD.
+
+| Rol | Territorio |
+|---|---|
+| `frontend` | apps/web/**, packages/shared/** |
+| `backend` | apps/api/**, packages/shared/** |
+
+
+## El método
+
+**El método vive en las skills, no en este archivo.** Aquí solo está dónde aplica.
+
+| Skill | Qué posee |
+|---|---|
+| `spec-driven-development` | Nada se implementa sin especificación versionada. |
+| `test-driven-development-tdd` | RED → GREEN → REFACTOR, la regla del andamio y el radio de un cambio. |
+| `stop-and-report` | Cuándo se para y se avisa en vez de arreglarlo por cuenta propia. |
+| `verification-and-measurement` | Cómo se verifica, y cómo no creerse un cero falso. |
+
+**Si una de las cuatro no está disponible, se para y se avisa** — no se reconstruye de memoria.
+
+
+Lo único de metodología que es de este repositorio y no de las skills: El seguimiento se actualiza **solo tras verificar** (comando corrido + salida real), con `[ ]` pendiente · `[~]` en curso o bloqueado con motivo · `[x]` hecho y verificado. El detalle histórico de cada feature va a su CHANGELOG, no ahí.
+
+
+## Reglas de código
+
+- TypeScript estricto en todos los paquetes.
+- **Autorización por recurso**: todo acceso a documentos/directorios se filtra por el `userId` del token.
+- El backend es el dueño del auth (JWT access+refresh, bcrypt, MFA TOTP, Passport, Redis). Auth.js está fuera de alcance.
+- Preview de markdown siempre **sanitizado**.
+- Secretos solo por variables de entorno validadas al arrancar; nada en el repo.
+
+
+
+> Este archivo lo **genera** `showi sync` desde `showi.yml`. Editarlo a mano se pierde en el próximo
+> `sync`, y `showi check` lo detecta antes.

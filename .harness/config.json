@@ -1,0 +1,7 @@
+{
+  "territorios": [
+    "apps/api/",
+    "apps/web/",
+    "packages/shared/"
+  ]
+}

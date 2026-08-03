@@ -28,6 +28,13 @@ documentos:
     pendiente · `[~]` en curso o bloqueado con motivo · `[x]` hecho y verificado. El detalle
     histórico de cada feature va a su CHANGELOG, no ahí.
 
+reglas_codigo:
+  - TypeScript estricto en todos los paquetes.
+  - "**Autorización por recurso**: todo acceso a documentos/directorios se filtra por el `userId` del token."
+  - El backend es el dueño del auth (JWT access+refresh, bcrypt, MFA TOTP, Passport, Redis). Auth.js está fuera de alcance.
+  - Preview de markdown siempre **sanitizado**.
+  - Secretos solo por variables de entorno validadas al arrancar; nada en el repo.
+
 herramientas:
   # `agentsmd` da la raíz del método a Kiro (no tiene fichero raíz propio en ámbito de proyecto).
   # `agentsskills` es el que emite `.agents/skills/`, la ruta neutral: `agentsmd` NO emite skills.
@@ -123,8 +130,8 @@ roles:
       - { cmd: "pnpm --filter @one-markdown/web typecheck", que: "" }
       - { cmd: "pnpm --filter @one-markdown/web lint", que: "" }
     skills_stack:
-      - { nombre: vercel-react-best-practices, cuando: "Al escribir o refactorizar componentes/hooks: rendering, memoización, data fetching, bundle." }
-      - { nombre: vercel-composition-patterns, cuando: "Al diseñar APIs de componentes: *compound components* en vez de props booleanas." }
+      - { nombre: react-best-practices, cuando: "Al escribir o refactorizar componentes/hooks: rendering, memoización, data fetching, bundle." }
+      - { nombre: composition-patterns, cuando: "Al diseñar APIs de componentes: *compound components* en vez de props booleanas." }
       - { nombre: zustand, cuando: "Al crear o modificar stores. Slices, selectores, persistencia." }
       - { nombre: tailwind-css-patterns, cuando: "Al estilar: layout, grid/flex, responsive, tokens." }
       - { nombre: accessibility, cuando: "En todo componente interactivo (WCAG 2.2 AA): roles, foco, teclado, aria." }
@@ -251,29 +258,29 @@ mcp:
 permisos:
   bash:
     "pnpm install": allow
-    "pnpm add *": allow
-    "pnpm dev *": allow
-    "pnpm build *": allow
-    "pnpm test *": allow
-    "pnpm lint *": allow
-    "pnpm typecheck *": allow
-    "pnpm --filter *": allow
-    "pnpm -r *": allow
-    "pnpm exec *": allow
-    "npx prisma *": allow
-    "npx nest *": allow
-    "npx vitest *": allow
-    "npx playwright *": allow
-    "git status *": allow
-    "git diff *": allow
-    "git log *": allow
-    "git add *": allow
-    "docker compose up *": allow
-    "docker compose ps *": allow
-    "docker compose logs *": allow
-    "git push *": deny
-    "npx prisma migrate reset *": deny
-    "docker compose down -v *": deny
+    "pnpm add:*": allow
+    "pnpm dev:*": allow
+    "pnpm build:*": allow
+    "pnpm test:*": allow
+    "pnpm lint:*": allow
+    "pnpm typecheck:*": allow
+    "pnpm --filter:*": allow
+    "pnpm -r:*": allow
+    "pnpm exec:*": allow
+    "npx prisma:*": allow
+    "npx nest:*": allow
+    "npx vitest:*": allow
+    "npx playwright:*": allow
+    "git status:*": allow
+    "git diff:*": allow
+    "git log:*": allow
+    "git add:*": allow
+    "docker compose up:*": allow
+    "docker compose ps:*": allow
+    "docker compose logs:*": allow
+    "git push:*": deny
+    "npx prisma migrate reset:*": deny
+    "docker compose down -v:*": deny
   read:
     "./.env": deny
     "./.env.*": deny

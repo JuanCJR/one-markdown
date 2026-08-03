@@ -1,0 +1,40 @@
+// GENERADO por showi 0.0.0 desde showi.yml — no editar a mano.
+//
+// Los `deny` son la capa que no depende del stack y viaja a cualquier proyecto: secretos, y las
+// operaciones que destruyen datos o publican sin querer.
+{
+  "permission": {
+    "bash": {
+      "pnpm install": "allow",
+      "pnpm add:*": "allow",
+      "pnpm dev:*": "allow",
+      "pnpm build:*": "allow",
+      "pnpm test:*": "allow",
+      "pnpm lint:*": "allow",
+      "pnpm typecheck:*": "allow",
+      "pnpm --filter:*": "allow",
+      "pnpm -r:*": "allow",
+      "pnpm exec:*": "allow",
+      "npx prisma:*": "allow",
+      "npx nest:*": "allow",
+      "npx vitest:*": "allow",
+      "npx playwright:*": "allow",
+      "git status:*": "allow",
+      "git diff:*": "allow",
+      "git log:*": "allow",
+      "git add:*": "allow",
+      "docker compose up:*": "allow",
+      "docker compose ps:*": "allow",
+      "docker compose logs:*": "allow",
+      "git push:*": "deny",
+      "npx prisma migrate reset:*": "deny",
+      "docker compose down -v:*": "deny"
+    },
+    "read": {
+      "./.env": "deny",
+      "./.env.*": "deny",
+      "./**/.env": "deny",
+      "./**/.env.*": "deny"
+    }
+  }
+}

@@ -1,0 +1,444 @@
+SISTEMA DE DISEÑO "CROMO" — ONE MARKDOWN
+Resumen completo en texto plano. Fuentes: 03-direccion.md (gramática), 04-color.md (color),
+05-tipografia.md (letra), 06-sistema.md (espaciado, radios, bordes, elevación, foco, iconos).
+
+
+0. DE DÓNDE VIENE
+-----------------
+Concretismo brasileño y el rediseño del Jornal do Brasil de Amílcar de Castro (1959): un rediseño
+hecho para leer texto denso, no para lucir. El nombre del mundo no es el de la tradición: "cromo"
+es el amarillo del único primario.
+
+Criterio de rechazo, y es el único que hace falta:
+   ¿Se puede quitar de esta pantalla toda la línea, toda la sombra y todo el color, y sigue
+   diciendo lo mismo? Si la respuesta es no, la pantalla no pertenece a Cromo. Si es sí, quítalos.
+
+Principio semántico: un recurso, un trabajo.
+   Color cromo  = "esto es lo activo ahora mismo". No advierte, no jerarquiza, no decora.
+   Masa de tinta (fondo tinta, texto en negativo) = "estado que hay que leer".
+   Peso         = "contiene" (900) frente a "es contenido" (400).
+   Cuerpo       = quién habla (11 la aplicación, 15 la estructura, 21 el documento, 60 la identidad).
+   Cursiva      = la voz del documento; jamás en la interfaz.
+   Posición     = pertenencia (eje izquierdo).
+   Trama 45°    = "inerte": existe pero no se puede editar ahora.
+   Movimiento   = confirmar un cambio de estado que la persona provocó y podría no ver.
+
+El color nunca es el único canal. Todo lo que hoy dice el color lo dice también la superficie, el
+peso, la forma o la palabra. El rojo no existe: un conflicto es masa de tinta con su palabra.
+
+
+1. COLOR
+--------
+Neutros de matiz H=100, único y explícito. Primario H≈86 (mostaza/ocre), fuera del rango prohibido
+índigo-violeta-morado (265-320). Nombre semántico, nunca nombre de color.
+
+Token                claro (hex)   oscuro (hex)   trabajo
+--------------------------------------------------------------------------------------------
+--sup-base           #f4f4f1       #141411        papel de la pantalla, zona de trabajo
+--sup-elevada        #ededea       #1b1b18        zonas que se apoyan en el papel: paneles
+--sup-hundida        #e7e7e4       #21211e        fila seleccionada, campo, silueta de carga
+--sup-superpuesta    #e0dfdc       #292926        SOLO capas superpuestas: diálogo, menú, paleta
+--tinta-principal    #191815       #ecebe7        texto, masa de estado, eje de foco
+--tinta-secundaria   #474743       #b4b4af        metadatos que se leen: rutas, fechas, recuentos
+--tinta-tenue        #62615e       #91918c        marcas del markdown crudo, rótulos de unidad
+--tinta-desactivada  #787774       #7a7976        controles desactivados y tinta de la trama
+--hair-zona          #575653       #a09f9b        límite de una capa superpuesta
+--hair-control       #6c6b67       #878682        borde de control y de campo
+--hair-fila          #7e7e7a       #73736f        separador de fila en tabla densa
+--cromo              #e9b21b       #f0bc23        masa de >=8 px: "el presente" y la acción primaria
+--sobre-cromo        #191815       #191815        único texto admitido sobre masa cromo, ambos temas
+
+Contraste medido (WCAG 2.2), peor caso sobre las cuatro superficies y los dos temas:
+   tinta-principal   12.22 - 16.11    AA, roza AAA
+   tinta-secundaria   7.00 -  8.86    AA/AAA
+   tinta-tenue        4.60 -  5.82    AA (1.4.3) en las cuatro. Se resolvió contra la superficie
+                                      peor, no contra el papel: ese fue el hallazgo que movió el token
+   tinta-desactivada  3.35 -  4.23    exento de 1.4.3 (componente inactivo). Cumple >=3:1 (1.4.11)
+   sobre-cromo        9.17 / 10.07    AAA
+   hair-zona 5.50 · hair-control 4.00 · hair-fila 3.05  (>= 3:1, 1.4.11)
+
+Lo que falla y está registrado, no tapado: la masa cromo mide 1.45:1 en el peor caso del tema claro
+y no cumple 1.4.11 sola. No se corrige subiendo la luminancia porque el ajuste mínimo no es mínimo
+(sacaría el amarillo del mostaza y rompería el texto que va encima). Se resuelve por la regla del
+sistema: cromo nunca es el único canal, y el foco lo dibuja el eje de tinta (13.32:1), no el amarillo.
+
+Presupuesto de acento: máximo 3 masas cromo por viewport, marcadas con data-cromo:
+   presente (0 o 1) · primaria (0 o 1) · foco (0 o 1, solo mientras el foco de teclado esté visible).
+Acción secundaria: fantasma, 1px de hair-control, sin masa. Terciaria: solo palabra.
+Cromo nunca en color, border, stroke, fill ni gradiente.
+
+Prohibiciones exigibles por test: ningún color con L>=0.99 ni L<=0.02; ningún blanco ni negro puro
+por ninguna vía; ningún acento en el rango de matiz 265-320. Y por encima del test, la compilación:
+la paleta de fábrica se borra entera del build.
+
+Tema: prefers-color-scheme por defecto + override local en data-tema sobre <html>, persistido en
+localStorage. El conmutador es una palabra en versalitas de 11 px, no una pantalla de ajustes.
+
+
+2. TIPOGRAFÍA
+-------------
+Superfamilia Chivo / Chivo Mono (Omnibus-Type, Argentina, OFL 1.1, variables 100..900).
+Chivo Mono en el panel de texto; Chivo en el preview y en toda la interfaz.
+
+El argumento no es estético. La app enseña el markdown crudo y el documento compuesto a la vez,
+lado a lado, del mismo texto, y eso solo funciona si el lector percibe un documento en dos estados
+y no dos documentos. Chivo y Chivo Mono comparten la caja vertical glifo a glifo: altura-x 511,
+versal 686, ascendente 720, descendente -181, versal acentuada 890, sobre un em de 1000, y la misma
+ascendente y descendente de fuente (940 / -250). No es "parecido": es idéntico.
+Consecuencia que ahorra un parche: el código en línea del preview va a 1em, no al 0.9em de costumbre.
+
+Camino crítico 58.2 KB (dos archivos woff2, preload, font-display: swap). El español entero vive en
+la subdivisión latin; las cuatro caras Ext-A solo se descargan si aparece un carácter suyo. La
+cursiva de Chivo Mono no se declara: no se pide nunca.
+
+DOS ESCALAS, PORQUE SON DOS TRABAJOS. El documento va un paso por encima de la interfaz: el cromo
+no puede gritar más que el texto del usuario.
+
+Documento — base 16 px, línea 26 px:
+   cuerpo  16 px    línea 26 px (1.625)   tracking 0        peso 400  tinta principal
+   h1      26.7 px  línea 32.6 px         tracking -0.012em peso 700  principal
+   h2      21.4 px  línea 27.4 px         tracking -0.008em peso 700  principal
+   h3      18.4 px  línea 26.0 px         tracking -0.004em peso 700  principal
+   h4      16 px    línea 26 px           tracking 0        peso 900  principal
+   h5      16 px    línea 26 px           tracking 0        peso 700  secundaria
+   h6      16 px    línea 26 px           tracking 0        peso 700  tenue
+   Ningún salto entre niveles consecutivos supera 1.25x: h1/h2 = 1.246, h2/h3 = 1.165, h3/cuerpo = 1.15.
+   h4 va a 900 y no a 700 para no confundirse con una **negrita** de párrafo.
+   La escala es corta por el split, no por gusto: un h1 a 2.5em rompe la ilusión porque al otro lado
+   solo hay una almohadilla y un espacio.
+
+Interfaz — 60 / 21 / 15 / 11 px, y ninguno intermedio:
+   60 px  línea 65 px (1.083)  tracking -0.02em  peso 900  identidad del documento abierto
+   21 px  línea 26 px          tracking -0.008em peso 900  título de aplicación
+   15 px  línea 21 px          tracking 0        peso 400  cuerpo de interfaz (árbol, pestañas)
+   11 px  línea 16 px          tracking +0.06em  peso 700  rótulo en versalitas
+   El rótulo lleva tracking positivo porque va en versalitas y las versales apiñadas necesitan aire.
+   11 px es el suelo del sistema y no se baja de ahí.
+   Ninguna palabra escrita por la persona aparece nunca en versalitas de 11.
+
+Interlineado 1.625 fijado midiendo, no por regla: Chivo tiene altura-x alta (0.511 em, 74.5 % de la
+versal) y ascendentes cortas. A 1.5, un "ÍNDICE ÚNICO" a línea completa deja 6.75 px entre el acento
+y el descendente de la línea anterior; a 1.625 son 8.75 px, y el número queda redondo para la rejilla.
+
+Ligaduras APAGADAS en el panel de texto con font-variant-ligatures: none (no con font-feature-settings,
+que se llevaría por delante ccmp y con ella los acentos). Medido: "fi" se compone en un glifo de un
+solo avance y descuadra la columna — 9.61 px en vez de 19.20 —, y en español pasa todo el rato:
+definición, fichero, perfil, confirmar. En el preview se quedan encendidas: ahí no hay rejilla.
+
+tnum es un no-op medido: las cifras de Chivo ya son tabulares (615 unidades cada una, 600 en la mono).
+Chivo tampoco trae sets estilísticos, y no se finge que sí.
+
+Medida de línea: 39rem = 624 px, idéntica en los dos paneles. Son 65.0 caracteres en el editor y
+81.8 en el preview. Las dos restricciones no caben juntas y es geometría, no descuido: el carácter
+medio de prosa española en Chivo mide 0.479 em y 1ch de mono 0.600 em, cociente fijo de 1.253. Se ha
+cogido el extremo del rango que menos daño hace y queda escrito.
+
+Las citas del preview van en redonda, no en cursiva: ya se distinguen por barra, sangría y tinta
+secundaria — tres canales —, y la cursiva larga en pantalla cansa sin añadir un cuarto.
+
+
+3. ESPACIADO
+------------
+La unidad no se elige: sale de la línea del cuerpo del documento. Línea 26 px, media línea 13 px,
+y 13 px es la rejilla vertical de todo el producto.
+
+Que esto no es una racionalización a posteriori se comprueba solo: la gramática había fijado antes
+tres medidas de espacio (4, 12, 40) sin conocer el 26. Puestas sobre la rejilla de 13, los tres
+trabajos sobreviven enteros y los valores se mueven como mucho un píxel: 4 -> 4, 12 -> 13, 40 -> 39.
+Segunda confirmación que no se buscó: la medida del documento, 624 px, es 48 x 13 exacto.
+
+Siete pasos:
+   0    contigüidad declarada (filas de una lista, celdas de una rejilla)
+   4    dentro de una fila. SOLO HORIZONTAL
+   13   POR DEFECTO ENTRE ELEMENTOS DE UN MISMO GRUPO     (media línea)
+   26   POR DEFECTO ENTRE GRUPOS                          (una línea)
+   39   POR DEFECTO ENTRE ZONAS                           (línea y media)
+   52   aire sobre una zona que abre con cuerpo de 21 px  (dos líneas)
+   78   aire sobre la identidad de 60 px                  (tres líneas)
+
+Nombre semántico, no de medida: en el código se escribe gap-grupo, p-zona, mt-identidad, px-fila.
+Las utilidades numéricas de fábrica (p-4, gap-6, mt-8) dejan de existir en el build.
+
+La regla que protege la rejilla:
+   TODO ESPACIO VERTICAL ES MÚLTIPLO DE 13. EL 4 ES SIEMPRE HORIZONTAL.
+   Excepción única y cerrada: ajustes ópticos de ±2 px dentro de un control ya construido, que
+   nunca crean estructura y nunca se acumulan.
+
+Alturas de caja — dos, no cuatro:
+   26 px (una línea)      fila del árbol, fila de resultado, pestaña
+   39 px (línea y media)  botón, campo, select, control aislado
+   Cinco filas del árbol miden 130 px = cinco líneas del documento: el árbol y el preview laten al
+   mismo compás. Objetivo táctil mínimo 24x24 (WCAG 2.5.8): las dos pasan; la masa de 8 px de
+   "cerrar" tiene masa visible de 8 y objetivo de 26x26.
+
+Anchos fijos — dos: documento 624 px (48x13) y estructura 260 px (20x13).
+
+Cómo vuelve a cuadrar la rejilla después de un encabezado, que es el punto que ninguna línea de
+encabezado resuelve sola (h1 mide 32.6, h2 27.4, h3 26.0):
+   TODO ENCABEZADO OCUPA UN BLOQUE DE 65 PX (5 x 13): 26 de aire arriba, su línea, y el resto abajo.
+   h1: 26 + 32.6 + 6.4 = 65     h2: 26 + 27.4 + 11.6 = 65     h3 y h4-h6: 26 + 26 + 13 = 65
+   El aire de abajo es el único número del sistema que no es múltiplo de 13, y es exactamente por
+   eso: es el resto que devuelve la rejilla. No cuenta en el presupuesto.
+   Hace falta display: flow-root en el contenedor, o los márgenes colapsan y la rejilla se pierde
+   en silencio. Párrafo a párrafo: 13 px.
+
+
+4. RADIOS
+---------
+UN SOLO VALOR: CERO.
+
+No es una preferencia de esta fase: la dirección lo pedía tres veces. La gramática cuenta el radio
+entre lo que rompe la separación de zonas; el mapeo del restyle ya borró rounded-* con la razón
+escrita ("la profundidad es color de superficie, no luz"); y el origen declarado es el concretismo
+y Amílcar de Castro — el ángulo recto es de dónde viene esto, no un gusto.
+
+El anti-patrón de "un chip de 24 px y un modal de 600 px comparten radio" no puede darse aquí, y no
+porque el criterio de asignación por tamaño esté mejor escrito que en otros sistemas: porque con un
+solo valor no hay asignación que equivocar. Esa es toda la ventaja del cero.
+
+Se hace exigible borrando el namespace, no revisando: rounded, rounded-md y rounded-full dejan de
+existir en el build. Falla con cualquier border-radius computado distinto de 0px, con rx/ry en un
+SVG y con border-radius en línea.
+
+Los dos agujeros reales, que redondean sin que nadie escriba un radio: input type=radio y checkbox,
+que el navegador dibuja circulares. Llevan appearance: none obligatorio, y la marca de selección es
+una masa cuadrada de 8 px — el mismo recurso que "el presente". No hay avatares ni píldoras.
+
+
+5. BORDES
+---------
+UN ANCHO: 1 px. TRES TOKENS. Y ninguno separa zonas.
+
+   hair-zona     1px   el perímetro de una CAPA SUPERPUESTA contra lo que tapa   5.50:1
+   hair-control  1px   el borde de un CONTROL: acción fantasma, campo            4.00:1
+   hair-fila     1px   el separador de FILA en una tabla de datos densa          3.05:1
+
+El grosor no distingue el trabajo: lo distinguen el contraste y el sitio. Si el ancho hiciera además
+esa faena habría dos recursos para lo mismo, que es lo que prohíbe el principio semántico.
+
+Cuál separa zonas: NINGUNO. En Cromo no existe la línea entre dos zonas de la misma pantalla — las
+zonas se separan con 39 px de aire o con un escalón de superficie. hair-zona se llama así porque
+delimita una zona SUPERPUESTA, que es otra cosa: no separa dos zonas hermanas, marca dónde acaba una
+capa que está encima. Y hace falta porque el escalón solo no puede: medido, el escalón mide 1.06:1.
+
+Regla de contraste, en los dos lados:
+   TODA HAIRLINE MIDE >= 3:1 (WCAG 1.4.11) CONTRA EL FONDO DE LOS DOS LADOS QUE TOCA.
+   Es lo que evita el caso que se cuela siempre: una línea correcta sobre una superficie que se
+   apoya por el otro lado en otra y ahí ya no llega. hair-fila es el margen más justo del sistema
+   con 3.05:1; cualquier movimiento de su luminancia hacia la superficie lo rompe.
+
+Lo que tiene ancho y NO es un borde, porque es masa: el eje de foco (4 px), la masa cromo mínima
+(8 px), la barra del bloque con el cursor (12 px) y la barra de nivel del árbol (58 a 10 px). Un
+borde delimita; una masa significa.
+
+
+6. ELEVACIÓN
+------------
+No hay elevación por luz. Hay cuatro superficies y un paso por vez.
+
+   PANEL              sup-elevada sobre sup-base    sin línea    sin sombra
+                      segundo canal: 39 px de aire, o el escalón. Nunca los dos y nunca una línea.
+   FILA SELECCIONADA  sup-hundida                   sin línea    sin sombra
+                      segundo canal: masa cromo de 8 px + peso 900 + la ruta escrita en la cabecera.
+   DIÁLOGO            sup-superpuesta               1px hair-zona los 4 lados   sin sombra, SIN OVERLAY
+                      toma el eje izquierdo de la zona que tapa; role=dialog, foco atrapado, Esc cierra.
+   MENÚ FLOTANTE      sup-superpuesta               1px hair-zona los 4 lados   sin sombra
+                      cuelga del eje izquierdo de su disparador; un solo nivel; role=menu.
+
+Qué distingue el diálogo del menú, ya que comparten superficie y línea: el eje y la reversibilidad.
+El diálogo se apropia del eje de la zona que tapa y bloquea el fondo; el menú cuelga del eje de quien
+lo abrió y se va con Esc sin haber bloqueado nada. Comparten materiales porque son la misma capa: la
+escalera tiene cuatro peldaños y el cuarto es "lo superpuesto", no "lo modal".
+
+Reglas:
+   E1  No hay quinta superficie. Consecuencia dura y buscada: UN MENÚ FLOTANTE DENTRO DE UN DIÁLOGO
+       ESTÁ PROHIBIDO, porque necesitaría un quinto peldaño para distinguirse. Se resuelve como lista
+       dentro del propio diálogo.
+   E2  Un paso por vez entre zonas contiguas. Saltar de base a hundida es infracción aunque se vea bien.
+   E3  Cero box-shadow que no sea el eje de foco. El namespace de sombras se borra del build.
+   E4  No hay overlay oscurecido: en oscuro un diálogo se distingue por superficie Y hairline.
+   E5  Dos capas de apilamiento y no más: página 0, superpuesta 100.
+
+
+7. FOCO VISIBLE
+---------------
+Es el token que más se usa en un producto que se recorre entero por teclado, y el sistema tiene UNO.
+De donde se viene: dos sistemas de foco incompatibles conviviendo, 14 outline-none contra 13
+outline-solid — la mitad del código apagando el contorno y la otra mitad volviéndolo a encender — y
+seis controles con el foco heredado del navegador.
+
+   --foco-ancho: 4px
+   --foco-tinta: var(--tinta-principal)
+   --foco-tinta-negativo: var(--sup-base)     cuando el elemento enfocado ES una masa de tinta
+   --foco-canal: 4px                          canal reservado a la izquierda de cada zona
+
+   .foco-eje  ->  outline: none;
+                  box-shadow: -4px 0 0 0 var(--tinta-principal);
+
+Sin difuminado, sin transparencia, sin radio. Es masa de tinta sólida, no elevación.
+
+Por qué a la izquierda y no un anillo alrededor: toda zona tiene un eje izquierdo y todo lo que
+pertenece a la zona cuelga de él. El eje de foco cae exactamente sobre ese eje, así que recorrer la
+pantalla con el tabulador se ve como una masa bajando por la misma línea vertical — la misma lectura
+que ya enseñan las barras de nivel del árbol. Un anillo tendría que llevar radio (prohibido) o cuatro
+esquinas vivas: cuatro veces más tinta para decir lo mismo.
+
+Contraste contra lo que rodea, medido en las seis vecindades (claro / oscuro):
+   sup-base           16.11 / 15.47      eje fuera, zona de trabajo
+   sup-elevada        15.13 / 14.47      eje fuera, panel
+   sup-hundida        14.32 / 13.53      eje fuera, fila seleccionada
+   sup-superpuesta    13.32 / 12.22      eje fuera, diálogo y menú
+   masa cromo          9.17 / 10.07      eje dentro, acción primaria enfocada
+   masa de tinta      16.11 / 15.47      eje dentro, INVERTIDO a sup-base
+   Peor caso del sistema: 9.17:1, tres veces el umbral de 3:1.
+
+Reglas:
+   F1  El foco lo dibuja el eje, no el amarillo. Cromo puede acompañar pero nunca sustituye: la masa
+       cromo mide 1.45:1 en el peor caso claro. Y hay una segunda razón, semántica: cromo ya está
+       ocupado por "activo" y hay que poder distinguir "activo" de "enfocado".
+   F2  :focus-visible, NUNCA :focus. Un clic de ratón no dibuja el eje.
+   F3  outline: none solo se admite en la misma regla que aplica el eje.
+   F4  Cero controles con el foco del navegador. Enlaces y radios incluidos.
+   F5  Cada zona reserva 4 px de canal a su izquierda. El eje se dibuja fuera del elemento; sin el
+       canal, el primer control pegado al borde de la ventana se lo come. Cuando el canal es
+       imposible, el eje se dibuja hacia dentro (box-shadow: inset).
+   F6  SOBRE MASA DE TINTA EL EJE SE INVIERTE a sup-base. Sin esta regla, el foco sobre un botón de
+       peligro o sobre una masa de estado — que en Cromo son fondo tinta con texto en negativo —
+       sería tinta sobre tinta: 1:1, invisible.
+   F7  Sin radio, sin difuminado, sin transparencia y sin transición. El foco aparece y desaparece
+       de golpe: el único movimiento del sistema es otro.
+
+Comprobación obligatoria: foco visible en las dos mitades del split con el zoom del navegador al
+200 %, pasada en escala de grises, y recorrido completo con tabulador por cada pantalla comprobando
+que el número de elementos enfocables sin eje es cero.
+
+
+8. ICONOS
+---------
+DIBUJO PROPIO, MASAS SÓLIDAS, INVENTARIO CERRADO DE CINCO.
+
+No hay familia externa, y no es purismo: ninguna sobrevive a la gramática. Toda familia de trazo
+trae chevrones, flechas y formas giradas, y en Cromo la diagonal aparece exactamente una vez por
+pantalla: la marca. Importar una familia para usar el 8 % y prohibir el resto por revisión es peor
+que dibujar cinco. Ejemplo que lo explica mejor que el argumento: LA LUPA ESTÁ PROHIBIDA — su mango
+es una diagonal. Buscar es una palabra.
+
+Los iconos son masas: fill: currentColor, stroke: none. Con eso el anti-patrón del stroke de fábrica
+en todos los tamaños no se vigila, NO SE PUEDE ESCRIBIR: en el sistema no existe la propiedad stroke.
+
+Peso por tamaño — el rasgo mínimo, que es lo que sí queda por decidir:
+   12 px   junto al rótulo de 11 px     rasgo 2 px   contraforma 2 px   proporción 1/6
+   16 px   junto al cuerpo de 15 px     rasgo 2 px   contraforma 3 px   proporción 1/8
+   24 px   control aislado, la marca    rasgo 3 px   contraforma 4 px   proporción 1/8
+
+LA PROPORCIÓN NO ES CONSTANTE, Y ESE ES EL PUNTO. Mantener 1/8 a 12 px daría un rasgo de 1.5 px que
+en una pantalla de DPR 1 se reparte entre dos filas de píxeles y se renderiza como dos grises: es el
+icono de 12 px que desaparece. Por eso hay un suelo duro de 2 px que rompe la proporción hacia arriba
+en el tamaño pequeño. Por el otro lado, a 24 px un rasgo de 2 px se ve anémico junto a un peso 900
+de Chivo, y sube a 3. La contraforma va en la tabla porque en un sistema de masas es la mitad del
+problema: rasgo correcto con hueco de 1 px se empasta. La contraforma nunca es menor que el rasgo.
+Cierra la aritmética: a 12 px, 2+2+2+2+2 = 10 en caja de 12. A 16 px, 2+3+2+3+2 = 12 en caja de 16.
+
+La prueba, cuatro condiciones por icono y tamaño, en las dos superficies extremas y los dos temas:
+   100 % DPR 1   el caso peor: cada rasgo es UNA fila sólida de tinta, no dos grises
+   200 % DPR 1   exigido por la dirección: el rasgo dobla y la contraforma no se cierra
+   100 % DPR 2   que el suelo de 2 px no se vea grueso donde sobra resolución
+   escala de grises  si en gris deja de entenderse, no está terminado
+El zoom al 200 % no es el riesgo — ahí todo crece —; el riesgo es el 100 % a DPR 1. Se prueban los
+dos porque el que falla es el otro.
+
+Inventario, de 22 iconos dibujados a mano a cinco:
+   marca          24 px   la diagonal. Una por pantalla. El único dibujo girado
+   vista-texto    16 px   una masa vertical: el plano del panel de texto
+   vista-doble    16 px   dos masas verticales separadas por el canal: el plano del split
+   vista-preview  16 px   tres barras horizontales decrecientes: la silueta de un párrafo
+   cerrar         12 px   masa cuadrada de 8 px, objetivo táctil 26x26
+Los tres de vista siguen siendo dibujo y no palabra por una razón concreta: no son iconos de un
+concepto, son el plano de la pantalla que producen. Un icono de "carpeta" representa; este muestra.
+
+Las bajas, cada una con su regla:
+   16 glifos de la paleta markdown  ->  son #, **, >, -. SE ESCRIBEN EN CHIVO MONO, NO SE DIBUJAN.
+                                        Dibujar un icono de un carácter es tener dos recursos para
+                                        el mismo trabajo
+   chevrón de despliegue            ->  forma girada, y "se incumple con triángulos de despliegue"
+   icono de documento del árbol     ->  carpeta frente a documento es ALTURA DE LA BARRA (14/6 px) y peso
+   4 trazos de acción de fila       ->  "en reposo, un control es solo su palabra": pasan a versalitas
+                                        de 11 px visibles al hover o al foco de la fila, invirtiéndose
+   la "x" de cerrar pestaña         ->  SON DOS DIAGONALES. Pasa a masa cuadrada
+   la lupa de buscar                ->  se declara prohibida antes de que alguien la dibuje
+
+Reglas: fill currentColor y nunca cromo; el inventario es cerrado (un icono nuevo entra con la baja
+de otro); todo icono va con aria-hidden y su control lleva nombre accesible en texto — ningún icono
+es el único portador de un significado.
+
+
+9. MOVIMIENTO Y TEXTURA
+-----------------------
+Un único gesto en todo el sistema: la masa de tinta se desvanece en 120 ms al resolverse el estado
+(al guardar, al restaurar, al vaciar). Nada entra deslizándose, nada rebota, nada pulsa en bucle,
+nada se anima al pasar el ratón.
+   duración 120 ms · curva linear (un desvanecido de opacidad no tiene cuerpo; cualquier curva le
+   atribuye una inercia que el sistema no tiene) · con prefers-reduced-motion, 0 ms y es un corte,
+   sin pérdida de información, porque la información estaba en la palabra.
+
+Trama de inerte: 45°, un solo ángulo, paso de 4 px, siempre en tinta desactivada sobre el escalón
+que le toque. Significa "existe pero no se puede editar ahora": papelera, versiones anteriores, solo
+lectura, zonas deshabilitadas. No significa selección, ni error, ni carga.
+
+Opacidades: CERO valores. La única opacidad es el 0->1 del desvanecido. Ninguna transparencia
+estructural: los estados deshabilitados son trama más tinta desactivada, no opacity.
+
+
+10. PRESUPUESTO DEL SISTEMA
+---------------------------
+Cuántos valores distintos admite el sistema de cada tipo. Es un techo, no un objetivo.
+La tercera columna es lo que medía la auditoría del producto heredado.
+
+   eje                        admite                          medía antes
+   ------------------------------------------------------------------------
+   pasos de espaciado         7                               13
+   radios                     1 (cero)                        3
+   anchos de borde            1 (1 px)                        6
+   tokens de hairline         3                               -
+   sombras                    1, y no es elevación            2
+   superficies                4                               -
+   iconos (dibujos)           5                               22
+   tamaños de icono           3                               4
+   grosores de rasgo          2 (2 px, 3 px)                  2 sistemas en conflicto
+   duraciones                 1 (120 ms)                      1
+   curvas                     1 (linear)                      1
+   colores (tokens por tema)  13                              30
+   tonos neutros              8                               10
+   cuerpos tipográficos       8 (4 interfaz + 4 documento)    7
+   familias                   2                               2
+   pesos                      3 (400/700/900) + 1 excepción   2 (+2 heredados)
+   interlineados              6                               7
+   alturas de control         2 (26, 39)                      4
+   anchos de contenedor       2 (624, 260)                    8
+   z-index                    2 (0, 100)                      1
+   sistemas de foco           1                               2
+   opacidades                 0                               -
+   tramas                     1                               0
+   puntos de ruptura          abierto                         1
+
+Se cuenta POR VALOR COMPUTADO en el bundle de producción, no por clase en el código fuente: un grep
+de "rounded" no vale cuando el mismo radio puede llegar por la clase, por un estilo en línea o por
+el agente de usuario en un input type=radio. Y el contador se valida a sí mismo antes de contar: si
+no encuentra el bundle, aborta en vez de dar un cero.
+
+
+11. LO QUE NO ESTÁ RESUELTO, DICHO EN VEZ DE TAPADO
+---------------------------------------------------
+   - La masa cromo no alcanza 3:1 sobre ninguna superficie del tema claro. No se ha tocado el valor:
+     se resuelve por segundo canal, y el foco lo dibuja el eje de tinta. El ajuste mínimo no es
+     mínimo — sacaría el amarillo del mostaza y arrastraría qué texto va encima.
+   - No hay cara de respaldo con métrica ajustada para el periodo de swap. No se ha escrito porque
+     no se han podido medir las fuentes del sistema en este entorno, y un size-adjust de memoria
+     sería un número inventado.
+   - La medida de línea del preview (81.8 caracteres) se pasa del clásico 45-75. Es geometría de las
+     dos familias, no un descuido, y está medida.
+   - Los puntos de ruptura están sin decidir a propósito: dos columnas de 624 px piden 1288 px de
+     viewport, y qué hace el split por debajo es una decisión de producto que no está tomada.
+   - Tonos neutros (8) e interlineados (6) se pasan por poco del rango "sano" de la auditoría. Se
+     registran en vez de maquillarlos: los ocho neutros están medidos y asignados, y los seis
+     interlineados tienen cada uno un cuerpo con dueño.

@@ -1,0 +1,80 @@
+{
+  "mcp": {
+    "context7": {
+      "type": "remote",
+      "url": "https://mcp.context7.com/mcp",
+      "enabled": true
+    },
+    "playwright": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "@playwright/mcp@latest",
+        "--browser",
+        "chromium",
+        "--isolated"
+      ],
+      "enabled": true
+    },
+    "coderag": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "@sylphx/coderag-mcp",
+        "--root=."
+      ],
+      "enabled": true
+    },
+    "postgres": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "@henkey/postgres-mcp-server",
+        "--connection-string",
+        "${DATABASE_URL:-postgresql://one_markdown:one_markdown@localhost:5433/one_markdown}"
+      ],
+      "enabled": true
+    }
+  },
+  "instructions": [
+    ".opencode/memories/20-territorio-backend.md",
+    ".opencode/memories/20-territorio-frontend.md"
+  ],
+  "permission": {
+    "bash": {
+      "pnpm install": "allow",
+      "pnpm add:*": "allow",
+      "pnpm dev:*": "allow",
+      "pnpm build:*": "allow",
+      "pnpm test:*": "allow",
+      "pnpm lint:*": "allow",
+      "pnpm typecheck:*": "allow",
+      "pnpm --filter:*": "allow",
+      "pnpm -r:*": "allow",
+      "pnpm exec:*": "allow",
+      "npx prisma:*": "allow",
+      "npx nest:*": "allow",
+      "npx vitest:*": "allow",
+      "npx playwright:*": "allow",
+      "git status:*": "allow",
+      "git diff:*": "allow",
+      "git log:*": "allow",
+      "git add:*": "allow",
+      "docker compose up:*": "allow",
+      "docker compose ps:*": "allow",
+      "docker compose logs:*": "allow",
+      "git push:*": "deny",
+      "npx prisma migrate reset:*": "deny",
+      "docker compose down -v:*": "deny"
+    },
+    "read": {
+      "./.env": "deny",
+      "./.env.*": "deny",
+      "./**/.env": "deny",
+      "./**/.env.*": "deny"
+    }
+  }
+}

@@ -1,0 +1,43 @@
+// GENERADO por showi 0.0.0 desde showi.yml — no editar a mano.
+//
+// Solo aparecen los servidores **habilitados**. Uno declarado y no habilitado no se emite: que un
+// rol lo dé por obligatorio y esté apagado es el cruce que deja herramientas muertas sin que nadie
+// lo note.
+//
+// Las cadenas de conexión conservan su interpolación de entorno sin resolver. Resolverla aquí
+// metería una credencial en un fichero versionado.
+{
+  "mcpServers": {
+    "context7": {
+      "type": "http",
+      "url": "https://mcp.context7.com/mcp"
+    },
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@latest",
+        "--browser",
+        "chromium",
+        "--isolated"
+      ]
+    },
+    "coderag": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@sylphx/coderag-mcp",
+        "--root=."
+      ]
+    },
+    "postgres": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@henkey/postgres-mcp-server",
+        "--connection-string",
+        "${DATABASE_URL:-postgresql://one_markdown:one_markdown@localhost:5433/one_markdown}"
+      ]
+    }
+  }
+}

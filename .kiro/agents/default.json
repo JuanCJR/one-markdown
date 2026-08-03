@@ -1,0 +1,48 @@
+{
+  "allowedTools": [],
+  "toolsSettings": {
+    "shell": {
+      "allowedCommands": [
+        "pnpm install",
+        "pnpm add:*",
+        "pnpm dev:*",
+        "pnpm build:*",
+        "pnpm test:*",
+        "pnpm lint:*",
+        "pnpm typecheck:*",
+        "pnpm --filter:*",
+        "pnpm -r:*",
+        "pnpm exec:*",
+        "npx prisma:*",
+        "npx nest:*",
+        "npx vitest:*",
+        "npx playwright:*",
+        "git status:*",
+        "git diff:*",
+        "git log:*",
+        "git add:*",
+        "docker compose up:*",
+        "docker compose ps:*",
+        "docker compose logs:*"
+      ],
+      "deniedCommands": [
+        "git push:*",
+        "npx prisma migrate reset:*",
+        "docker compose down -v:*"
+      ]
+    },
+    "read": {
+      "allowedPaths": [],
+      "deniedPaths": [
+        "./.env",
+        "./.env.*",
+        "./**/.env",
+        "./**/.env.*"
+      ]
+    },
+    "write": {
+      "allowedPaths": [],
+      "deniedPaths": []
+    }
+  }
+}

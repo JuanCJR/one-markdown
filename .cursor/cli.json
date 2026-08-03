@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "editor": {
+    "vimMode": false
+  },
+  "permissions": {
+    "allow": [
+      "Shell(docker compose logs:*)",
+      "Shell(docker compose ps:*)",
+      "Shell(docker compose up:*)",
+      "Shell(git add:*)",
+      "Shell(git diff:*)",
+      "Shell(git log:*)",
+      "Shell(git status:*)",
+      "Shell(npx nest:*)",
+      "Shell(npx playwright:*)",
+      "Shell(npx prisma:*)",
+      "Shell(npx vitest:*)",
+      "Shell(pnpm --filter:*)",
+      "Shell(pnpm -r:*)",
+      "Shell(pnpm add:*)",
+      "Shell(pnpm build:*)",
+      "Shell(pnpm dev:*)",
+      "Shell(pnpm exec:*)",
+      "Shell(pnpm install)",
+      "Shell(pnpm lint:*)",
+      "Shell(pnpm test:*)",
+      "Shell(pnpm typecheck:*)"
+    ],
+    "deny": [
+      "Read(./**/.env)",
+      "Read(./**/.env.*)",
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Shell(docker compose down -v:*)",
+      "Shell(git push:*)",
+      "Shell(npx prisma migrate reset:*)"
+    ]
+  }
+}

@@ -1,0 +1,48 @@
+---
+description: El método de trabajo de este repositorio. Se carga siempre.
+---
+
+# Cómo se trabaja aquí
+
+Cuatro reglas gobiernan todo lo que se escribe en este repositorio. **No están definidas en este
+documento**: cada una vive en una skill, y este documento solo dice cuáles son y cuándo se cargan.
+
+| Skill | Cuándo se carga |
+|---|---|
+| `spec-driven-development` | Antes de planificar cualquier cambio significativo, y al escribir o revisar una especificación. |
+| `test-driven-development-tdd` | Antes de la primera línea de cualquier implementación o corrección. |
+| `stop-and-report` | Al recibir una tarea, y otra vez en cuanto algo no cuadre con lo que la tarea predecía. |
+| `verification-and-measurement` | Antes de dar por buena cualquier cifra, cualquier verde y sobre todo cualquier cero. |
+
+**Si una de las cuatro no está disponible, se para y se avisa antes de empezar.** No se reconstruye de
+memoria: un método a medias produce el mismo verde y ninguna señal, que es exactamente el fallo
+silencioso contra el que existe todo esto.
+
+## Lo que no se negocia
+
+**Nada se implementa sin especificación.** Código sin spec es adivinar qué se quería.
+
+**El test va primero, y hay que verlo fallar por la razón correcta.** Un test que nunca estuvo en
+rojo no ha demostrado nada. Si la tarea estrena un módulo, se crea antes el andamio —la firma con
+cuerpo vacío—: un fallo de importación solo demuestra que el archivo no está.
+
+**Solo se tocan los archivos que la tarea enumera.** Si hace falta otro, se para y se avisa. Ampliar
+la lista sobre la marcha es cómo un radio de cambio mal calculado llega a producción.
+
+**Un comando de verificación tiene que ejecutar algo.** Un comando que no corre nada sale en verde, y
+ésa es su trampa. Se corre antes de escribirlo en la tarea.
+
+**No se debilita una aserción para que pase.** Gana el criterio hasta que quien escribió la spec
+decida otra cosa.
+
+**Se reporta la salida real, no un resumen de la salida real.**
+
+## Lo que se dice en voz alta
+
+Un desvío callado cuesta más que el desvío. Se escribe, aunque sea pequeño y aunque haya salido bien:
+un artefacto tocado que la tarea no enumeraba, un criterio que resultó inalcanzable, un rojo que no
+era el predicho, una medida que hubo que rehacer porque el instrumento estaba mal.
+
+Lo que ningún test de este repositorio puede cubrir **se declara como tal**, y no se escribe un test
+que finja lo contrario. Una revisión manual declarada es honesta; un test que la simula es un verde
+falso permanente.

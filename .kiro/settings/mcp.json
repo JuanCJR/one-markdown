@@ -1,0 +1,35 @@
+{
+  "mcpServers": {
+    "context7": {
+      "type": "http",
+      "url": "https://mcp.context7.com/mcp"
+    },
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@latest",
+        "--browser",
+        "chromium",
+        "--isolated"
+      ]
+    },
+    "coderag": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@sylphx/coderag-mcp",
+        "--root=."
+      ]
+    },
+    "postgres": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@henkey/postgres-mcp-server",
+        "--connection-string",
+        "${DATABASE_URL:-postgresql://one_markdown:one_markdown@localhost:5433/one_markdown}"
+      ]
+    }
+  }
+}

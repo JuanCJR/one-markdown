@@ -1,0 +1,147 @@
+// GENERADO por showi 0.0.0 desde showi.yml — no editar a mano.
+// Cualquier cambio aquí lo borra el próximo `showi sync`; lo que se edita es `showi.yml`.
+//
+// **Necesita `GITHUB_TOKEN` en el entorno.** Sin él, la API de GitHub da 60 llamadas por hora y
+// por IP, y `rulesync install` las agota con una decena de orígenes: falla con 403 y **ningún
+// origen se instala**, ni siquiera el método. Con token son 5.000/hora.
+//     export GITHUB_TOKEN=$(gh auth token)
+//
+// La primera entrada de `sources` es el método, fijado por tag: una rama haría que dos clones del
+// mismo commit instalaran métodos distintos. Las demás son las skills del stack.
+{
+  "$schema": "https://github.com/dyoshikawa/rulesync/releases/latest/download/config-schema.json",
+  "targets": {
+    "claudecode": [
+      "rules",
+      "mcp",
+      "subagents",
+      "commands",
+      "skills",
+      "hooks",
+      "permissions"
+    ],
+    "cursor": [
+      "rules",
+      "mcp",
+      "subagents",
+      "commands",
+      "skills",
+      "hooks",
+      "permissions"
+    ],
+    "copilot": [
+      "rules",
+      "mcp",
+      "subagents",
+      "commands",
+      "skills",
+      "hooks",
+      "permissions"
+    ],
+    "opencode": [
+      "rules",
+      "mcp",
+      "subagents",
+      "commands",
+      "skills",
+      "hooks",
+      "permissions"
+    ],
+    "kiro-ide": [
+      "rules",
+      "mcp",
+      "subagents",
+      "skills",
+      "hooks",
+      "permissions"
+    ],
+    "agentsmd": [
+      "rules"
+    ],
+    "agentsskills": [
+      "skills"
+    ]
+  },
+  "outputRoots": [
+    "."
+  ],
+  "delete": true,
+  "sources": [
+    {
+      "source": "JuanCJR/showi-harness@v0.1.0",
+      "skills": [
+        "spec-driven-development",
+        "test-driven-development-tdd",
+        "stop-and-report",
+        "verification-and-measurement"
+      ],
+      "rules": [
+        "metodo"
+      ]
+    },
+    {
+      "source": "vercel-labs/agent-skills",
+      "skills": [
+        "react-best-practices",
+        "composition-patterns",
+        "web-design-guidelines"
+      ]
+    },
+    {
+      "source": "kadajett/agent-nestjs-skills",
+      "skills": [
+        "nestjs-best-practices"
+      ]
+    },
+    {
+      "source": "prisma/skills",
+      "path": ".",
+      "skills": [
+        "prisma-database-setup"
+      ]
+    },
+    {
+      "source": "ccheney/robust-skills",
+      "skills": [
+        "clean-ddd-hexagonal"
+      ]
+    },
+    {
+      "source": "affaan-m/everything-claude-code",
+      "skills": [
+        "accessibility",
+        "security-review"
+      ]
+    },
+    {
+      "source": "bobmatnyc/claude-mpm-skills:universal/testing",
+      "skills": [
+        "testing-anti-patterns"
+      ]
+    },
+    {
+      "source": "bobmatnyc/claude-mpm-skills:toolchains/javascript/testing",
+      "skills": [
+        "playwright"
+      ]
+    },
+    {
+      "source": "bobmatnyc/claude-mpm-skills:toolchains/typescript/state",
+      "skills": [
+        "zustand"
+      ]
+    },
+    {
+      "source": "wshobson/agents:plugins/javascript-typescript/skills",
+      "skills": [
+        "typescript-advanced-types"
+      ]
+    },
+    {
+      "source": "giuseppe-trisciuoglio/developer-kit:plugins/developer-kit-typescript/skills",
+      "skills": [
+        "tailwind-css-patterns"
+      ]
+    }
+  ]
+}

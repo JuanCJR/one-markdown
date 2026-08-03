@@ -1,0 +1,27 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "delegation-watch",
+      "trigger": "PreToolUse",
+      "matcher": "Write|Edit|NotebookEdit",
+      "action": {
+        "type": "command",
+        "command": "python3 .harness/hooks/delegation-watch.py"
+      },
+      "timeout": 5,
+      "enabled": true
+    },
+    {
+      "name": "log-skill-usage",
+      "trigger": "PostToolUse",
+      "matcher": "Skill",
+      "action": {
+        "type": "command",
+        "command": "python3 .harness/hooks/log-skill-usage.py"
+      },
+      "timeout": 5,
+      "enabled": true
+    }
+  ]
+}

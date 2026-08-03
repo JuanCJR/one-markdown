@@ -31,6 +31,8 @@ blob-report/
 
 .playwright-mcp
 
-# showi — generado por `showi sync`; se comprometerá cuando se conmute (fase 7)
-.rulesync/
+# showi — lo generado SÍ se versiona (decisión D7): quien clona y abre cualquier IDE tiene el
+# harness sin ejecutar nada. Fuera queda solo la medición, que se genera sola en cada sesión.
 .harness/*.jsonl
+.rulesync/skills/.curated/
+.rulesync/rules/.curated/
