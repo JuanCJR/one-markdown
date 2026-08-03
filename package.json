@@ -17,6 +17,8 @@
     "typecheck": "pnpm shared:build && pnpm -r typecheck",
     "color:medir": "node tools/color/medir-contraste.mjs",
     "color:muestra": "node tools/color/servir-muestra.mjs",
+    "tipo:medir": "node tools/tipografia/medir-tipografia.mjs",
+    "tipo:muestra": "node tools/tipografia/servir-muestra.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
@@ -24,6 +26,7 @@
     "@eslint/js": "10.0.1",
     "eslint": "10.8.0",
     "eslint-config-prettier": "10.1.8",
+    "fontkit": "^2.0.4",
     "globals": "17.7.0",
     "prettier": "3.9.6",
     "typescript": "5.9.3",

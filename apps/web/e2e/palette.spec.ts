@@ -193,17 +193,24 @@ async function tabUntilFocused(page: Page, target: Locator): Promise<void> {
 }
 
 /** El anillo de foco tal y como lo calcula Blink, que es el que se ve. */
-async function outlineOf(
+/**
+ * Los dos canales del indicador de foco, tal y como los computa el navegador. Se comparan contra
+ * los tokens del tema claro, que es el que corre la suite: si alguien mueve `--cromo` o
+ * `--sobre-cromo` sin volver a medir, esto se cae, que es exactamente lo que se quiere.
+ */
+const CROMO_CLARO = 'oklch(0.7927 0.1574 85.3)';
+const SOBRE_CROMO = 'oklch(0.2088 0.006 100)';
+
+async function indicadorDeFocoDe(
   target: Locator,
-): Promise<{ readonly width: string; readonly style: string; readonly color: string }> {
+): Promise<{ readonly fondo: string; readonly color: string; readonly sombra: string }> {
   return await target.evaluate((node) => {
     const computed = getComputedStyle(node);
 
     return {
-      width: computed.outlineWidth,
-      style: computed.outlineStyle,
-      color: computed.outlineColor,
+      fondo: computed.backgroundColor,
+      color: computed.color,
+      sombra: computed.boxShadow,
     };
   });
 }
-

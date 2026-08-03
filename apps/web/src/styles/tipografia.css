@@ -1,0 +1,212 @@
+/* Tipografía de One Markdown — superfamilia Chivo / Chivo Mono (Omnibus-Type, Argentina · OFL 1.1).
+   Documento normativo: `docs/design/05-tipografia.md`. Aquí solo viven los valores; el porqué de
+   cada uno está allí, medido.
+
+   Las dos familias salen del MISMO proyecto (github.com/Omnibus-Type/Chivo) y su métrica vertical
+   es idéntica glifo a glifo —medido: `pnpm tipo:medir`—, que es lo que hace que el panel de texto y
+   el de preview se lean como un documento en dos estados y no como dos documentos. */
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   1 · Caras. Variables las dos: un archivo cubre wght 100..900, así que los
+   pesos 400/700/900 del sistema no cuestan un byte extra.
+
+   `unicode-range` no es decoración: hace que `latin-ext` NO se descargue mientras
+   no aparezca un carácter suyo. El español entero vive en `latin`, así que en la
+   práctica la app arranca con dos archivos y 58.2 KB.
+
+   NO se carga la cursiva de Chivo Mono (28.9 KB): el panel de texto muestra
+   markdown crudo, donde `*énfasis*` son asteriscos literales, y los bloques de
+   código no llevan cursiva. Una cara que nunca se pide no se declara.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+@font-face {
+  font-family: 'Chivo';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fuentes/chivo-latin.woff2') format('woff2');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Chivo';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fuentes/chivo-latinext.woff2') format('woff2');
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+    U+A720-A7FF;
+}
+
+@font-face {
+  font-family: 'Chivo';
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fuentes/chivo-italic-latin.woff2') format('woff2');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Chivo';
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fuentes/chivo-italic-latinext.woff2') format('woff2');
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+    U+A720-A7FF;
+}
+
+@font-face {
+  font-family: 'Chivo Mono';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fuentes/chivomono-latin.woff2') format('woff2');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Chivo Mono';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fuentes/chivomono-latinext.woff2') format('woff2');
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+    U+A720-A7FF;
+}
+
+:root {
+  /* ───────────────────────────────────────────────────────────────────────────
+     2 · Las dos familias
+     ─────────────────────────────────────────────────────────────────────────── */
+
+  /* El documento renderizado y toda la interfaz. */
+  --fuente-documento: 'Chivo', sans-serif;
+  /* El markdown crudo del editor y los bloques de código del preview. */
+  --fuente-texto: 'Chivo Mono', monospace;
+
+  /* ───────────────────────────────────────────────────────────────────────────
+     3 · Escala del DOCUMENTO. Base 16 px; línea de 26 px (1.625).
+
+     La línea es un número redondo de píxeles a propósito: es la unidad vertical
+     del documento, y todo el espaciado del preview es múltiplo de 13 px para que
+     la rejilla vuelva a cuadrar después de cada encabezado.
+
+     Ningún salto entre dos niveles consecutivos supera 1.25×:
+       h1/h2 = 1.246 · h2/h3 = 1.165 · h3/cuerpo = 1.15
+     h4, h5 y h6 van al cuerpo y se distinguen por peso y tinta: no son saltos.
+     ─────────────────────────────────────────────────────────────────────────── */
+
+  --texto-cuerpo: 1rem; /* 16 px */
+  --linea-cuerpo: 1.625; /* 26 px */
+  --linea-unidad: 1.625rem; /* 26 px, la unidad vertical del documento */
+  --medio-unidad: 0.8125rem; /* 13 px */
+
+  --texto-h1: 1.67em; /* 26.7 px */
+  --linea-h1: 1.22; /* 32.6 px */
+  --tracking-h1: -0.012em;
+
+  --texto-h2: 1.34em; /* 21.4 px */
+  --linea-h2: 1.28; /* 27.4 px */
+  --tracking-h2: -0.008em;
+
+  --texto-h3: 1.15em; /* 18.4 px */
+  --linea-h3: 1.41; /* 26 px — cae justo en la unidad */
+  --tracking-h3: -0.004em;
+
+  /* h4-h6: mismo cuerpo, distinto peso y distinta tinta. */
+  --peso-h4: 900;
+  --peso-h5: 700;
+  --peso-h6: 700;
+
+  /* ───────────────────────────────────────────────────────────────────────────
+     4 · Escala de la INTERFAZ. 15 px y 11 px, los cuerpos que ya mide
+     `docs/design/04-color.md` §2. La interfaz va un paso por debajo del
+     documento: el cromo no puede gritar más que el texto del usuario.
+     ─────────────────────────────────────────────────────────────────────────── */
+
+  --texto-ui: 0.9375rem; /* 15 px */
+  --linea-ui: 1.4;
+
+  --texto-rotulo: 0.6875rem; /* 11 px — el suelo del sistema de color */
+  --linea-rotulo: 1.45;
+  --tracking-rotulo: 0.06em;
+
+  --texto-titulo: 1.3125rem; /* 21 px */
+  --linea-titulo: 1.25;
+  --tracking-titulo: -0.008em;
+
+  /* ───────────────────────────────────────────────────────────────────────────
+     5 · Pesos
+     ─────────────────────────────────────────────────────────────────────────── */
+
+  --peso-cuerpo: 400;
+  --peso-medio: 500;
+  --peso-fuerte: 700;
+  --peso-maximo: 900;
+
+  /* ───────────────────────────────────────────────────────────────────────────
+     6 · Medida de línea — LA MISMA EN PÍXELES A LOS DOS LADOS.
+
+     La verdad es el ancho físico, no `ch`: 1ch de Chivo Mono son 9.6 px y 1ch de
+     Chivo son 9.84 px a cuerpo 16, así que «los mismos ch» darían dos columnas de
+     ancho distinto y rompería la ilusión del split. Se fija el ancho y se deja
+     que cada panel meta los caracteres que le quepan.
+
+     624 px = 65.0ch del panel de texto ≈ 82 caracteres de prosa española en el de
+     preview. Medido, no estimado.
+
+     Se coge el SUELO del rango 65-72 y no el centro, y la razón está escrita en
+     `05-tipografia.md` §6: el cociente entre las dos familias es fijo —1.259, y no
+     depende del cuerpo—, así que «65-72ch de mono» obliga a 82-91 caracteres de
+     prosa al otro lado, por encima del clásico 45-75. Bajar el preview a 75
+     pediría el editor a 59.6ch, fuera del rango. Las dos restricciones no caben
+     juntas; se elige el extremo que menos daño hace y se deja dicho.
+     ─────────────────────────────────────────────────────────────────────────── */
+
+  --medida-documento: 39rem; /* 624 px, idéntica en los dos paneles */
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   7 · La rejilla del monoespaciado, que por defecto se rompe.
+
+   Chivo Mono trae `liga` y la trae ACTIVA: «fi», «fl», «ff» y «ffi» se sustituyen
+   por un solo glifo de un solo avance. Medido con fontkit: "fi" = 2 caracteres →
+   1 glifo → 600 unidades en vez de 1200. En un editor de markdown en español eso
+   sale en `fichero`, `definición`, `perfil`, `confirmar` y `notificación`, y
+   descuadra la columna justo donde el usuario está mirando.
+
+   Se apaga con `font-variant-ligatures: none` y NO con `font-feature-settings`:
+   la propiedad estándar toca `liga`/`clig`/`dlig`/`hlig` y deja en paz a `ccmp`,
+   que es la que compone los acentos. Apagar `ccmp` rompería `á`, `é`, `ñ` y `ü`.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+@utility texto-crudo {
+  font-family: var(--fuente-texto);
+  font-size: var(--texto-cuerpo);
+  line-height: var(--linea-cuerpo);
+  font-variant-ligatures: none;
+  tab-size: 2;
+}
+
+/* El documento renderizado: aquí las ligaduras SÍ, que no hay rejilla que romper
+   y `fi`/`fl` mejoran la mancha de la prosa. */
+@utility texto-documento {
+  font-family: var(--fuente-documento);
+  font-size: var(--texto-cuerpo);
+  line-height: var(--linea-cuerpo);
+  font-weight: var(--peso-cuerpo);
+}

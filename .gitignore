@@ -27,3 +27,6 @@ playwright-report/
 test-results/
 blob-report/
 .cache/
+
+
+.playwright-mcp

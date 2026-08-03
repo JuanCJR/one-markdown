@@ -5,15 +5,15 @@
 documento añade es lo que en el repositorio se puede exigir: dónde viven los tokens, con qué se
 miden, qué medida da cada pareja y qué falla.
 
-| Qué                                               | Dónde                                                                             |
-| ------------------------------------------------- | --------------------------------------------------------------------------------- |
-| Tokens crudos, OKLCH                              | `apps/web/src/styles/tokens-cromo.css`                                            |
-| Opción «sistema» (`prefers-color-scheme`)         | `apps/web/src/styles/tokens-cromo-sistema.css` — **la app aún no lo importa**, §7 |
-| Puente con Tailwind (`@theme inline`, utilidades) | `apps/web/src/index.css`                                                          |
-| Medidor de contraste                              | `tools/color/medir-contraste.mjs` · `pnpm color:medir`                            |
-| Guard de las prohibiciones                        | `apps/web/src/design/color-guard.test.ts`                                         |
-| Muestra con conmutador de tema                    | `docs/design/muestra-color.html` · `pnpm color:muestra`                           |
-| Conmutador de la app                              | `apps/web/src/shared/theme/` — implementado y testeado, **sin montar**, §7        |
+| Qué                                               | Dónde                                                     |
+| ------------------------------------------------- | --------------------------------------------------------- |
+| Tokens crudos, OKLCH                              | `apps/web/src/styles/tokens-cromo.css`                    |
+| Opción «sistema» (`prefers-color-scheme`)         | `apps/web/src/styles/tokens-cromo-sistema.css`            |
+| Puente con Tailwind (`@theme inline`, utilidades) | `apps/web/src/index.css`                                  |
+| Medidor de contraste                              | `tools/color/medir-contraste.mjs` · `pnpm color:medir`    |
+| Guard de las prohibiciones                        | `apps/web/src/design/color-guard.test.ts`                 |
+| Muestra con conmutador de tema                    | `docs/design/muestra-color.html` · `pnpm color:muestra`   |
+| Conmutador de la app                              | `apps/web/src/shared/theme/` — montado en la cabecera, §7 |
 
 ## 0 · Versión de Tailwind, fijada por escrito
 
@@ -260,10 +260,46 @@ Además, el guard **se valida a sí mismo**: falla si no encuentra archivos, si 
 `tokens-cromo.css` o si no encuentra al menos 24 declaraciones OKLCH. Un guard que no mira nada pasa
 siempre, y un cero así no se cree.
 
-Excepción declarada: `text-white` sigue vivo en los botones azules y rojos heredados
-(`bg-blue-700 text-white`), que no son de este sistema y mueren enteros en el restyle —la primaria
-pasa a masa cromo con `--sobre-cromo`, y «el rojo no existe»—. Prohibirlo hoy obligaría a inventar
-el color de esos botones, que es justo lo que no toca decidir aquí. Entra en la cuenta de §7.
+**Y por encima del guard, la compilación.** `--color-*: initial` está activo en `index.css`: la
+paleta de Tailwind se borra entera y las utilidades heredadas **no existen en el build**. Medido en
+el bundle de producción: el CSS baja de 28.4 KB a 22.5 KB y quedan cero utilidades de `slate`,
+`blue`, `red` o `amber`. El guard sigue haciendo falta porque una clase inexistente **no rompe la
+compilación**: deja el elemento sin color y en silencio, y hace falta alguien que lo grite.
+
+Lo que sí hubo que devolver a mano tras el borrado: `--color-transparent`, `--color-current` y
+`--color-inherit`. No son paleta —son palabras clave de CSS— pero viven en el mismo namespace y
+caen con él. Sin ellas, `border-transparent` (la pestaña inactiva, que reserva el hueco del borde
+para que la tira no salte) y `fill-current` (los iconos del árbol, que heredan la tinta de su fila)
+desaparecen sin avisar.
+
+## 9 bis · Mapeo aplicado en el restyle
+
+Lo que se hizo con cada familia heredada, para que la decisión quede escrita y no haya que deducirla
+del diff. Las tres primeras filas salen de la tabla de tokens; las demás, de la gramática de
+`03-direccion.md`.
+
+| Heredado                                                 | Ahora                                                            | Regla que lo manda                                                    |
+| -------------------------------------------------------- | ---------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `bg-white` · `bg-slate-50/100` · `bg-slate-200`          | `bg-sup-base` · `bg-sup-elevada` · `bg-sup-hundida`              | La escalera de superficies                                            |
+| `text-slate-900/800` · `700/600` · `500/400`             | `text-tinta` · `text-tinta-secundaria` · `text-tinta-tenue`      | Los cuatro niveles de tinta                                           |
+| `border-slate-300` (control) · `border-slate-200` (zona) | `border-hair-control` · **se borra**                             | R1: las zonas se separan con aire o escalón, nunca con una línea      |
+| `rounded-*` · `shadow-*`                                 | **se borran**                                                    | La profundidad es color de superficie, no luz                         |
+| `bg-blue-700 text-white` (primaria)                      | `bg-cromo text-sobre-cromo font-black` + `data-cromo="primaria"` | R5 y el presupuesto de §8                                             |
+| `bg-red-700 text-white` (peligro)                        | `bg-tinta text-sup-base`                                         | «El rojo no existe en Cromo»; el peligro es masa de tinta con palabra |
+| `bg-red-50 border-red-300 text-red-800` (error)          | `bg-tinta text-sup-base`                                         | Conflicto o error: no tiene color                                     |
+| `bg-amber-*` (aviso)                                     | `bg-tinta text-sup-base`                                         | Íd.                                                                   |
+| `text-blue-700 underline` (enlace)                       | `text-tinta underline` + inversión al hover                      | Lo interactivo se declara invirtiéndose                               |
+| `outline-blue-700` / `ring-blue-700` (foco)              | utilidad `foco-cromo`                                            | Foco = masa cromo **más** eje de tinta de 4 px                        |
+| `hover:bg-slate-*`                                       | Inversión en controles; escalón en filas del árbol               | Hover invierte la masa del control                                    |
+| `disabled:bg-slate-400`                                  | `inerte` + `text-tinta-desactivada`                              | Inerte es trama diagonal y palabra                                    |
+| Overlay `bg-slate-900/40`                                | **se borra**                                                     | El diálogo se distingue por superficie **y** hairline, sin overlay    |
+| `bg-blue-100` (nodo seleccionado)                        | Masa cromo de 8 px + escalón + peso 900                          | «El presente», con sus dos canales de respaldo                        |
+| Pestaña activa con barra azul                            | `sup-base` + peso 900 + tinta plena                              | §8: la pestaña activa **no** gasta cromo                              |
+
+Seis de estas filas son decisiones **derivadas**, no cerradas en Design; están marcadas y
+justificadas en el reporte de la sesión y conviene revisarlas: el foco del campo de texto, el campo
+inválido, el hover de fila, la masa de 8 px del nodo seleccionado, el separador de la paleta y el
+punto de «sin guardar».
 
 ## 10 · Excepciones escritas
 

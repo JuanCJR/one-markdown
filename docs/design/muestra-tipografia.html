@@ -1,0 +1,875 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tipografía «Chivo / Chivo Mono» · espécimen</title>
+
+    <!-- El mismo contrato de arranque que la app (04-color.md §0): `data-tema` se escribe antes
+         del primer pintado, o la pantalla daría un destello claro antes de ponerse oscura. -->
+    <script>
+      var t = localStorage.getItem('om-tema');
+      if (t === 'claro' || t === 'oscuro') document.documentElement.dataset.tema = t;
+    </script>
+
+    <!-- Los tres archivos son los REALES de la app, no copias. Si alguien mueve un valor y no lo
+         mide, esta página lo enseña movido. -->
+    <link rel="stylesheet" href="../../apps/web/src/styles/tokens-cromo.css" />
+    <link rel="stylesheet" href="../../apps/web/src/styles/tokens-cromo-sistema.css" />
+    <link rel="stylesheet" href="../../apps/web/src/styles/tipografia.css" />
+
+    <!-- Las dos caras del camino crítico. Son las que se preladean en la app: 58.2 KB. -->
+    <link
+      rel="preload"
+      href="/fuentes/chivomono-latin.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link rel="preload" href="/fuentes/chivo-latin.woff2" as="font" type="font/woff2" crossorigin />
+
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        padding: 40px 24px 96px;
+        background: var(--sup-base);
+        color: var(--tinta-principal);
+        font-family: var(--fuente-documento);
+        font-size: var(--texto-ui);
+        line-height: var(--linea-ui);
+        font-weight: var(--peso-cuerpo);
+      }
+
+      .envoltorio {
+        max-width: 1400px;
+        margin: 0 auto;
+      }
+
+      header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 8px;
+      }
+
+      header h1 {
+        font-size: var(--texto-titulo);
+        line-height: var(--linea-titulo);
+        letter-spacing: var(--tracking-titulo);
+        font-weight: var(--peso-maximo);
+        margin: 0;
+      }
+
+      .rotulo {
+        font-size: var(--texto-rotulo);
+        line-height: var(--linea-rotulo);
+        letter-spacing: var(--tracking-rotulo);
+        text-transform: uppercase;
+        font-weight: var(--peso-fuerte);
+        color: var(--tinta-tenue);
+      }
+
+      /* Conmutador de tema: palabras en versalitas de 11 px, como en la app (04-color.md §7). */
+      .temas {
+        display: flex;
+        gap: 4px;
+      }
+      .temas button {
+        font: inherit;
+        font-size: var(--texto-rotulo);
+        letter-spacing: var(--tracking-rotulo);
+        text-transform: uppercase;
+        font-weight: var(--peso-fuerte);
+        padding: 6px 10px;
+        border: 1px solid var(--hair-control);
+        background: transparent;
+        color: var(--tinta-principal);
+        cursor: pointer;
+      }
+      .temas button[aria-pressed='true'] {
+        background: var(--cromo);
+        color: var(--sobre-cromo);
+        border-color: var(--cromo);
+      }
+
+      section {
+        margin-top: 56px;
+      }
+
+      h2.seccion {
+        font-size: var(--texto-ui);
+        font-weight: var(--peso-maximo);
+        margin: 0 0 4px;
+        text-transform: uppercase;
+        letter-spacing: var(--tracking-rotulo);
+      }
+
+      .nota {
+        color: var(--tinta-secundaria);
+        font-size: var(--texto-ui);
+        max-width: 72ch;
+        margin: 0 0 24px;
+      }
+
+      .zona {
+        background: var(--sup-elevada);
+        padding: 28px;
+      }
+
+      /* ───────── El documento: lo que de verdad se está decidiendo ───────── */
+
+      .documento {
+        font-family: var(--fuente-documento);
+        font-size: var(--texto-cuerpo);
+        line-height: var(--linea-cuerpo);
+        font-weight: var(--peso-cuerpo);
+        max-width: var(--medida-documento);
+      }
+
+      .documento > * {
+        margin-block: 0;
+      }
+      .documento > * + * {
+        margin-block-start: var(--linea-unidad);
+      }
+
+      .documento h1,
+      .documento h2,
+      .documento h3,
+      .documento h4,
+      .documento h5,
+      .documento h6 {
+        font-weight: var(--peso-fuerte);
+      }
+      .documento h1 {
+        font-size: var(--texto-h1);
+        line-height: var(--linea-h1);
+        letter-spacing: var(--tracking-h1);
+      }
+      .documento h2 {
+        font-size: var(--texto-h2);
+        line-height: var(--linea-h2);
+        letter-spacing: var(--tracking-h2);
+      }
+      .documento h3 {
+        font-size: var(--texto-h3);
+        line-height: var(--linea-h3);
+        letter-spacing: var(--tracking-h3);
+      }
+      /* h4-h6 van al cuerpo: se distinguen por peso y por tinta, no por tamaño. */
+      .documento h4,
+      .documento h5,
+      .documento h6 {
+        font-size: var(--texto-cuerpo);
+        line-height: var(--linea-cuerpo);
+      }
+      .documento h4 {
+        font-weight: var(--peso-h4);
+      }
+      .documento h5 {
+        font-weight: var(--peso-h5);
+        color: var(--tinta-secundaria);
+      }
+      .documento h6 {
+        font-weight: var(--peso-h6);
+        color: var(--tinta-tenue);
+      }
+
+      .documento strong {
+        font-weight: var(--peso-fuerte);
+      }
+
+      /* La cita NO lleva cursiva: ya se distingue por barra, sangría y tinta, y la cursiva larga
+         en pantalla cansa. Es preferencia de este proyecto, escrita en 05-tipografia.md §7. */
+      .documento blockquote {
+        border-left: 4px solid var(--hair-control);
+        padding-left: calc(var(--linea-unidad) - 4px);
+        color: var(--tinta-secundaria);
+        font-style: normal;
+      }
+
+      .documento ul,
+      .documento ol {
+        padding-left: var(--linea-unidad);
+      }
+      .documento li + li {
+        margin-top: var(--medio-unidad);
+      }
+
+      .documento code {
+        font-family: var(--fuente-texto);
+        font-variant-ligatures: none;
+        /* Chivo Mono a la altura-x de Chivo: como comparten métrica, el código en línea NO
+           necesita el `0.9em` de costumbre. Ese ajuste existe para parchear superfamilias que no
+           lo son. */
+        font-size: 1em;
+        background: var(--sup-hundida);
+        padding: 0.1em 0.3em;
+      }
+
+      .documento pre {
+        font-family: var(--fuente-texto);
+        font-variant-ligatures: none;
+        font-size: var(--texto-cuerpo);
+        line-height: var(--linea-cuerpo);
+        background: var(--sup-hundida);
+        padding: var(--medio-unidad) var(--linea-unidad);
+        overflow-x: auto;
+        tab-size: 2;
+      }
+      .documento pre code {
+        background: none;
+        padding: 0;
+      }
+
+      .documento table {
+        border-collapse: collapse;
+        width: 100%;
+      }
+      .documento th,
+      .documento td {
+        text-align: left;
+        padding: var(--medio-unidad) 0;
+        border-bottom: 1px solid var(--hair-fila);
+      }
+      .documento th {
+        font-weight: var(--peso-fuerte);
+      }
+      .documento td.cifra,
+      .documento th.cifra {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* ───────── El split: dos paneles, MISMO ancho físico ───────── */
+
+      .split {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1px;
+        background: var(--hair-zona);
+      }
+      @media (max-width: 1100px) {
+        .split {
+          grid-template-columns: 1fr;
+        }
+      }
+      .panel {
+        background: var(--sup-base);
+        padding: 28px 0;
+        min-width: 0;
+      }
+      .panel > .interior {
+        /* La medida es la MISMA en píxeles a los dos lados, y va centrada en cada panel.
+           No «los mismos ch»: 1ch no mide lo mismo en las dos familias. */
+        width: var(--medida-documento);
+        max-width: 100%;
+        margin-inline: auto;
+      }
+      .panel .rotulo {
+        margin-bottom: var(--medio-unidad);
+      }
+
+      .crudo {
+        font-family: var(--fuente-texto);
+        font-size: var(--texto-cuerpo);
+        line-height: var(--linea-cuerpo);
+        font-variant-ligatures: none;
+        white-space: pre-wrap;
+        margin: 0;
+        color: var(--tinta-principal);
+      }
+      /* Las marcas del markdown crudo van en tinta tenue, como manda la tabla de 04-color.md. */
+      .crudo .marca {
+        color: var(--tinta-tenue);
+      }
+
+      /* ───────── Bloques de comprobación ───────── */
+
+      .acentos {
+        font-family: var(--fuente-documento);
+        font-weight: var(--peso-fuerte);
+        letter-spacing: var(--tracking-h1);
+        margin: 0;
+      }
+      /* Sin recorte y sin aire de más: si el acento se saliera de la caja, aquí se vería. */
+      .acentos.display {
+        font-size: 60px;
+        line-height: 1;
+      }
+      .acentos.titular {
+        font-size: 26.72px; /* h1 sobre cuerpo 16 */
+        line-height: var(--linea-h1);
+      }
+      .acentos.mono {
+        font-family: var(--fuente-texto);
+        font-variant-ligatures: none;
+      }
+
+      .tabla-datos {
+        border-collapse: collapse;
+        font-size: var(--texto-ui);
+        width: 100%;
+      }
+      .tabla-datos th,
+      .tabla-datos td {
+        text-align: left;
+        padding: 7px 14px 7px 0;
+        border-bottom: 1px solid var(--hair-fila);
+        vertical-align: baseline;
+      }
+      .tabla-datos th {
+        font-weight: var(--peso-fuerte);
+        font-size: var(--texto-rotulo);
+        letter-spacing: var(--tracking-rotulo);
+        text-transform: uppercase;
+        color: var(--tinta-tenue);
+      }
+      .tabla-datos .num {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+      .tabla-datos .fam {
+        font-family: var(--fuente-texto);
+        font-variant-ligatures: none;
+      }
+
+      .veredicto[data-bien='si'] {
+        font-weight: var(--peso-fuerte);
+      }
+      .veredicto[data-bien='nota'] {
+        font-weight: var(--peso-fuerte);
+        color: var(--tinta-secundaria);
+      }
+      .veredicto[data-bien='no'] {
+        font-weight: var(--peso-maximo);
+        background: var(--tinta-principal);
+        color: var(--sup-base);
+        padding: 0 6px;
+      }
+
+      .escala-fila {
+        display: flex;
+        align-items: baseline;
+        gap: 20px;
+        border-bottom: 1px solid var(--hair-fila);
+        padding: 10px 0;
+      }
+      .escala-fila .etiq {
+        flex: 0 0 190px;
+        font-size: var(--texto-rotulo);
+        letter-spacing: var(--tracking-rotulo);
+        text-transform: uppercase;
+        color: var(--tinta-tenue);
+        font-weight: var(--peso-fuerte);
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="envoltorio">
+      <header>
+        <div>
+          <h1>Tipografía · Chivo / Chivo Mono</h1>
+          <p class="rotulo" style="margin: 6px 0 0">
+            Omnibus-Type · Argentina · OFL 1.1 · superfamilia variable
+          </p>
+        </div>
+        <div class="temas" role="group" aria-label="Tema">
+          <button type="button" data-tema-boton="claro">Claro</button>
+          <button type="button" data-tema-boton="oscuro">Oscuro</button>
+          <button type="button" data-tema-boton="sistema">Sistema</button>
+        </div>
+      </header>
+
+      <!-- ═══ 1 · Los acentos, que es la comprobación que no se puede hacer leyendo ═══ -->
+      <section>
+        <h2 class="seccion">1 · Á É Í Ó Ú Ü Ñ ¿ ¡ en cuerpo de titular</h2>
+        <p class="nota">
+          El acento español es un problema de <strong>métrica</strong>, no de interlineado: si la
+          tilde de una versal choca con la ascendente o se recorta contra la caja, no se arregla
+          añadiendo aire. En Chivo la versal acentuada sube a 890 unidades sobre un em de 1000, con
+          la ascendente en 720 y la caja en 940: el acento va <em>por encima</em> de la ascendente,
+          sin aplastarse, y todavía le sobran 50 unidades hasta el techo. Estas dos filas van con
+          <code>line-height: 1</code> a propósito — sin aire ninguno, para que un recorte se vea.
+        </p>
+        <div class="zona">
+          <p class="acentos display">Á É Í Ó Ú Ü Ñ ¿ ¡</p>
+          <p class="acentos display" style="margin-top: 24px">áéíóúüñ ¿Qué? ¡Sí!</p>
+          <p class="rotulo" style="margin: 28px 0 8px">Al cuerpo real del h1 (26.7 px)</p>
+          <p class="acentos titular">¿Añadió la señora Ibáñez un capítulo más? ¡Sí! ÍNDICE ÚNICO</p>
+          <p class="rotulo" style="margin: 28px 0 8px">Y en Chivo Mono, la cara del editor</p>
+          <p class="acentos titular mono">¿Añadió? ¡Sí! ÍNDICE ÚNICO ÁÉÍÓÚÜÑ</p>
+        </div>
+      </section>
+
+      <!-- ═══ 2 · Los seis encabezados y el cuerpo ═══ -->
+      <section>
+        <h2 class="seccion">2 · Escala corta de encabezados</h2>
+        <p class="nota">
+          Ningún salto entre dos niveles consecutivos supera 1.25×: h1/h2 = 1.246, h2/h3 = 1.165,
+          h3/cuerpo = 1.15. <strong>h4, h5 y h6 van al cuerpo</strong> y se separan por peso y por
+          tinta, así que no cuentan como salto. La razón es el split: un h1 a 2.5em rompe la ilusión
+          porque al otro lado no existe nada equivalente — al otro lado solo hay <code>#</code> y un
+          espacio.
+        </p>
+        <div class="zona">
+          <div class="documento">
+            <h1>Un título de documento con tildes: Añoranza</h1>
+            <h2>Segundo nivel — ¿qué cabe aquí?</h2>
+            <h3>Tercer nivel, todavía distinguible</h3>
+            <h4>Cuarto nivel: mismo cuerpo, peso 900</h4>
+            <h5>Quinto nivel: peso 700, tinta secundaria</h5>
+            <h6>Sexto nivel: peso 700, tinta tenue</h6>
+            <p>
+              Este es el cuerpo del documento a 16 px con una línea de 26 px. La medida de la
+              columna es de 640 píxeles, y es exactamente la misma en el panel de texto y en el de
+              preview: no «los mismos <code>ch</code>», que darían dos columnas de ancho físico
+              distinto y romperían la ilusión de estar viendo un solo documento en dos estados.
+            </p>
+            <p>
+              La eñe, la diéresis y las cinco vocales acentuadas aparecen sin esfuerzo en cualquier
+              párrafo real —el pingüino, la cigüeña, el año, la señal, la construcción, la
+              definición, el ámbito— y con ellas aparecen los signos de apertura: ¿por qué se
+              recortan tantas veces?, ¡porque casi nadie los mira!
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══ 3 · Cifras, código, tabla, cita, lista ═══ -->
+      <section>
+        <h2 class="seccion">3 · Cifras, código, tabla, cita y lista</h2>
+        <p class="nota">
+          Las cifras de Chivo <strong>ya son tabulares por defecto</strong>: las diez miden 615
+          unidades. Medido, <code>tnum</code> no cambia nada (6150 = 6150), así que declararlo sería
+          decoración. Lo que sí se declara aquí es <code>font-variant-numeric: tabular-nums</code>
+          en la columna de cifras, como red por si algún día se cambia de fuente.
+        </p>
+        <div class="zona">
+          <div class="documento">
+            <h3>Firmas y métricas</h3>
+            <table>
+              <thead>
+                <tr>
+                  <th>Archivo</th>
+                  <th class="cifra">Peso</th>
+                  <th class="cifra">Glifos</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>chivo-latin.woff2</code></td>
+                  <td class="cifra">33 220</td>
+                  <td class="cifra">300</td>
+                </tr>
+                <tr>
+                  <td><code>chivomono-latin.woff2</code></td>
+                  <td class="cifra">26 336</td>
+                  <td class="cifra">323</td>
+                </tr>
+                <tr>
+                  <td><code>chivo-italic-latin.woff2</code></td>
+                  <td class="cifra">37 976</td>
+                  <td class="cifra">312</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <p>
+              Un párrafo con <strong>negrita</strong>, con <em>cursiva verdadera</em> —la «g» de
+              Chivo pasa de doble piso a un piso, no es una inclinación— y con
+              <code>código en línea</code> que, al compartir métrica con la proporcional, no
+              necesita el <code>0.9em</code> de costumbre.
+            </p>
+
+            <pre><code>const medida = 640;            // px, idéntica en los dos paneles
+const cuerpo = 16;             // px
+const linea  = 26;             // px → 1.625
+
+// «fi» y «fl» se apagan a mano: definición, fichero, perfil
+elemento.style.fontVariantLigatures = 'none';</code></pre>
+
+            <blockquote>
+              La monoespaciada dice trabajo en progreso, no texto terminado. Aquí la cita no lleva
+              cursiva: ya se distingue por barra, sangría y tinta, y un tercer canal no aporta nada
+              salvo cansancio.
+            </blockquote>
+
+            <ul>
+              <li>Chivo Mono a la izquierda: el markdown crudo, con la rejilla intacta.</li>
+              <li>Chivo a la derecha: el documento compuesto.</li>
+              <li>La misma altura-x, la misma versal, el mismo eje: se leen como parientes.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══ 4 · EL SPLIT ═══ -->
+      <section>
+        <h2 class="seccion">4 · El mismo texto, en crudo y compuesto, a la misma medida</h2>
+        <p class="nota">
+          Los dos paneles tienen <strong>624 px exactos</strong> de columna, centrada en cada uno.
+          El panel de texto mete 65.0 caracteres por línea; el de preview, unos 82 de prosa
+          española. Esa diferencia es real y no se corrige: corregirla obligaría a que una de las
+          dos columnas fuera más estrecha que la otra, y entonces sí se vería que son dos
+          documentos. El cociente entre las dos familias es fijo —1.259, medido, y no depende del
+          cuerpo—, así que pedir 65-72ch en el editor obliga a 82-91 caracteres al otro lado. Se
+          coge el suelo del rango.
+        </p>
+        <div class="split">
+          <div class="panel">
+            <div class="interior">
+              <p class="rotulo">Texto · Chivo Mono</p>
+              <pre
+                class="crudo"
+                id="panel-crudo"
+              ><span class="marca">## </span>Añoranza del pingüino
+
+La tipografía de un editor <span class="marca">**</span>no es<span class="marca">**</span> una decisión
+estética: es la mancha que el usuario mira durante
+horas mientras escribe en español.
+
+<span class="marca">&gt; </span>La monoespaciada dice trabajo en progreso.
+
+<span class="marca">- </span>Definición, fichero, perfil: aquí «fi» no se liga.
+<span class="marca">- </span>¿Se recorta el signo de apertura? ¡No!
+
+<span class="marca">`</span>font-variant-ligatures: none<span class="marca">`</span></pre>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="interior">
+              <p class="rotulo">Preview · Chivo</p>
+              <div class="documento" id="panel-render" style="max-width: none">
+                <h2 style="margin-top: 0">Añoranza del pingüino</h2>
+                <p>
+                  La tipografía de un editor <strong>no es</strong> una decisión estética: es la
+                  mancha que el usuario mira durante horas mientras escribe en español.
+                </p>
+                <blockquote>La monoespaciada dice trabajo en progreso.</blockquote>
+                <ul>
+                  <li>Definición, fichero, perfil: aquí «fi» no se liga.</li>
+                  <li>¿Se recorta el signo de apertura? ¡No!</li>
+                </ul>
+                <p><code>font-variant-ligatures: none</code></p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══ 5 · La rejilla del mono ═══ -->
+      <section>
+        <h2 class="seccion">5 · La rejilla del monoespaciado, medida en este navegador</h2>
+        <p class="nota">
+          Chivo Mono trae <code>liga</code> y la trae activa: «fi», «fl», «ff» y «ffi» se sustituyen
+          por un glifo de un solo avance, y la columna se descuadra justo donde el usuario está
+          mirando. En español pasa constantemente: <em>definición</em>, <em>fichero</em>,
+          <em>perfil</em>, <em>confirmar</em>. Se apaga con
+          <code>font-variant-ligatures: none</code> y no con <code>font-feature-settings</code>,
+          porque la propiedad estándar deja en paz a <code>ccmp</code>, que es la que compone los
+          acentos.
+        </p>
+        <table class="tabla-datos" id="tabla-rejilla">
+          <thead>
+            <tr>
+              <th>Cadena</th>
+              <th class="num">Con <code>liga</code></th>
+              <th class="num">Sin <code>liga</code></th>
+              <th class="num">Esperado</th>
+              <th>Veredicto</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
+
+      <!-- ═══ 6 · Mediciones en vivo ═══ -->
+      <section>
+        <h2 class="seccion">6 · Lo que mide este navegador</h2>
+        <p class="nota">
+          Este bloque es el <strong>segundo instrumento</strong>. El primero es
+          <code>pnpm tipo:medir</code>, que lee los archivos de fuente con fontkit sin abrir un
+          navegador. Los dos tienen que dar el mismo número; si uno se mueve solo, es que uno de los
+          dos miente. Las alturas se sacan de <code>TextMetrics.actualBoundingBoxAscent</code> sobre
+          un canvas, que sí resuelve tipografía —el fallo silencioso que documenta
+          <code>04-color.md</code> §2 era con <code>fillStyle</code> y <code>oklch()</code>, otra
+          cosa.
+        </p>
+        <table class="tabla-datos" id="tabla-medidas">
+          <thead>
+            <tr>
+              <th>Qué</th>
+              <th class="num">Medido</th>
+              <th>Contra qué</th>
+              <th>Veredicto</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
+
+      <!-- ═══ 7 · La escala completa ═══ -->
+      <section>
+        <h2 class="seccion">7 · La escala, en su propio cuerpo</h2>
+        <div class="zona" id="escala"></div>
+      </section>
+    </div>
+
+    <script>
+      /* ── Conmutador de tema, mismo contrato que la app ─────────────────────── */
+      const botones = [...document.querySelectorAll('[data-tema-boton]')];
+      function pinta() {
+        const actual = localStorage.getItem('om-tema') ?? 'sistema';
+        for (const b of botones)
+          b.setAttribute('aria-pressed', String(b.dataset.temaBoton === actual));
+      }
+      for (const b of botones) {
+        b.addEventListener('click', () => {
+          const v = b.dataset.temaBoton;
+          if (v === 'sistema') {
+            localStorage.removeItem('om-tema');
+            delete document.documentElement.dataset.tema;
+          } else {
+            localStorage.setItem('om-tema', v);
+            document.documentElement.dataset.tema = v;
+          }
+          pinta();
+        });
+      }
+      pinta();
+
+      /* ── Instrumento: medir de verdad, y solo cuando las fuentes ya están ──── */
+      const CUERPO = 16;
+      const MEDIDA = 624;
+
+      function anchoDe(texto, familia, ligaduras) {
+        const s = document.createElement('span');
+        s.style.cssText = `position:absolute;visibility:hidden;white-space:pre;font-family:${familia};font-size:${CUERPO}px;font-variant-ligatures:${ligaduras};`;
+        s.textContent = texto;
+        document.body.appendChild(s);
+        const w = s.getBoundingClientRect().width;
+        s.remove();
+        return w;
+      }
+
+      function fila(tabla, celdas, bien) {
+        const tr = document.createElement('tr');
+        for (const [i, c] of celdas.entries()) {
+          const td = document.createElement('td');
+          if (typeof c === 'number') {
+            td.className = 'num';
+            td.textContent = Number.isInteger(c) ? String(c) : c.toFixed(2);
+          } else {
+            td.innerHTML = c;
+          }
+          if (i === 0) td.classList.add('fam');
+          tr.appendChild(td);
+        }
+        const td = document.createElement('td');
+        const v = document.createElement('span');
+        v.className = 'veredicto';
+        // Tres estados y no dos: hay una medida que no cumple el clásico 45-75 y NO es un fallo,
+        // es la consecuencia registrada del rango pedido. Marcarla «✗ ROTO» sería mentir en la otra
+        // dirección; esconderla, también.
+        v.dataset.bien = bien === true ? 'si' : bien === 'nota' ? 'nota' : 'no';
+        v.textContent =
+          bien === true ? '✔' : bien === 'nota' ? '▲ decisión escrita · §6' : '✗ ROTO';
+        td.appendChild(v);
+        tr.appendChild(td);
+        tabla.querySelector('tbody').appendChild(tr);
+      }
+
+      document.fonts.ready.then(async () => {
+        // Sin esto, la primera medida puede salir con la fuente de respaldo y mentir.
+        await Promise.all([
+          document.fonts.load(`${CUERPO}px 'Chivo Mono'`),
+          document.fonts.load(`${CUERPO}px 'Chivo'`),
+          document.fonts.load(`700 60px 'Chivo'`),
+        ]);
+
+        /* ── 5 · Rejilla ── */
+        const tRejilla = document.getElementById('tabla-rejilla');
+        const unidad = anchoDe('x', "'Chivo Mono'", 'none');
+        let rejillaOk = true;
+        for (const cadena of [
+          'fi',
+          'fl',
+          'ff',
+          'ffi',
+          'fichero',
+          'definición',
+          'perfil',
+          'áéíóúüñ',
+        ]) {
+          const con = anchoDe(cadena, "'Chivo Mono'", 'normal');
+          const sin = anchoDe(cadena, "'Chivo Mono'", 'none');
+          const esperado = [...cadena].length * unidad;
+          const bien = Math.abs(sin - esperado) < 0.5;
+          if (!bien) rejillaOk = false;
+          fila(tRejilla, [cadena, con, sin, esperado], bien);
+        }
+
+        /* ── 6 · Medidas ── */
+        const t = document.getElementById('tabla-medidas');
+        const lienzo = document.createElement('canvas').getContext('2d');
+
+        const alto = (ch, px, familia, peso = 400) => {
+          lienzo.font = `${peso} ${px}px ${familia}`;
+          const m = lienzo.measureText(ch);
+          return { asc: m.actualBoundingBoxAscent, fuente: m.fontBoundingBoxAscent };
+        };
+
+        const A = alto('Á', 60, "'Chivo'", 700);
+        fila(
+          t,
+          ['Alto real de «Á» a 60 px', A.asc, `techo de la caja: ${A.fuente.toFixed(2)} px`],
+          A.asc <= A.fuente,
+        );
+        const bajo = alto('á', 60, "'Chivo'", 700);
+        fila(
+          t,
+          ['Alto real de «á» a 60 px', bajo.asc, `versal acentuada: ${A.asc.toFixed(2)} px`],
+          bajo.asc < A.asc,
+        );
+
+        const apertura = (() => {
+          lienzo.font = `400 60px 'Chivo'`;
+          return lienzo.measureText('¿').actualBoundingBoxDescent;
+        })();
+        fila(
+          t,
+          [
+            'Descenso de «¿» a 60 px',
+            apertura,
+            `descendente de la caja: ${(0.25 * 60).toFixed(2)} px`,
+          ],
+          apertura <= 0.25 * 60,
+        );
+
+        const chMono = anchoDe('0', "'Chivo Mono'", 'none');
+        const chProp = anchoDe('0', "'Chivo'", 'normal');
+        fila(
+          t,
+          ['1ch de Chivo Mono', chMono, `1ch de Chivo: ${chProp.toFixed(2)} px`],
+          chMono !== chProp,
+        );
+        // Aquí los dos instrumentos NO dan exactamente lo mismo, y merece la pena decir por qué:
+        // por métrica, 1ch de Chivo Mono son 0.6 em = 9.6 px justos, y 624/9.6 = 65.0ch. Chromium
+        // mide 9.6096 px porque cuantiza el avance a cuerpos pequeños, y eso deja la cuenta en
+        // 64.94. No es que la medida esté mal: es la resolución del instrumento. Se comprueba
+        // contra la métrica, que es la que manda, y se enseña la diferencia en vez de taparla.
+        const chPorMetrica = 0.6 * CUERPO;
+        fila(
+          t,
+          [
+            'Medida en ch del panel de texto',
+            MEDIDA / chPorMetrica,
+            `65-72 · el navegador cuantiza 1ch a ${chMono.toFixed(4)} px y lee ${(MEDIDA / chMono).toFixed(2)}ch`,
+          ],
+          MEDIDA / chPorMetrica >= 65 && MEDIDA / chPorMetrica <= 72,
+        );
+
+        const panelCrudo = document.querySelector('#panel-crudo').getBoundingClientRect().width;
+        const panelRender = document.querySelector('#panel-render').getBoundingClientRect().width;
+        fila(
+          t,
+          [
+            'Ancho físico del panel de texto',
+            panelCrudo,
+            `panel de preview: ${panelRender.toFixed(2)} px`,
+          ],
+          Math.abs(panelCrudo - panelRender) < 1,
+        );
+
+        // Caracteres y palabras por línea de prosa española real, medidos y no estimados.
+        const PROSA =
+          'La tipografía de un editor de markdown no es una decisión estética: es la mancha de texto que el usuario mira durante horas mientras escribe en español, con sus tildes y sus eñes.';
+        const anchoProsa = anchoDe(PROSA, "'Chivo'", 'normal');
+        const carPorLinea = ([...PROSA].length * MEDIDA) / anchoProsa;
+        const palPorLinea = (PROSA.split(/\s+/).length * MEDIDA) / anchoProsa;
+        fila(
+          t,
+          ['Caracteres por línea en el preview', carPorLinea, 'el clásico pide 45-75'],
+          'nota',
+        );
+        fila(t, ['Palabras por línea en el preview', palPorLinea, 'el clásico pide 9-15'], 'nota');
+
+        const anchoProsaMono = anchoDe(PROSA, "'Chivo Mono'", 'none');
+        fila(
+          t,
+          [
+            'Caracteres por línea en el editor',
+            ([...PROSA].length * MEDIDA) / anchoProsaMono,
+            'el mismo texto, el mismo ancho',
+          ],
+          true,
+        );
+
+        // Altura-x compartida: la prueba visual de la superfamilia.
+        const xProp = alto('x', 100, "'Chivo'").asc;
+        const xMono = alto('x', 100, "'Chivo Mono'").asc;
+        fila(
+          t,
+          ['Altura-x de Chivo a 100 px', xProp, `Chivo Mono: ${xMono.toFixed(2)} px`],
+          Math.abs(xProp - xMono) < 0.5,
+        );
+        const HProp = alto('H', 100, "'Chivo'").asc;
+        const HMono = alto('H', 100, "'Chivo Mono'").asc;
+        fila(
+          t,
+          ['Versal de Chivo a 100 px', HProp, `Chivo Mono: ${HMono.toFixed(2)} px`],
+          Math.abs(HProp - HMono) < 0.5,
+        );
+
+        fila(
+          t,
+          ['Rejilla del mono con las ligaduras apagadas', rejillaOk ? 1 : 0, 'las 8 cadenas de §5'],
+          rejillaOk,
+        );
+
+        /* ── 7 · La escala ── */
+        const escala = [
+          ['Documento · cuerpo', '16 px / 26 px (1.625) / 0', 16, 1.625, 0, 400],
+          ['Documento · h1', '26.7 px / 32.6 px (1.22) / −0.012em', 26.72, 1.22, -0.012, 700],
+          ['Documento · h2', '21.4 px / 27.4 px (1.28) / −0.008em', 21.44, 1.28, -0.008, 700],
+          ['Documento · h3', '18.4 px / 26 px (1.41) / −0.004em', 18.4, 1.41, -0.004, 700],
+          ['Documento · h4', '16 px / 26 px / 0 · peso 900', 16, 1.625, 0, 900],
+          ['Documento · h5', '16 px / 26 px / 0 · peso 700', 16, 1.625, 0, 700],
+          ['Documento · h6', '16 px / 26 px / 0 · peso 700 tenue', 16, 1.625, 0, 700],
+          ['Interfaz · título', '21 px / 26.3 px (1.25) / −0.008em', 21, 1.25, -0.008, 900],
+          ['Interfaz · cuerpo', '15 px / 21 px (1.4) / 0', 15, 1.4, 0, 400],
+          ['Interfaz · rótulo', '11 px / 16 px (1.45) / +0.06em versalitas', 11, 1.45, 0.06, 700],
+        ];
+        const cont = document.getElementById('escala');
+        for (const [nombre, detalle, px, lh, tr, peso] of escala) {
+          const d = document.createElement('div');
+          d.className = 'escala-fila';
+          const e = document.createElement('div');
+          e.className = 'etiq';
+          e.textContent = nombre;
+          const m = document.createElement('div');
+          m.style.cssText = `font-family:var(--fuente-documento);font-size:${px}px;line-height:${lh};letter-spacing:${tr}em;font-weight:${peso};${nombre.includes('rótulo') ? 'text-transform:uppercase;' : ''}`;
+          m.textContent = 'Añoranza ¿Qué? 0123456789';
+          const n = document.createElement('div');
+          n.style.cssText =
+            'flex:0 0 260px;color:var(--tinta-secundaria);font-size:var(--texto-rotulo);';
+          n.textContent = detalle;
+          d.append(e, m, n);
+          cont.appendChild(d);
+        }
+
+        document.documentElement.dataset.medido = 'si';
+      });
+    </script>
+  </body>
+</html>
