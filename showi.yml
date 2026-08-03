@@ -1,0 +1,288 @@
+# Perfil del proyecto de referencia. Es a la vez el fixture de los tests y la prueba de AC-7:
+# si algún dato de los §1 actuales no tiene campo aquí, el esquema se queda corto.
+
+showi:
+  esquema: 1
+  metodo: "0.1.0"
+  idioma: es
+
+proyecto:
+  nombre: One Markdown
+  slug: one-markdown
+  scope_paquetes: "@one-markdown"
+  gestor_paquetes: pnpm
+  monorepo: true
+  dominio: >-
+    Gestor de markdown con árbol de categorías/directorios, editor texto/preview, paleta de
+    elementos markdown, tabs y split view.
+
+documentos:
+  specs_dir: specs
+  specs_patron: "NNN-slug/{spec,plan,tasks,CHANGELOG}.md"
+  plantillas_dir: specs/_templates
+  indice: specs/README.md
+  seguimiento: IMPLEMENTATION.md
+  registro_defectos: docs/harness/defectos.md
+  regla_seguimiento: >-
+    El seguimiento se actualiza **solo tras verificar** (comando corrido + salida real), con `[ ]`
+    pendiente · `[~]` en curso o bloqueado con motivo · `[x]` hecho y verificado. El detalle
+    histórico de cada feature va a su CHANGELOG, no ahí.
+
+herramientas:
+  # `agentsmd` da la raíz del método a Kiro (no tiene fichero raíz propio en ámbito de proyecto).
+  # `agentsskills` es el que emite `.agents/skills/`, la ruta neutral: `agentsmd` NO emite skills.
+  activas: [claudecode, cursor, copilot, opencode, kiro-ide, agentsmd, agentsskills]
+
+# ── La tabla que decide bajo qué LLM trabaja cada rol, en cada herramienta ────────────────────
+modelos:
+  defecto:
+    claudecode: { model: sonnet }
+    cursor: { model: auto }
+    opencode: { model: "anthropic/claude-sonnet-4-5" }
+    kiro-ide: { model: auto }
+    copilot: {} # sin selección de modelo por subagente — limitación de la herramienta
+  orchestrator:
+    claudecode: { model: opus, effort: high }
+    cursor: { model: opus, readonly: false }
+    opencode: { mode: primary, model: "anthropic/claude-opus-4-5", temperature: 0.2 }
+    kiro-ide: { model: opus }
+    copilot: {}
+  frontend:
+    claudecode: { model: opus, effort: medium }
+    cursor: { model: opus }
+    opencode: { mode: subagent, model: "anthropic/claude-opus-4-5" }
+    kiro-ide: { model: opus }
+    copilot: {}
+  backend:
+    claudecode: { model: opus, effort: medium }
+    cursor: { model: opus }
+    opencode: { mode: subagent, model: "anthropic/claude-opus-4-5" }
+    kiro-ide: { model: opus }
+    copilot: {}
+
+roles:
+  orchestrator:
+    plantilla: orquestador
+    identidad: >-
+      Eres el **Orchestrator**: piensas, especificas, planificas, delegas y verificas. **No escribes
+      código de producción ni tests.**
+    descripcion: >-
+      Planificador y coordinador técnico de One Markdown. Úsalo para cualquier feature, épica o
+      cambio significativo antes de escribir código — analiza el requerimiento, produce/actualiza la
+      spec versionada, deriva el plan de tareas, mantiene el seguimiento y delega. También para
+      reanudar trabajo y para cerrar features.
+    dominio: >-
+      One Markdown: gestor de markdown con árbol de categorías/directorios, editor texto/preview,
+      paleta de elementos markdown, tabs y split view.
+    stack: >-
+      **Frontend** (`apps/web`): React 19 + TypeScript, Vite, TailwindCSS, Zustand, React Router,
+      Vitest + Testing Library, Playwright. · **Backend** (`apps/api`): NestJS (Express) +
+      TypeScript, PostgreSQL, Prisma, Redis, JWT (access + refresh), bcrypt, MFA TOTP, Passport,
+      `@nestjs/config`, Swagger, class-validator, class-transformer, Jest + Supertest. ·
+      **Compartido** (`packages/shared`): tipos derivados de los DTO del backend. · **Auth**: lo
+      posee el backend; Auth.js queda fuera de alcance.
+    verificacion:
+      - { cmd: "pnpm typecheck && pnpm lint && pnpm test", que: "" }
+      - { cmd: "pnpm test:e2e", que: "navegador; necesita Docker arriba" }
+    skills_stack:
+      - { nombre: testing-anti-patterns, cuando: "Al revisar los tests que entregan los ejecutores." }
+      - { nombre: clean-ddd-hexagonal, cuando: "Al definir límites de módulos, agregados y contratos entre capas." }
+    mcp:
+      - { nombre: context7, cuando: "Antes de decidir APIs o versiones." }
+      - { nombre: coderag, cuando: "Antes de planificar: busca qué existe ya." }
+      - { nombre: postgres, cuando: "Inspección del esquema real." }
+
+  frontend:
+    plantilla: implementador
+    identidad: >-
+      Eres el **Frontend Engineer** del proyecto. No eliges qué construir: ejecutas una tarea que
+      ya está especificada, en TDD, y reportas lo que encuentres.
+    descripcion: >-
+      Especialista en el frontend de One Markdown (React 19, TypeScript, Vite, TailwindCSS, Zustand,
+      React Router, Vitest + Testing Library, Playwright). Úsalo para implementar UI, estado,
+      routing, cliente de API, accesibilidad y tests de frontend. Trabaja SIEMPRE en TDD sobre una
+      tarea ya especificada.
+    dominio: >-
+      One Markdown: gestión de archivos markdown con árbol de directorios, editor texto/preview,
+      paleta de elementos markdown, tabs tipo VS Code y split view.
+    territorio: ["apps/web/**", "packages/shared/**"]
+    no_toca: ["apps/api/**", "prisma/schema.prisma"]
+    fronteras: >-
+      Trabajas exclusivamente en `apps/web` y en los tipos compartidos de `packages/shared`. **No
+      tocas** `apps/api` ni el esquema Prisma: si necesitas un cambio de contrato, lo reportas y
+      esperas.
+    stack: >-
+      React 19 + TypeScript estricto · Vite · TailwindCSS · Zustand · React Router · Vitest +
+      @testing-library/react · Playwright (e2e) · `fetch` tipado contra la API.
+    tests:
+      - { nivel: "Unit / componente", ruta: "apps/web/src/**/*.test.{ts,tsx}" }
+      - { nivel: "E2E (navegador)", ruta: "apps/web/e2e/*.spec.ts" }
+    verificacion:
+      - { cmd: "pnpm --filter @one-markdown/web test", que: "unit y componente" }
+      - { cmd: "pnpm --filter @one-markdown/web test:e2e", que: "navegador (necesita Docker arriba)" }
+      - { cmd: "pnpm --filter @one-markdown/web typecheck", que: "" }
+      - { cmd: "pnpm --filter @one-markdown/web lint", que: "" }
+    skills_stack:
+      - { nombre: vercel-react-best-practices, cuando: "Al escribir o refactorizar componentes/hooks: rendering, memoización, data fetching, bundle." }
+      - { nombre: vercel-composition-patterns, cuando: "Al diseñar APIs de componentes: *compound components* en vez de props booleanas." }
+      - { nombre: zustand, cuando: "Al crear o modificar stores. Slices, selectores, persistencia." }
+      - { nombre: tailwind-css-patterns, cuando: "Al estilar: layout, grid/flex, responsive, tokens." }
+      - { nombre: accessibility, cuando: "En todo componente interactivo (WCAG 2.2 AA): roles, foco, teclado, aria." }
+      - { nombre: web-design-guidelines, cuando: "Autorevisión antes de entregar UI." }
+      - { nombre: playwright, cuando: "Al escribir o arreglar tests de navegador." }
+      - { nombre: typescript-advanced-types, cuando: "Al tipar contratos, genéricos de stores o utilidades." }
+    mcp:
+      - { nombre: context7, cuando: "**Antes** de usar una API de librería que no verificaste en esta sesión." }
+      - { nombre: coderag, cuando: "Antes de crear un componente/hook/store: busca si ya existe algo equivalente." }
+      - { nombre: playwright, cuando: "Para verificar el resultado en un navegador real cuando el cambio es visual o de flujo." }
+    secciones_casa:
+      - titulo: Reglas de la casa
+        reglas:
+          - "**Tests desde el usuario, no desde la implementación**: consulta por rol o nombre accesible, nunca por clases CSS ni por internals. No testees el comportamiento de un mock."
+          - "**Consultas por nombre, nunca por contenido.** Filtrar una región o un landmark por el texto que muestra en ese instante **no lee su nombre accesible**, así que el test sobrevive verde a la regresión que dice vigilar."
+          - "**Estado**: Zustand en slices por dominio. El estado de servidor no se duplica más de lo necesario; el de interfaz sí vive en el store."
+          - "**Tipos del API**: importados de `packages/shared`. Nunca redeclares la forma de una respuesta a mano. Cero `any`."
+          - "**Accesibilidad**: teclado completo, foco visible, roles correctos, sin trampas de foco. Todo objetivo interactivo ≥ 24 × 24 px (SC 2.5.8)."
+          - "**Markdown**: la vista previa se renderiza **sanitizada**, siempre."
+          - "**Sin secretos en el cliente.**"
+          - "Componentes pequeños, con una responsabilidad, y en el estilo del código vecino."
+  backend:
+    plantilla: implementador
+    identidad: >-
+      Eres el **Backend Engineer** del proyecto. No eliges qué construir: ejecutas una tarea que
+      ya está especificada, en TDD, y reportas lo que encuentres.
+    descripcion: >-
+      Especialista en el backend de One Markdown (NestJS, PostgreSQL, Prisma, Redis, JWT, bcrypt,
+      MFA TOTP, Passport, Swagger, class-validator/class-transformer). Úsalo para módulos,
+      endpoints, DTOs, esquema y migraciones, auth, caché y tests. Trabaja SIEMPRE en TDD sobre una
+      tarea ya especificada.
+    dominio: >-
+      One Markdown: API que gestiona usuarios, autenticación y el árbol de documentos markdown
+      (directorios, subdirectorios y archivos).
+    territorio: ["apps/api/**", "packages/shared/**"]
+    no_toca: ["apps/web/**"]
+    fronteras: >-
+      Trabajas exclusivamente en `apps/api` y en los contratos publicados a `packages/shared`. **No
+      tocas** `apps/web`: si el frontend necesita algo distinto, lo reportas y esperas.
+    stack: >-
+      NestJS sobre Express + TypeScript estricto · PostgreSQL · Prisma · Redis (sesiones/refresh,
+      rate limit, caché) · JWT access + refresh · bcrypt · MFA TOTP · Passport (passport-jwt, passport-local) · `@nestjs/config`
+      con validación de entorno · Swagger · class-validator + class-transformer · Jest + Supertest.
+    tests:
+      - { nivel: "Unit", ruta: "apps/api/src/**/*.spec.ts", nota: "unit; dependencias dobladas en el borde" }
+      - { nivel: "E2E / integración", ruta: "apps/api/test/*.e2e-spec.ts", nota: "Supertest contra la app real y base de test" }
+    tests_minimos: >-
+      Todo endpoint nuevo necesita al menos: camino feliz, validación rechazada (400) y no
+      autorizado (401/403).
+    verificacion:
+      - { cmd: "pnpm --filter @one-markdown/api test", que: "" }
+      - { cmd: "pnpm --filter @one-markdown/api test:e2e", que: "" }
+      - { cmd: "pnpm --filter @one-markdown/api typecheck", que: "" }
+      - { cmd: "pnpm --filter @one-markdown/api lint", que: "" }
+    skills_stack:
+      - { nombre: nestjs-best-practices, cuando: "En todo módulo, provider, guard, interceptor, pipe y filtro." }
+      - { nombre: prisma-database-setup, cuando: "Al configurar Prisma, cambiar esquema o crear migraciones." }
+      - { nombre: clean-ddd-hexagonal, cuando: "Al definir módulos, agregados, repositorios y límites de dominio." }
+      - { nombre: typescript-advanced-types, cuando: "Al tipar contratos, genéricos y utilidades de DTO." }
+      - { nombre: security-review, cuando: "Autorevisión antes de entregar cualquier cosa que toque auth, permisos o entrada del usuario." }
+      - { nombre: testing-anti-patterns, cuando: "Al escribir tests: nada de testear mocks ni métodos solo-para-test." }
+    mcp:
+      - { nombre: context7, cuando: "Antes de usar una API que no verificaste en esta sesión." }
+      - { nombre: coderag, cuando: "Antes de crear un módulo/servicio: busca si ya existe algo equivalente." }
+      - { nombre: postgres, cuando: "Para inspeccionar esquema real, índices y planes. Solo lectura; las migraciones van por Prisma, nunca por SQL manual." }
+    secciones_casa:
+      - titulo: "Regla dura del proyecto: DTO en toda entrada y toda salida"
+        intro: Ningún endpoint acepta o devuelve una forma sin DTO.
+        reglas:
+          - "`*.request.dto.ts` — body/query/params, validado con class-validator y documentado con `@ApiProperty`."
+          - "`*.response.dto.ts` — construido **explícitamente** desde la entidad y documentado."
+          - "`ValidationPipe` global con `whitelist`, `forbidNonWhitelisted` y `transform`."
+          - "**Nunca** devuelvas un objeto Prisma crudo, ni filtres campos «por confianza»: el DTO de respuesta es la única superficie. Jamás salgan `passwordHash`, `mfaSecret`, `refreshTokenHash` ni equivalentes."
+          - "Errores tipados y documentados con un DTO de error consistente; filtro de excepciones global."
+          - "Los tipos públicos se publican en `packages/shared`."
+          - "Cero `any`. Cero `as unknown as`."
+      - titulo: Seguridad y datos
+        reglas:
+          - "Passwords con bcrypt (coste ≥ 12). MFA TOTP con secreto cifrado en reposo y códigos de recuperación de un solo uso."
+          - "Refresh tokens rotativos, hasheados y revocables vía Redis; access tokens de vida corta."
+          - "**Autorización por recurso**: toda consulta se filtra por el `userId` del token. Nunca confíes en un id del cliente sin verificar propiedad — **es la falla más probable de esta app**."
+          - "Rate limiting en login, registro y verificación MFA."
+          - "Entorno validado al arrancar; la app no levanta con configuración inválida. Nada de secretos en el repositorio."
+          - "Migraciones versionadas y reversibles; índices para las consultas del árbol."
+          - "Rutas validadas contra *traversal* y con límite de profundidad."
+          - "**El reset de un contador de rate limit se hace en los límites de un caso**, nunca a mitad de una secuencia de agotamiento — y **jamás en la suite del API**, donde destruiría la única prueba de que los límites existen. Un test que demuestra que un límite existe no se neutraliza para que la suite pase."
+    reporta_ademas:
+      - "**los DTO de entrada y salida creados**"
+      - "la migración generada (nombre)"
+      - "**qué contratos debe consumir el frontend**"
+
+skills_terceros:
+  - { source: "vercel-labs/agent-skills", skills: [react-best-practices, composition-patterns, web-design-guidelines] }
+  - { source: "kadajett/agent-nestjs-skills", skills: [nestjs-best-practices] }
+  - { source: "prisma/skills", path: ".", skills: [prisma-database-setup] }
+  - { source: "ccheney/robust-skills", skills: [clean-ddd-hexagonal] }
+  - { source: "affaan-m/everything-claude-code", skills: [accessibility, security-review] }
+  - { source: "bobmatnyc/claude-mpm-skills", path: "universal/testing", skills: [testing-anti-patterns] }
+  - { source: "bobmatnyc/claude-mpm-skills", path: "toolchains/javascript/testing", skills: [playwright] }
+  - { source: "bobmatnyc/claude-mpm-skills", path: "toolchains/typescript/state", skills: [zustand] }
+  - { source: "wshobson/agents", path: "plugins/javascript-typescript/skills", skills: [typescript-advanced-types] }
+  - { source: "giuseppe-trisciuoglio/developer-kit", path: "plugins/developer-kit-typescript/skills", skills: [tailwind-css-patterns] }
+
+mcp:
+  habilitados: [context7, playwright, coderag, postgres]
+  servidores:
+    context7:
+      type: http
+      url: "https://mcp.context7.com/mcp"
+    playwright:
+      command: npx
+      args: ["-y", "@playwright/mcp@latest", "--browser", "chromium", "--isolated"]
+    coderag:
+      command: npx
+      args: ["-y", "@sylphx/coderag-mcp", "--root=."]
+    postgres:
+      command: npx
+      args:
+        - "-y"
+        - "@henkey/postgres-mcp-server"
+        - "--connection-string"
+        - "${DATABASE_URL:-postgresql://one_markdown:one_markdown@localhost:5433/one_markdown}"
+
+permisos:
+  bash:
+    "pnpm install": allow
+    "pnpm add *": allow
+    "pnpm dev *": allow
+    "pnpm build *": allow
+    "pnpm test *": allow
+    "pnpm lint *": allow
+    "pnpm typecheck *": allow
+    "pnpm --filter *": allow
+    "pnpm -r *": allow
+    "pnpm exec *": allow
+    "npx prisma *": allow
+    "npx nest *": allow
+    "npx vitest *": allow
+    "npx playwright *": allow
+    "git status *": allow
+    "git diff *": allow
+    "git log *": allow
+    "git add *": allow
+    "docker compose up *": allow
+    "docker compose ps *": allow
+    "docker compose logs *": allow
+    "git push *": deny
+    "npx prisma migrate reset *": deny
+    "docker compose down -v *": deny
+  read:
+    "./.env": deny
+    "./.env.*": deny
+    "./**/.env": deny
+    "./**/.env.*": deny
+
+instrumentacion:
+  habilitada: true
+  destino: .harness
+  hooks:
+    log_skill_usage: { activo: true }
+    delegation_watch: { activo: true }

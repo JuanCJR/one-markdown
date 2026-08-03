@@ -30,3 +30,7 @@ blob-report/
 
 
 .playwright-mcp
+
+# showi — generado por `showi sync`; se comprometerá cuando se conmute (fase 7)
+.rulesync/
+.harness/*.jsonl

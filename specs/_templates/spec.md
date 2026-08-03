@@ -1,38 +1,43 @@
-# Spec NNN — <título de la feature>
+# NNN · <título>
 
-- **Versión**: 0.1.0
-- **Estado**: draft | approved | implemented
-- **Fecha**: YYYY-MM-DD
-- **Depende de**: <specs previas o "—">
+**Versión**: 0.1.0 · **Estado**: borrador · **Depende de**: —
 
-## 1. Contexto y problema
+## Por qué
 
-<Qué necesita el usuario y por qué. Sin solución todavía.>
+<El problema o la necesidad. Qué falla hoy, medido si se puede. Un «por qué» que no se pueda
+desmentir no es un motivo, es una justificación.>
 
-## 2. Historias de usuario
+## Alcance
 
-- **US-1** — Como <rol>, quiero <acción> para <beneficio>.
-- **US-2** — …
+**Dentro**: <…>
 
-## 3. Criterios de aceptación
+**Fuera**: <…, y por qué queda fuera>
 
-Todo AC debe ser verificable por un test automatizado.
+## Enumeraciones de las que salen los recuentos
 
-- **AC-1** — Dado <estado inicial>, cuando <acción>, entonces <resultado observable>.
-- **AC-2** — …
+<Ningún número derivable de una lista se escribe a mano. El recuento vive en la lista, en un solo
+sitio. Dos sitios divergen.>
 
-## 4. Fuera de alcance
+---
 
-- <lo que explícitamente NO entra en esta spec>
+## A · <grupo>
 
-## 5. Riesgos y decisiones abiertas
+**AC-1** · <criterio, redactado de forma que se pueda desmentir>
+*Verifica*: <el mecanismo concreto>. *Mutación*: <qué cambio en el código lo tumbaría>.
 
-| # | Riesgo / duda | Impacto | Mitigación / quién decide |
-|---|---------------|---------|---------------------------|
-| 1 | | | |
+**AC-2** · <…>
+*Verifica*: <…>. *Mutación*: <…>.
 
-## 6. Trazabilidad
+> Toda cifra lleva pegada **la ventana en que se mide y el comando que la mide**. Un número sin
+> ventana puede ser cierto por corrida y falso bajo su propio comando de verificación.
 
-| AC | Cubierto por | Tarea |
-|----|--------------|-------|
-| AC-1 | <test> | T-NNN |
+---
+
+## Lo que ningún test de este repositorio puede cubrir
+
+<Declarado aquí para que nadie lo cuente como cobertura ni escriba un test que lo simule. Una
+revisión manual declarada es honesta; un test que la finge es un verde falso permanente.>
+
+## Preguntas abiertas
+
+1. <…> *Se cierra antes de derivar tareas de <grupo>.*
