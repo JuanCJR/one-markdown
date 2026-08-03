@@ -169,7 +169,7 @@ export function MarkdownPalette({ onInsert }: MarkdownPaletteProps): React.JSX.E
         role="toolbar"
         aria-label="Elementos de markdown"
         onKeyDown={handleKeyDown}
-        className="flex flex-wrap items-center gap-1 rounded-md border border-slate-200 p-1"
+        className="flex flex-wrap items-center gap-1 bg-sup-elevada p-1"
       >
         {PALETTE_SECTIONS.map((section, position) => (
           <div
@@ -177,7 +177,7 @@ export function MarkdownPalette({ onInsert }: MarkdownPaletteProps): React.JSX.E
             role="group"
             aria-label={PALETTE_GROUP_LABELS[section.group]}
             className={`flex flex-wrap items-center gap-0.5 ${
-              position === 0 ? '' : 'border-l border-slate-200 pl-1'
+              position === 0 ? '' : 'border-l border-hair-fila pl-1'
             }`}
           >
             {section.items.map((item) => (
@@ -195,7 +195,7 @@ export function MarkdownPalette({ onInsert }: MarkdownPaletteProps): React.JSX.E
                 }}
                 // `size-8` son 32 px: por encima de los 24 × 24 de SC 2.5.8 (AC-29). El anillo de
                 // foco es el del repo tal cual: en Tailwind 4 `outline-none` se hereda y lo mata.
-                className="flex size-8 items-center justify-center rounded text-slate-600 outline-solid outline-0 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+                className="flex size-8 items-center justify-center text-tinta-secundaria outline-solid outline-0 hover:bg-tinta hover:text-sup-base focus-visible:foco-cromo"
               >
                 <PaletteIcon id={item.element.id} />
               </button>
@@ -245,7 +245,13 @@ function PaletteIcon({ id }: { readonly id: string }): React.JSX.Element {
 }
 
 /** Rótulo tipográfico dentro del icono (B, I, H1…): no aporta nombre, el `<svg>` es `aria-hidden`. */
-function Glyph({ children, italic = false }: { readonly children: string; readonly italic?: boolean }) {
+function Glyph({
+  children,
+  italic = false,
+}: {
+  readonly children: string;
+  readonly italic?: boolean;
+}) {
   return (
     <text
       x="8"

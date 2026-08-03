@@ -17,10 +17,10 @@ export function AppShell(): React.JSX.Element {
   const logout = useAuthStore((state) => state.logout);
 
   return (
-    <div className="flex h-full min-h-screen bg-white text-slate-900">
+    <div className="flex h-full min-h-screen bg-sup-base text-tinta">
       <nav
         aria-label="Árbol de documentos"
-        className={`flex shrink-0 flex-col border-r border-slate-200 bg-slate-50 transition-[width] ${
+        className={`flex shrink-0 flex-col bg-sup-elevada transition-[width] ${
           sidebarCollapsed ? 'w-14' : 'w-64'
         }`}
       >
@@ -29,7 +29,7 @@ export function AppShell(): React.JSX.Element {
           onClick={toggleSidebar}
           aria-expanded={!sidebarCollapsed}
           aria-controls="document-tree"
-          className="m-2 rounded px-2 py-1 text-left text-sm text-slate-600 hover:bg-slate-200"
+          className="m-2 px-2 py-1 text-left text-sm text-tinta-secundaria hover:bg-tinta hover:text-sup-base"
         >
           {sidebarCollapsed ? 'Mostrar barra lateral' : 'Ocultar barra lateral'}
         </button>
@@ -44,15 +44,15 @@ export function AppShell(): React.JSX.Element {
       </nav>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-6 py-4">
+        <header className="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
           <h1 className="text-lg font-semibold">One Markdown</h1>
 
           <div className="flex items-center gap-4 text-sm">
-            {user === null ? null : <span className="text-slate-600">{user.email}</span>}
+            {user === null ? null : <span className="text-tinta-secundaria">{user.email}</span>}
 
             <Link
               to="/settings/security"
-              className="rounded px-1 font-medium text-blue-700 underline outline-none hover:text-blue-900 focus-visible:ring-2 focus-visible:ring-blue-700/50"
+              className=" px-1 font-medium text-tinta underline outline-none hover:bg-tinta hover:text-sup-base focus-visible:foco-cromo"
             >
               Seguridad
             </Link>
@@ -62,7 +62,7 @@ export function AppShell(): React.JSX.Element {
               onClick={() => {
                 void logout();
               }}
-              className="min-h-9 rounded-md border border-slate-300 px-3 py-1 font-medium text-slate-700 outline-none hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-blue-700/50"
+              className="min-h-9 border border-hair-control px-3 py-1 font-medium text-tinta-secundaria outline-none hover:bg-tinta hover:text-sup-base focus-visible:foco-cromo"
             >
               Cerrar sesión
             </button>

@@ -62,7 +62,10 @@ export function RegisterPage(): React.JSX.Element {
       footer={
         <>
           ¿Ya tienes cuenta?{' '}
-          <Link to="/login" className="font-medium text-blue-700 underline hover:text-blue-900">
+          <Link
+            to="/login"
+            className="font-medium text-tinta underline hover:bg-tinta hover:text-sup-base"
+          >
             Iniciar sesión
           </Link>
         </>

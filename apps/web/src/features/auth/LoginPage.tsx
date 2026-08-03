@@ -35,7 +35,10 @@ export function LoginPage(): React.JSX.Element {
       footer={
         <>
           ¿Todavía no tienes cuenta?{' '}
-          <Link to="/register" className="font-medium text-blue-700 underline hover:text-blue-900">
+          <Link
+            to="/register"
+            className="font-medium text-tinta underline hover:bg-tinta hover:text-sup-base"
+          >
             Crear una cuenta
           </Link>
         </>

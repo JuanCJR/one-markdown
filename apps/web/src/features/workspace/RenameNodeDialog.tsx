@@ -38,7 +38,7 @@ export function RenameNodeDialog({
           onRename(name);
         }}
       >
-        <label htmlFor={fieldId} className="mb-1 block text-sm font-medium text-slate-800">
+        <label htmlFor={fieldId} className="mb-1 block text-sm font-medium text-tinta">
           {nameLabelOf(node.kind)}
         </label>
 
@@ -53,7 +53,7 @@ export function RenameNodeDialog({
           onChange={(event) => {
             setName(event.target.value);
           }}
-          className="block min-h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-700/40"
+          className="block min-h-10 w-full border border-hair-control bg-sup-base px-3 py-2 text-sm outline-none focus:border-tinta"
         />
 
         <DialogActions>

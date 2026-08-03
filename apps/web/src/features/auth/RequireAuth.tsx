@@ -15,8 +15,8 @@ export function RequireAuth(): React.JSX.Element {
 
   if (status === 'unknown' || status === 'authenticating') {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-100">
-        <p role="status" className="text-sm text-slate-600">
+      <main className="flex min-h-screen items-center justify-center bg-sup-elevada">
+        <p role="status" className="text-sm text-tinta-secundaria">
           Comprobando tu sesión…
         </p>
       </main>

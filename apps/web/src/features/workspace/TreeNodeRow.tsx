@@ -55,9 +55,20 @@ export function TreeNodeRow({
     >
       <div
         style={{ paddingInlineStart: `${0.25 + (node.level - 1) * 0.75}rem` }}
-        className="flex min-h-8 items-center gap-1 rounded py-1 pr-1 text-sm text-slate-700 hover:bg-slate-200 [[role=treeitem][aria-selected=true]>&]:bg-blue-100 [[role=treeitem][aria-selected=true]>&]:font-medium [[role=treeitem][aria-selected=true]>&]:text-blue-900 [[role=treeitem]:focus-visible>&]:outline-solid [[role=treeitem]:focus-visible>&]:outline-2 [[role=treeitem]:focus-visible>&]:-outline-offset-2 [[role=treeitem]:focus-visible>&]:outline-blue-700"
+        className="flex min-h-8 items-center gap-1 py-1 pr-1 text-sm text-tinta-secundaria hover:bg-sup-hundida [[role=treeitem][aria-selected=true]>&]:bg-sup-hundida [[role=treeitem][aria-selected=true]>&]:font-black [[role=treeitem][aria-selected=true]>&]:text-tinta [[role=treeitem]:focus-visible>&]:foco-cromo"
       >
         <span id={labelId} className="flex min-w-0 flex-1 cursor-default items-center gap-1.5 px-1">
+          {/*
+            «El presente»: el único trabajo de cromo. Masa de 8 px, que es el mínimo de R5, y no un
+            color de texto ni un borde. Los otros dos canales del nodo seleccionado son el escalón de
+            superficie (la fila sube a `hundida`) y el peso 900, para que la selección siga
+            leyéndose en escala de grises y con el amarillo apagado.
+            El presupuesto (04-color.md §8) admite un solo `presente` por viewport, y el árbol es de
+            selección única: `aria-selected` solo es cierto en una fila.
+          */}
+          {selected ? (
+            <span aria-hidden="true" data-cromo="presente" className="size-2 shrink-0 bg-cromo" />
+          ) : null}
           {isDirectory ? <ChevronIcon expanded={node.expanded} /> : <DocumentIcon />}
           <span className="truncate">{node.name}</span>
         </span>
@@ -147,7 +158,7 @@ function RowActionButton({
         event.stopPropagation();
         onActivate();
       }}
-      className="grid size-6 shrink-0 place-items-center rounded text-slate-500 outline-solid outline-0 hover:bg-slate-300 hover:text-slate-900 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
+      className="grid size-6 shrink-0 place-items-center text-tinta-tenue outline-solid outline-0 hover:bg-tinta hover:text-sup-base focus-visible:foco-cromo disabled:cursor-not-allowed disabled:opacity-40"
     >
       <svg
         aria-hidden="true"
@@ -168,7 +179,7 @@ function ChevronIcon({ expanded }: { readonly expanded: boolean }): React.JSX.El
       aria-hidden="true"
       focusable="false"
       viewBox="0 0 16 16"
-      className={`size-3.5 shrink-0 fill-current text-slate-500 transition-transform ${
+      className={`size-3.5 shrink-0 fill-current text-tinta-tenue transition-transform ${
         expanded ? 'rotate-90' : ''
       }`}
     >
@@ -183,7 +194,7 @@ function DocumentIcon(): React.JSX.Element {
       aria-hidden="true"
       focusable="false"
       viewBox="0 0 16 16"
-      className="size-3.5 shrink-0 fill-current text-slate-400"
+      className="size-3.5 shrink-0 fill-current text-tinta-tenue"
     >
       <path d="M4 1.5h5l3.5 3.5v9.5h-8.5V1.5Zm5 1v2.5h2.5L9 2.5Z" />
     </svg>

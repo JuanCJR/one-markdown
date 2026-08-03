@@ -37,7 +37,7 @@ export function ConflictDialog({
 }: ConflictDialogProps): React.JSX.Element {
   return (
     <ModalDialog title="El documento cambió mientras lo editabas" onDismiss={onDismiss}>
-      <p className="text-sm text-slate-600">
+      <p className="text-sm text-tinta-secundaria">
         Alguien guardó una versión distinta de este documento —otra pestaña, otro dispositivo—
         después de que tú empezaras a escribir. Tus cambios siguen aquí; elige con cuál te quedas.
       </p>

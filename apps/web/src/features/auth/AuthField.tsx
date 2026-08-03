@@ -42,7 +42,7 @@ export function AuthField({
 
   return (
     <div className="mb-4">
-      <label htmlFor={id} className="mb-1 block text-sm font-medium text-slate-800">
+      <label htmlFor={id} className="mb-1 block text-sm font-medium text-tinta">
         {label}
       </label>
 
@@ -61,17 +61,17 @@ export function AuthField({
         onChange={(event) => {
           onValueChange(event.target.value);
         }}
-        className="block min-h-11 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-700/40 aria-invalid:border-red-600"
+        className="block min-h-11 w-full border border-hair-control bg-sup-base px-3 py-2 text-tinta outline-none focus:border-tinta aria-invalid:border-l-4 aria-invalid:border-l-tinta"
       />
 
       {hint === undefined ? null : (
-        <p id={hintId} className="mt-1 text-xs text-slate-600">
+        <p id={hintId} className="mt-1 text-xs text-tinta-secundaria">
           {hint}
         </p>
       )}
 
       {problem === undefined ? null : (
-        <p id={problemId} className="mt-1 text-xs font-medium text-red-700">
+        <p id={problemId} className="mt-1 text-xs font-medium text-tinta">
           {problem}
         </p>
       )}

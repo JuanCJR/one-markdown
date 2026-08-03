@@ -307,18 +307,18 @@ export function WorkspaceTreeView(): React.JSX.Element {
           ref={alertRef}
           role="alert"
           tabIndex={-1}
-          className="rounded border border-red-300 bg-red-50 px-2 py-1 text-sm text-red-800 outline-solid outline-0 focus:outline-2 focus:-outline-offset-2 focus:outline-red-700"
+          className=" bg-tinta px-2 py-1 text-sm text-sup-base outline-solid outline-0 focus-visible:foco-cromo"
         >
           {error}
         </p>
       )}
 
       {status === 'idle' || status === 'loading' ? (
-        <p className="px-2 py-1 text-sm text-slate-500">Cargando el árbol…</p>
+        <p className="px-2 py-1 text-sm text-tinta-tenue">Cargando el árbol…</p>
       ) : null}
 
       {status === 'ready' && focusOrder.length === 0 ? (
-        <p className="px-2 py-1 text-sm text-slate-500">
+        <p className="px-2 py-1 text-sm text-tinta-tenue">
           Todavía no hay directorios ni documentos.
         </p>
       ) : null}
@@ -353,7 +353,7 @@ export function WorkspaceTreeView(): React.JSX.Element {
             useWorkspaceStore.setState({ error: null });
             setDialog({ kind: 'create', parentId: null, parentName: null });
           }}
-          className="min-h-8 rounded-md border border-slate-300 px-2 py-1 text-sm font-medium text-slate-700 outline-solid outline-0 hover:bg-slate-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+          className="min-h-8 border border-hair-control px-2 py-1 text-sm font-medium text-tinta-secundaria outline-solid outline-0 hover:bg-tinta hover:text-sup-base focus-visible:foco-cromo disabled:cursor-not-allowed disabled:opacity-50"
         >
           Nuevo en la raíz
         </button>

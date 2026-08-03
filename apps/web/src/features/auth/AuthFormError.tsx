@@ -29,7 +29,7 @@ export function AuthFormError({ message }: AuthFormErrorProps): React.JSX.Elemen
       ref={container}
       role="alert"
       tabIndex={-1}
-      className="mb-4 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 outline-none focus:ring-2 focus:ring-red-700/50"
+      className="mb-4 bg-tinta px-3 py-2 text-sm text-sup-base outline-none focus-visible:foco-cromo"
     >
       {message}
     </div>

@@ -52,11 +52,14 @@ export function CreateNodeForm({
         }}
       >
         <fieldset className="mb-3" disabled={pending}>
-          <legend className="mb-1 text-sm font-medium text-slate-800">Tipo</legend>
+          <legend className="mb-1 text-sm font-medium text-tinta">Tipo</legend>
 
           <div className="flex gap-4">
             {(['directory', 'document'] as const).map((option) => (
-              <label key={option} className="flex items-center gap-1.5 text-sm text-slate-700">
+              <label
+                key={option}
+                className="flex items-center gap-1.5 text-sm text-tinta-secundaria"
+              >
                 <input
                   type="radio"
                   name={groupName}
@@ -73,7 +76,7 @@ export function CreateNodeForm({
           </div>
         </fieldset>
 
-        <label htmlFor={fieldId} className="mb-1 block text-sm font-medium text-slate-800">
+        <label htmlFor={fieldId} className="mb-1 block text-sm font-medium text-tinta">
           {nameLabelOf(kind)}
         </label>
 
@@ -88,7 +91,7 @@ export function CreateNodeForm({
           onChange={(event) => {
             setName(event.target.value);
           }}
-          className="block min-h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-700/40"
+          className="block min-h-10 w-full border border-hair-control bg-sup-base px-3 py-2 text-sm outline-none focus:border-tinta"
         />
 
         <DialogActions>

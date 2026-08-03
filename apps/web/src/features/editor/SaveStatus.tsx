@@ -43,14 +43,14 @@ export function SaveStatus({
 }: SaveStatusProps): React.JSX.Element {
   return (
     <div className="flex flex-wrap items-center gap-3 text-sm">
-      <p role="status" aria-label="Estado del guardado" className="text-slate-500">
+      <p role="status" aria-label="Estado del guardado" className="text-tinta-tenue">
         {LABELS[status]}
       </p>
 
       {error === null ? null : (
         <div
           role="alert"
-          className="flex flex-wrap items-center gap-2 rounded border border-red-300 bg-red-50 px-3 py-1 text-red-800"
+          className="flex flex-wrap items-center gap-2 bg-tinta px-3 py-1 text-sup-base"
         >
           <span>{error}</span>
 
@@ -58,7 +58,7 @@ export function SaveStatus({
             <button
               type="button"
               onClick={onResolveConflict}
-              className="rounded px-1 font-medium text-red-900 underline outline-none focus-visible:ring-2 focus-visible:ring-red-700/50"
+              className=" px-1 font-medium text-sup-base underline outline-none focus-visible:foco-cromo"
             >
               Resolver el conflicto
             </button>

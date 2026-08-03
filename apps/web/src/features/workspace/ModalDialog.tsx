@@ -84,14 +84,14 @@ export function ModalDialog({ title, onDismiss, children }: ModalDialogProps): R
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         onKeyDown={handleKeyDown}
-        className="w-full max-w-sm rounded-lg border border-slate-200 bg-white p-4 text-slate-900 shadow-xl"
+        className="w-full max-w-sm border border-hair-zona bg-sup-superpuesta p-4 text-tinta"
       >
         <h2 id={titleId} className="mb-3 text-base font-semibold">
           {title}
@@ -105,13 +105,13 @@ export function ModalDialog({ title, onDismiss, children }: ModalDialogProps): R
 
 /** Clases compartidas por los botones de los diálogos, para que los tres se vean igual. */
 export const DIALOG_BUTTON_CLASS =
-  'min-h-9 rounded-md px-3 py-1 text-sm font-medium outline-solid outline-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 disabled:cursor-not-allowed disabled:opacity-50';
+  'min-h-9 px-3 py-1 text-sm font-medium outline-solid outline-0 focus-visible:foco-cromo disabled:cursor-not-allowed disabled:opacity-50';
 
-export const DIALOG_SECONDARY_CLASS = `${DIALOG_BUTTON_CLASS} border border-slate-300 text-slate-700 hover:bg-slate-100`;
+export const DIALOG_SECONDARY_CLASS = `${DIALOG_BUTTON_CLASS} border border-hair-control text-tinta-secundaria hover:bg-tinta hover:text-sup-base`;
 
-export const DIALOG_PRIMARY_CLASS = `${DIALOG_BUTTON_CLASS} bg-blue-700 text-white hover:bg-blue-800`;
+export const DIALOG_PRIMARY_CLASS = `${DIALOG_BUTTON_CLASS} bg-cromo font-black text-sobre-cromo hover:bg-tinta hover:text-sup-base`;
 
-export const DIALOG_DANGER_CLASS = `${DIALOG_BUTTON_CLASS} bg-red-700 text-white hover:bg-red-800`;
+export const DIALOG_DANGER_CLASS = `${DIALOG_BUTTON_CLASS} bg-tinta text-sup-base hover:bg-sup-base hover:text-tinta`;
 
 /** Fila de acciones: cancelar primero, para que la acción destructiva no sea la parada fácil. */
 export function DialogActions({

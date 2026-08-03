@@ -77,11 +77,11 @@ export function SecurityPage(): React.JSX.Element {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 px-4 py-10">
-      <main className="mx-auto w-full max-w-xl rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-        <h1 className="text-xl font-semibold text-slate-900">Seguridad de la cuenta</h1>
+    <div className="min-h-screen bg-sup-elevada px-4 py-10">
+      <main className="mx-auto w-full max-w-xl bg-sup-base p-6">
+        <h1 className="text-xl font-semibold text-tinta">Seguridad de la cuenta</h1>
 
-        <p role="status" className="mt-2 text-sm text-slate-700">
+        <p role="status" className="mt-2 text-sm text-tinta-secundaria">
           Verificación en dos pasos: {mfaEnabled ? 'activada' : 'desactivada'}
         </p>
 
@@ -113,8 +113,11 @@ export function SecurityPage(): React.JSX.Element {
           )}
         </div>
 
-        <p className="mt-8 border-t border-slate-200 pt-4 text-sm">
-          <Link to="/" className="font-medium text-blue-700 underline hover:text-blue-900">
+        <p className="mt-8 pt-4 text-sm">
+          <Link
+            to="/"
+            className="font-medium text-tinta underline hover:bg-tinta hover:text-sup-base"
+          >
             Volver al workspace
           </Link>
         </p>
@@ -144,8 +147,8 @@ function EnrollSection({
   if (setup === null) {
     return (
       <section>
-        <h2 className="text-base font-medium text-slate-900">Verificación en dos pasos</h2>
-        <p className="mt-1 mb-4 text-sm text-slate-600">
+        <h2 className="text-base font-medium text-tinta">Verificación en dos pasos</h2>
+        <p className="mt-1 mb-4 text-sm text-tinta-secundaria">
           Añade un código de tu app de autenticación (Google Authenticator, 1Password, Aegis) al
           iniciar sesión.
         </p>
@@ -154,7 +157,7 @@ function EnrollSection({
           disabled={busy}
           aria-busy={busy}
           onClick={onStart}
-          className="min-h-11 rounded-md bg-blue-700 px-4 py-2 font-medium text-white outline-none hover:bg-blue-800 focus-visible:ring-2 focus-visible:ring-blue-700/50 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-400"
+          className="min-h-11 bg-cromo px-4 py-2 font-black text-sobre-cromo outline-none hover:bg-tinta hover:text-sup-base focus-visible:foco-cromo disabled:cursor-not-allowed disabled:inerte disabled:text-tinta-desactivada"
         >
           Activar verificación en dos pasos
         </button>
@@ -164,21 +167,21 @@ function EnrollSection({
 
   return (
     <section>
-      <h2 className="text-base font-medium text-slate-900">Escanea el código</h2>
+      <h2 className="text-base font-medium text-tinta">Escanea el código</h2>
 
       <img
         src={setup.qrCodeDataUrl}
         alt="Código QR para añadir esta cuenta a tu app de autenticación"
         width={192}
         height={192}
-        className="mt-4 rounded border border-slate-200 bg-white p-2"
+        className="mt-4 bg-sup-base p-2"
       />
 
-      <p className="mt-4 text-sm text-slate-600">
+      <p className="mt-4 text-sm text-tinta-secundaria">
         Si no puedes escanearlo, escribe esta clave en tu app:
       </p>
       {/* Texto seleccionable, no una imagen: sin esto quien no pueda escanear se queda fuera. */}
-      <code className="mt-1 block break-all rounded bg-slate-100 px-2 py-1 font-mono text-sm text-slate-900 select-all">
+      <code className="mt-1 block break-all bg-sup-hundida px-2 py-1 font-mono text-sm text-tinta select-all">
         {setup.secret}
       </code>
 
@@ -213,12 +216,9 @@ function EnrollSection({
 function RecoveryCodes({ codes }: { readonly codes: readonly string[] }): React.JSX.Element {
   return (
     <section>
-      <h2 className="text-base font-medium text-slate-900">Códigos de recuperación</h2>
+      <h2 className="text-base font-medium text-tinta">Códigos de recuperación</h2>
 
-      <div
-        role="alert"
-        className="mt-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900"
-      >
+      <div role="alert" className="mt-3 bg-tinta px-3 py-2 text-sm text-sup-base">
         Guárdalos ahora en un lugar seguro: <strong>no volverás a verlos</strong>. Cada uno sirve
         una sola vez para entrar si pierdes el teléfono.
       </div>
@@ -227,7 +227,7 @@ function RecoveryCodes({ codes }: { readonly codes: readonly string[] }): React.
         {codes.map((recoveryCode) => (
           <li
             key={recoveryCode}
-            className="rounded bg-slate-100 px-2 py-1 text-center font-mono text-sm text-slate-900 select-all"
+            className=" bg-sup-hundida px-2 py-1 text-center font-mono text-sm text-tinta select-all"
           >
             {recoveryCode}
           </li>
@@ -256,8 +256,8 @@ function DisableSection({
 }: DisableSectionProps): React.JSX.Element {
   return (
     <section>
-      <h2 className="text-base font-medium text-slate-900">Desactivar la verificación</h2>
-      <p className="mt-1 mb-4 text-sm text-slate-600">
+      <h2 className="text-base font-medium text-tinta">Desactivar la verificación</h2>
+      <p className="mt-1 mb-4 text-sm text-tinta-secundaria">
         Se borrarán tu clave TOTP y tus códigos de recuperación, y se cerrarán tus otras sesiones.
       </p>
 

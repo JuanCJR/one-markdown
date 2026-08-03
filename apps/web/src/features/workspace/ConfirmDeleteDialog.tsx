@@ -30,16 +30,16 @@ export function ConfirmDeleteDialog({
 }: ConfirmDeleteDialogProps): React.JSX.Element {
   return (
     <ModalDialog title={`Borrar «${node.name}»`} onDismiss={onCancel}>
-      <p className="text-sm text-slate-700">¿Seguro que quieres borrar «{node.name}»?</p>
+      <p className="text-sm text-tinta-secundaria">¿Seguro que quieres borrar «{node.name}»?</p>
 
       {contentCount === 0 ? null : (
-        <p className="mt-2 text-sm font-medium text-red-800">
+        <p className="mt-2 text-sm font-medium text-sup-base">
           También se borrará su contenido: {contentCount}{' '}
           {contentCount === 1 ? 'elemento' : 'elementos'}.
         </p>
       )}
 
-      <p className="mt-2 text-sm text-slate-500">Esta acción no se puede deshacer.</p>
+      <p className="mt-2 text-sm text-tinta-tenue">Esta acción no se puede deshacer.</p>
 
       <DialogActions>
         <button

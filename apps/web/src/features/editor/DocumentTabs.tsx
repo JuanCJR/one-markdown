@@ -246,7 +246,7 @@ export function DocumentTabs(): React.JSX.Element {
           role="tablist"
           aria-label="Documentos abiertos"
           onKeyDown={handleKeyDown}
-          className="flex items-stretch gap-px overflow-x-auto border-b border-slate-200 bg-slate-100 px-2"
+          className="flex items-stretch gap-px overflow-x-auto bg-sup-elevada px-2"
         >
           {openIds.map((id) => {
             const title = titleOf(id);
@@ -283,10 +283,14 @@ export function DocumentTabs(): React.JSX.Element {
 
                   activate(id);
                 }}
-                className={`flex max-w-56 min-w-0 items-center gap-1.5 border-b-2 px-3 py-2 text-sm outline-solid outline-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-blue-700 ${
+                className={`flex max-w-56 min-w-0 items-center gap-1.5 border-b-2 px-3 py-2 text-sm outline-solid outline-0 focus-visible:foco-cromo ${
+                  // La pestaña activa NO gasta cromo (04-color.md §8): se dice con la superficie
+                  // —se apoya en el papel mientras las demás están en el escalón elevado—, con el
+                  // peso 900 y con la tinta plena frente a la secundaria. Tres canales, ninguno
+                  // de color.
                   selected
-                    ? 'border-blue-700 bg-white text-slate-900'
-                    : 'border-transparent text-slate-600 hover:bg-slate-200'
+                    ? 'border-transparent bg-sup-base font-black text-tinta'
+                    : 'border-transparent text-tinta-secundaria hover:bg-sup-hundida'
                 }`}
               >
                 <span className="truncate">{title}</span>
@@ -300,7 +304,9 @@ export function DocumentTabs(): React.JSX.Element {
                   ninguna especificación publicada.
                 */}
                 {unsaved && (
-                  <span aria-hidden="true" className="text-blue-700">
+                  // Sin guardar no tiene color: es masa de tinta. La palabra ya está en el nombre
+                  // accesible de la pestaña, así que aquí solo queda la masa.
+                  <span aria-hidden="true" className="text-tinta">
                     ●
                   </span>
                 )}
@@ -317,7 +323,7 @@ export function DocumentTabs(): React.JSX.Element {
                 <span
                   aria-hidden="true"
                   data-tab-close="true"
-                  className="flex size-6 shrink-0 items-center justify-center rounded text-slate-500 hover:bg-slate-300 hover:text-slate-900"
+                  className="flex size-6 shrink-0 items-center justify-center text-tinta-tenue hover:bg-tinta hover:text-sup-base"
                 >
                   ×
                 </span>

@@ -25,7 +25,7 @@ export function MfaChallengeForm(): React.JSX.Element {
         void verifyMfa(code.trim());
       }}
     >
-      <p className="mb-4 text-sm text-slate-600">
+      <p className="mb-4 text-sm text-tinta-secundaria">
         Tu cuenta tiene verificación en dos pasos. Escribe el código de tu app de autenticación.
       </p>
 
@@ -49,7 +49,7 @@ export function MfaChallengeForm(): React.JSX.Element {
       <button
         type="button"
         onClick={cancelMfa}
-        className="mt-3 min-h-11 w-full rounded-md px-4 py-2 text-sm text-slate-700 underline outline-none hover:text-slate-900 focus-visible:ring-2 focus-visible:ring-blue-700/50"
+        className="mt-3 min-h-11 w-full px-4 py-2 text-sm text-tinta-secundaria underline outline-none hover:text-tinta focus-visible:foco-cromo"
       >
         Entrar con otra cuenta
       </button>

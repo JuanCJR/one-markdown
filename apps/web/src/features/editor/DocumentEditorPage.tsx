@@ -255,10 +255,7 @@ export function DocumentEditorPage(): React.JSX.Element {
   // documento que ya se sabe que no va a llegar.
   if (load.status === 'missing' || load.status === 'error') {
     return (
-      <p
-        role="alert"
-        className="max-w-prose rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800"
-      >
+      <p role="alert" className="max-w-prose bg-tinta px-3 py-2 text-sm text-sup-base">
         {load.status === 'missing' ? 'Este documento ya no existe.' : load.message}
       </p>
     );
@@ -271,7 +268,7 @@ export function DocumentEditorPage(): React.JSX.Element {
       // pestañas se pinta **mientras** el documento carga, así que en ese instante hay dos regiones
       // vivas en la página y esta era la anónima. Con dos `role="status"` sin distinguir, quien
       // recorre la lista de regiones con un lector de pantalla no sabe cuál acaba de hablar.
-      <p role="status" aria-label="Carga del documento" className="text-sm text-slate-500">
+      <p role="status" aria-label="Carga del documento" className="text-sm text-tinta-tenue">
         Cargando el documento…
       </p>
     );
@@ -430,7 +427,7 @@ export function DocumentEditorPage(): React.JSX.Element {
         // la spec `004` llamará a la misma acción y heredará el debounce y la coalescencia.
         useEditorStore.getState().setDraft(documentId, event.target.value);
       }}
-      className="h-full min-h-96 w-full resize-none rounded border border-slate-200 bg-white p-4 font-mono text-sm text-slate-800 outline-solid outline-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+      className="h-full min-h-96 w-full resize-none border border-hair-control bg-sup-base p-4 font-mono text-sm text-tinta outline-solid outline-0 focus-visible:foco-cromo"
     />
   );
 
@@ -447,20 +444,20 @@ export function DocumentEditorPage(): React.JSX.Element {
     >
       <header className="flex flex-col gap-1">
         <nav aria-label="Ruta del documento">
-          <ol className="flex flex-wrap items-center text-sm text-slate-500">
+          <ol className="flex flex-wrap items-center text-sm text-tinta-tenue">
             {ancestors.map((directory) => (
               <li key={directory.id} className={STEP_CLASS}>
                 {directory.name}
               </li>
             ))}
 
-            <li aria-current="page" className={`${STEP_CLASS} text-slate-700`}>
+            <li aria-current="page" className={`${STEP_CLASS} text-tinta-secundaria`}>
               {title}
             </li>
           </ol>
         </nav>
 
-        <h2 className="text-xl font-semibold text-slate-900">{title}</h2>
+        <h2 className="text-xl font-semibold text-tinta">{title}</h2>
       </header>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -468,7 +465,7 @@ export function DocumentEditorPage(): React.JSX.Element {
           role="tablist"
           aria-label="Modo de vista"
           onKeyDown={handleTablistKeyDown}
-          className="flex gap-1 rounded-md border border-slate-200 p-0.5"
+          className="flex gap-1 border border-hair-control p-0.5"
         >
           {VIEW_MODES.map((mode) => {
             const selected = mode === viewMode;
@@ -490,8 +487,10 @@ export function DocumentEditorPage(): React.JSX.Element {
                 onClick={() => {
                   selectMode(mode);
                 }}
-                className={`min-h-8 rounded px-3 py-1 text-sm font-medium outline-solid outline-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${
-                  selected ? 'bg-blue-700 text-white' : 'text-slate-600 hover:bg-slate-100'
+                className={`min-h-8 px-3 py-1 text-sm font-medium outline-solid outline-0 focus-visible:foco-cromo ${
+                  selected
+                    ? 'bg-cromo font-black text-sobre-cromo'
+                    : 'text-tinta-secundaria hover:bg-tinta hover:text-sup-base'
                 }`}
               >
                 {VIEW_MODE_LABELS[mode]}
@@ -502,7 +501,7 @@ export function DocumentEditorPage(): React.JSX.Element {
 
         <div className="flex flex-wrap items-center gap-3">
           {entry.draft.length < CONTENT_COUNTER_THRESHOLD ? null : (
-            <p className={remaining < 0 ? 'text-sm text-red-700' : 'text-sm text-slate-500'}>
+            <p className={remaining < 0 ? 'text-sm text-tinta' : 'text-sm text-tinta-tenue'}>
               {remaining < 0
                 ? `Te sobran ${(-remaining).toLocaleString('es-ES')} caracteres`
                 : `Quedan ${remaining.toLocaleString('es-ES')} caracteres`}
@@ -531,7 +530,7 @@ export function DocumentEditorPage(): React.JSX.Element {
                   onClick={() => {
                     stepHistory(control.direction);
                   }}
-                  className="min-h-9 min-w-9 rounded-md border border-slate-300 px-3 py-1 text-sm font-medium text-slate-700 outline-solid outline-0 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400 disabled:hover:bg-transparent"
+                  className="min-h-9 min-w-9 border border-hair-control px-3 py-1 text-sm font-medium text-tinta-secundaria outline-solid outline-0 hover:bg-tinta hover:text-sup-base focus-visible:foco-cromo disabled:cursor-not-allowed disabled:border-hair-fila disabled:text-tinta-tenue disabled:hover:bg-transparent"
                 >
                   {control.label}
                 </button>
@@ -544,7 +543,7 @@ export function DocumentEditorPage(): React.JSX.Element {
             onClick={() => {
               void useEditorStore.getState().saveNow(documentId);
             }}
-            className="min-h-9 rounded-md border border-slate-300 px-3 py-1 text-sm font-medium text-slate-700 outline-solid outline-0 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+            className="min-h-9 border border-hair-control px-3 py-1 text-sm font-medium text-tinta-secundaria outline-solid outline-0 hover:bg-tinta hover:text-sup-base focus-visible:foco-cromo"
           >
             Guardar
           </button>
@@ -582,7 +581,7 @@ export function DocumentEditorPage(): React.JSX.Element {
         // La vista previa puede no tener nada enfocable dentro, así que entra en el orden de
         // tabulación para poder leerla con el teclado; el modo texto ya ofrece su textarea.
         tabIndex={viewMode === 'preview' ? 0 : -1}
-        className="min-h-0 flex-1 outline-solid outline-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+        className="min-h-0 flex-1 outline-solid outline-0 focus-visible:foco-cromo"
       >
         {viewMode === 'text' ? (
           editorTextarea
@@ -633,7 +632,7 @@ export function DocumentEditorPage(): React.JSX.Element {
  * nombre de su paso y la ruta se lee sin barras sueltas.
  */
 const STEP_CLASS =
-  "before:mx-1.5 before:text-slate-300 before:content-['/'] first:before:content-none";
+  "before:mx-1.5 before:text-tinta-tenue before:content-['/'] first:before:content-none";
 
 /**
  * Los directorios que hay que atravesar hasta el documento, de la raíz hacia abajo. Se corta ante

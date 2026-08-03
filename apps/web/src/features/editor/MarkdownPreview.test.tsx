@@ -109,7 +109,9 @@ function unsafeUrls(container: HTMLElement): readonly string[] {
     if (element.tagName === 'IMG') {
       const src = element.getAttribute('src');
 
-      return src !== null && !isAcceptableUrl(src, ALLOWED_SRC_PROTOCOLS) ? [`img[src]=${src}`] : [];
+      return src !== null && !isAcceptableUrl(src, ALLOWED_SRC_PROTOCOLS)
+        ? [`img[src]=${src}`]
+        : [];
     }
 
     return [];
@@ -155,9 +157,7 @@ describe('MarkdownPreview — elementos y GFM (AC-24)', () => {
   });
 
   it('renderiza los bloques de código conservando la clase del lenguaje', () => {
-    const { container } = render(
-      <MarkdownPreview markdown={'```js\nconst uno = 1;\n```'} />,
-    );
+    const { container } = render(<MarkdownPreview markdown={'```js\nconst uno = 1;\n```'} />);
 
     const code = container.querySelector('pre > code');
 
@@ -226,11 +226,14 @@ describe('MarkdownPreview — corpus de XSS (AC-25)', () => {
     expect(eventHandlerAttributes(container)).toEqual([]);
   });
 
-  it.each(MARKDOWN_XSS_CORPUS)('no deja ninguna URL con protocolo peligroso: $name', ({ markdown }) => {
-    const { container } = render(<MarkdownPreview markdown={markdown} />);
+  it.each(MARKDOWN_XSS_CORPUS)(
+    'no deja ninguna URL con protocolo peligroso: $name',
+    ({ markdown }) => {
+      const { container } = render(<MarkdownPreview markdown={markdown} />);
 
-    expect(unsafeUrls(container)).toEqual([]);
-  });
+      expect(unsafeUrls(container)).toEqual([]);
+    },
+  );
 
   it.each(MARKDOWN_XSS_CORPUS)(
     'conserva el texto que escribió la persona: $name',
@@ -345,11 +348,13 @@ function markdownDependenciesOf(manifest: string): readonly string[] {
     throw new Error('las dependencias del manifiesto no son un objeto');
   }
 
-  return Object.keys(dependencies)
-    // `@one-markdown/shared` lleva «markdown» en el nombre y no es un plugin de nadie: es el paquete
-    // de tipos del propio monorepo.
-    .filter((name) => !name.startsWith('@one-markdown/') && MARKDOWN_PACKAGE_PATTERN.test(name))
-    .sort();
+  return (
+    Object.keys(dependencies)
+      // `@one-markdown/shared` lleva «markdown» en el nombre y no es un plugin de nadie: es el paquete
+      // de tipos del propio monorepo.
+      .filter((name) => !name.startsWith('@one-markdown/') && MARKDOWN_PACKAGE_PATTERN.test(name))
+      .sort()
+  );
 }
 
 describe('MarkdownPreview — la cadena de plugins sigue siendo la de la 003 (AC-30)', () => {
