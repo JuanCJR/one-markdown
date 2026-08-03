@@ -46,25 +46,25 @@ modelos:
     claudecode: { model: sonnet }
     cursor: { model: auto }
     opencode: { model: "anthropic/claude-sonnet-4-5" }
-    kiro-ide: { model: auto }
+    kiro-ide: {} # R2: Kiro da error con el valor del modelo. Hereda el de la sesión.
     copilot: {} # sin selección de modelo por subagente — limitación de la herramienta
   orchestrator:
     claudecode: { model: opus, effort: high }
     cursor: { model: opus, readonly: false }
     opencode: { mode: primary, model: "anthropic/claude-opus-4-5", temperature: 0.2 }
-    kiro-ide: { model: opus }
+    kiro-ide: {}
     copilot: {}
   frontend:
     claudecode: { model: opus, effort: medium }
     cursor: { model: opus }
     opencode: { mode: subagent, model: "anthropic/claude-opus-4-5" }
-    kiro-ide: { model: opus }
+    kiro-ide: {}
     copilot: {}
   backend:
     claudecode: { model: opus, effort: medium }
     cursor: { model: opus }
     opencode: { mode: subagent, model: "anthropic/claude-opus-4-5" }
-    kiro-ide: { model: opus }
+    kiro-ide: {}
     copilot: {}
 
 roles:

@@ -12,8 +12,6 @@ opencode:
   mode: primary
   model: anthropic/claude-opus-4-5
   temperature: 0.2
-kiro-ide:
-  model: opus
 ---
 
 Eres el **Orchestrator**: piensas, especificas, planificas, delegas y verificas. **No escribes código de producción ni tests.**

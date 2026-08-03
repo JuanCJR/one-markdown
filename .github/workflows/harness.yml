@@ -1,0 +1,76 @@
+name: Harness
+
+# Sin esto, el harness se degrada en silencio: alguien edita un generado a mano, o cambia
+# `showi.yml` y no regenera, y nadie se entera hasta que un agente trabaja con reglas que no son
+# las del repositorio. Es exactamente el modo de fallo que este montaje existe para impedir,
+# aplicado al montaje.
+
+on:
+  push:
+    branches: [main]
+    paths: ['showi.yml', '.rulesync/**', '.claude/**', '.cursor/**', '.github/skills/**', '.github/agents/**', '.opencode/**', '.kiro/**', '.agents/**', 'AGENTS.md', 'CLAUDE.md', 'rulesync.*', '.github/workflows/harness.yml']
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: harness-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  harness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Traer showi
+        run: git clone --depth 1 https://github.com/JuanCJR/showi-harness.git /tmp/showi && npm --prefix /tmp/showi ci
+
+      # `--frozen` cubre además el caso «alguien editó a mano una skill instalada»: restaura desde
+      # el origen, y entonces el paso de deriva lo detecta.
+      - name: Instalar el método fijado
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx rulesync@latest install --frozen
+
+      - name: Normalizar los nombres de skill que no cumplen el estándar
+        run: node /tmp/showi/src/cli.mjs normaliza .
+
+      # Dos tramos, dos comprobaciones, y **ninguna sustituye a la otra**. Comprobado: una línea
+      # metida a mano en `.claude/agents/` pasa por `showi check` sin que se note, porque ese tramo
+      # no es suyo.
+      #
+      #   showi check              showi.yml  →  .rulesync/
+      #   rulesync generate --check  .rulesync/  →  las seis herramientas
+      - name: Sin deriva · showi.yml → .rulesync
+        run: node /tmp/showi/src/cli.mjs check .
+
+      - name: Sin deriva · .rulesync → las seis herramientas
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx rulesync@latest generate --check
+
+      # El método, íntegro en las seis herramientas. Es el criterio que hoy da «sin problemas» y que
+      # antes de la conmutación daba 18 ausencias, 2 fugas y 2 divergencias.
+      - name: Integridad del método en los seis destinos
+        run: bash /tmp/showi/test/integridad.sh .
+
+      # Declarado × presente × habilitado. Los avisos no rompen: degradado no es roto y no medido
+      # no es cero. Solo los errores.
+      - name: Cruce declarado × presente × habilitado
+        run: node /tmp/showi/src/cli.mjs doctor .
+
+      # La mitad negativa. Sin ella, un verde de este workflow no demuestra nada: podría estar
+      # comprobando ficheros que no existen y salir 0 igual.
+      - name: El guardián sabe fallar
+        run: |
+          echo '' >> .claude/agents/frontend.md
+          echo 'línea metida a mano' >> .claude/agents/frontend.md
+          if npx rulesync@latest generate --check; then
+            echo "::error::se editó un generado a mano y el CI no lo detectó"
+            exit 1
+          fi
+          git checkout -- .claude/agents/frontend.md
+          echo "la deriva se detecta · correcto"
