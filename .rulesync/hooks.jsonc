@@ -1,4 +1,4 @@
-// GENERADO por showi 0.0.0 desde showi.yml — no editar a mano.
+// GENERADO desde showi.yml — no editar a mano.
 //
 // Instrumentación. Ninguno de estos hooks bloquea nada y ninguno falla hacia fuera: ante una
 // entrada inválida salen 0 y dejan pasar la llamada. Un hook que rompe una llamada cuesta más que

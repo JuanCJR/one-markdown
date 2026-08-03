@@ -1,4 +1,4 @@
-// GENERADO por showi 0.0.0 desde showi.yml — no editar a mano.
+// GENERADO desde showi.yml — no editar a mano.
 // Cualquier cambio aquí lo borra el próximo `showi sync`; lo que se edita es `showi.yml`.
 //
 // **Necesita `GITHUB_TOKEN` en el entorno.** Sin él, la API de GitHub da 60 llamadas por hora y
@@ -68,7 +68,7 @@
   "delete": true,
   "sources": [
     {
-      "source": "JuanCJR/showi-harness@v0.1.0",
+      "source": "JuanCJR/showi-harness@v0.2.0",
       "skills": [
         "spec-driven-development",
         "test-driven-development-tdd",

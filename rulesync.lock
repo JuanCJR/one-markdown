@@ -110,10 +110,10 @@
         }
       }
     },
-    "juancjr/showi-harness@v0.1.0": {
-      "requestedRef": "v0.1.0",
-      "resolvedRef": "ff41ad3d40aec7ebbbaffdb34d8093b00eeaf0d5",
-      "resolvedAt": "2026-08-03T19:49:18.497Z",
+    "juancjr/showi-harness@v0.2.0": {
+      "requestedRef": "v0.2.0",
+      "resolvedRef": "0a8267b7d8d3f793fe9bafbbd2a6b8d762e867c9",
+      "resolvedAt": "2026-08-03T23:05:04.311Z",
       "skills": {
         "spec-driven-development": {
           "integrity": "sha256-22473984976b62945c1594f2eebb7d8bea6594bd87e3a3ca5872ebd2b91f407e"

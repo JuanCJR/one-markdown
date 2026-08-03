@@ -1,4 +1,4 @@
-// GENERADO por showi 0.0.0 desde showi.yml — no editar a mano.
+// GENERADO desde showi.yml — no editar a mano.
 //
 // Los `deny` son la capa que no depende del stack y viaja a cualquier proyecto: secretos, y las
 // operaciones que destruyen datos o publican sin querer.
