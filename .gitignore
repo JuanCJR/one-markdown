@@ -16,7 +16,6 @@ coverage/
 .claude/skill-usage.jsonl
 .claude/delegation.jsonl
 .claude/settings.local.json
-.agents/
 .coderag/
 
 # Prisma: el cliente se genera desde el schema, no se versiona
@@ -34,5 +33,7 @@ blob-report/
 # showi — lo generado SÍ se versiona (decisión D7): quien clona y abre cualquier IDE tiene el
 # harness sin ejecutar nada. Fuera queda solo la medición, que se genera sola en cada sesión.
 .harness/*.jsonl
+__pycache__/
+*.pyc
 .rulesync/skills/.curated/
 .rulesync/rules/.curated/
