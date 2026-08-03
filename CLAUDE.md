@@ -8,9 +8,18 @@ Cualquier feature o cambio significativo entra por el agente `orchestrator`, due
 
 ## Metodología
 
-- **SDD**: nada se implementa sin spec en `specs/NNN-slug/` (`spec.md` + `plan.md` + `tasks.md` + `CHANGELOG.md`), una carpeta por feature. La spec se versiona semánticamente; cada cambio deja entrada en su CHANGELOG.
-- **TDD**: RED → GREEN → REFACTOR. El test se escribe primero y debe fallar antes de implementar. Cada criterio de aceptación (`AC-N`) tiene al menos un test automatizado.
-- **Seguimiento**: `IMPLEMENTATION.md` se actualiza solo tras verificar (comando corrido + salida real). `[ ]` pendiente · `[~]` en curso/bloqueado con motivo · `[x]` hecho y verificado.
+**El método vive en las skills, no en este archivo.** Aquí solo está dónde aplica; el qué y el porqué se cargan desde `.claude/skills/`, que es lo que hace el montaje trasladable a otro proyecto y a otra herramienta.
+
+| Skill | Qué posee |
+|---|---|
+| `spec-driven-development` | Nada se implementa sin spec en `specs/NNN-slug/`. Documentos, versionado semántico, reglas de redacción. |
+| `test-driven-development-tdd` | RED → GREEN → REFACTOR, la regla del andamio, la anatomía de una tarea `T-NNN` y el radio de un cambio. |
+| `stop-and-report` | Los seis casos en que un agente para y avisa en vez de arreglarlo, y qué hace quien recibe el reporte. |
+| `verification-and-measurement` | Cómo se verifica y cómo no creerse un cero falso. |
+
+**Si una de las cuatro no está disponible, se para y se avisa** — no se reconstruye de memoria.
+
+Lo único de metodología que es de este repositorio y no de las skills: **`IMPLEMENTATION.md` se actualiza solo tras verificar** (comando corrido + salida real), con `[ ]` pendiente · `[~]` en curso o bloqueado con motivo · `[x]` hecho y verificado. El detalle histórico de cada feature va a su `CHANGELOG`, no aquí.
 
 ## Reglas de código
 
