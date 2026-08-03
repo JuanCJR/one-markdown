@@ -10,8 +10,12 @@ coverage/
 !.env.example
 
 # Claude Code / agent tooling
+# La configuración del harness SÍ se versiona —agentes, skills, hooks y settings—
+# para que el proyecto se maneje igual con independencia de quién lo abra.
+# Solo quedan fuera la medición (se genera) y los overrides personales.
+.claude/skill-usage.jsonl
+.claude/delegation.jsonl
 .claude/settings.local.json
-.claude/skills/
 .agents/
 .coderag/
 
