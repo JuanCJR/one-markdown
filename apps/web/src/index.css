@@ -1,8 +1,68 @@
+/* Tailwind v4. El tema se declara aquí, en CSS: NO hay `tailwind.config.js` ni PostCSS —la
+   integración es el plugin de Vite (`@tailwindcss/vite`, ver `vite.config.ts`)—. Cualquier
+   comprobación del sistema de color se escribe contra `@theme` y contra `var(--*)`, nunca contra
+   un archivo de configuración que en este proyecto no existe. */
 @import 'tailwindcss';
+@import './styles/tokens-cromo.css';
 
-@theme {
+/* Puente con Tailwind. `inline` es lo que hace que `bg-sup-base` compile a
+   `background-color: var(--sup-base)` en vez de al valor congelado: así el conmutador de tema
+   cambia el color sin duplicar ni una clase. Sin `inline` habría que generar variantes `dark:`
+   para cada utilidad y el override local por `data-tema` dejaría de funcionar. */
+@theme inline {
+  --color-sup-base: var(--sup-base);
+  --color-sup-elevada: var(--sup-elevada);
+  --color-sup-hundida: var(--sup-hundida);
+  --color-sup-superpuesta: var(--sup-superpuesta);
+
+  --color-tinta: var(--tinta-principal);
+  --color-tinta-secundaria: var(--tinta-secundaria);
+  --color-tinta-tenue: var(--tinta-tenue);
+  --color-tinta-desactivada: var(--tinta-desactivada);
+
+  --color-hair-zona: var(--hair-zona);
+  --color-hair-control: var(--hair-control);
+  --color-hair-fila: var(--hair-fila);
+
+  --color-cromo: var(--cromo);
+  --color-sobre-cromo: var(--sobre-cromo);
+
   --font-sans: ui-sans-serif, system-ui, sans-serif;
   --font-mono: ui-monospace, 'Cascadia Code', 'Source Code Pro', monospace;
+}
+
+/* PENDIENTE · borrar la paleta heredada.
+   `docs/design/04-color.md` §3 decide `--color-*: initial`, que borra la paleta entera de Tailwind
+   y convierte la prohibición del blanco puro y de los grises heredados en un error de compilación
+   en vez de en una revisión. No se activa todavía **porque no está el restyle**: quedan usos de la paleta
+   heredada en pantallas que aún no se han migrado, y borrarla ahora las dejaría sin color en
+   silencio, sin romper el build. La cuenta exacta, para que no sea una promesa vaga:
+
+     rg -c --stats 'bg-(white|black|slate|gray|zinc|neutral|stone)-?|text-slate-|border-slate-|blue-[0-9]|red-[0-9]|amber-[0-9]' apps/web/src
+
+   El día que esa cuenta llegue a cero, se descomenta la línea y la prohibición pasa a compilación.
+   Mientras tanto la sostiene `src/design/color-guard.test.ts`.
+
+@theme inline {
+  --color-*: initial;
+}
+*/
+
+/* Textura de inerte. El único gradiente del sistema; cualquier otro `gradient` en el código es
+   una infracción (§4, regla 5). */
+@utility inerte {
+  background-image: var(--trama-inerte);
+  background-size: 5.66px 5.66px;
+}
+
+/* Foco de teclado: masa cromo + eje de tinta de 4 px desplazado.
+   El eje es lo que cumple 1.4.11, no el amarillo: cromo sobre papel claro mide 1.75:1 (medido,
+   `node tools/color/medir-contraste.mjs`). Es la excepción de sombra escrita en 04-color.md §5:
+   una utilidad nombrada, sin difuminado y sin transparencia, no una escala de elevación. */
+@utility foco-cromo {
+  background-color: var(--cromo);
+  color: var(--sobre-cromo);
+  box-shadow: -4px 0 0 0 var(--tinta-principal);
 }
 
 html,

@@ -1,0 +1,39 @@
+/* One Markdown · sistema de color «Cromo» · opción «sistema».
+   Complemento de `tokens-cromo.css`: sin preferencia local guardada, manda el sistema operativo.
+
+   Está en un archivo aparte y **la app todavía no lo importa**. No es un olvido y no es una
+   decisión de diseño distinta: la decisión de `docs/design/04-color.md` §0 sigue siendo
+   `prefers-color-scheme` + override local. Lo que falta es el restyle. Mientras queden usos de la
+   paleta heredada sin migrar, activar esto le daría un oscuro roto a quien tenga el sistema
+   operativo en oscuro sin haber pedido nada.
+
+   Para activarlo, cuando la cuenta de paleta heredada llegue a cero:
+     · `src/index.css` → añadir `@import './styles/tokens-cromo-sistema.css';`
+     · `index.html`    → añadir el script de arranque de 04-color.md §0 (evita el destello)
+     · `AppShell.tsx`  → montar `<TemaSwitcher />` en la cabecera
+
+   El `:not()` es lo que hace que el override local gane siempre, sin `!important` y sin duplicar
+   ni una utilidad de Tailwind. */
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema='claro']):not([data-tema='oscuro']) {
+    color-scheme: dark;
+
+    --sup-base: oklch(0.1901 0.005 100);
+    --sup-elevada: oklch(0.221 0.005 100);
+    --sup-hundida: oklch(0.2467 0.005 100);
+    --sup-superpuesta: oklch(0.279 0.005 100);
+
+    --tinta-principal: oklch(0.9403 0.006 100);
+    --tinta-secundaria: oklch(0.7676 0.006 100);
+    --tinta-tenue: oklch(0.6544 0.006 100);
+    --tinta-desactivada: oklch(0.577 0.006 100);
+
+    --hair-zona: oklch(0.7016 0.006 100);
+    --hair-control: oklch(0.6192 0.006 100);
+    --hair-fila: oklch(0.5532 0.006 100);
+
+    --cromo: oklch(0.8197 0.1605 87.4);
+    --sobre-cromo: oklch(0.2088 0.006 100);
+  }
+}

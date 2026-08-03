@@ -1,0 +1,78 @@
+/* One Markdown · sistema de color «Cromo» · tokens crudos.
+   Fuente normativa: docs/design/04-color.md (sesión de Claude Design, valores cerrados).
+
+   Este archivo es CSS plano a propósito: ni una directiva de Tailwind, ni un `@import`. Así lo
+   puede cargar directamente el navegador (`docs/design/muestra-color.html`), lo puede parsear el
+   medidor (`tools/color/medir-contraste.mjs`) y lo puede leer el guard (`color-guard.test.ts`)
+   sin montar un build. El puente con Tailwind vive en `src/index.css`.
+
+   NINGÚN valor de este archivo se ajusta sin volver a medir. Si un token deja de cumplir su
+   criterio, se para y se avisa; no se corrige por cuenta propia.
+
+   Neutros con matiz explícito y único: H = 100 (cálido, familia del ocre, vecino del primario
+   H ≈ 86 sin ser él). Ningún gris heredado de una paleta ajena. */
+
+:root {
+  color-scheme: light;
+
+  /* Escalera de superficies · 4 escalones, el orden es la distancia al papel.
+     Ninguna llega a L ≥ 0.99 ni baja de L ≤ 0.02: no hay blanco puro ni negro puro. */
+  --sup-base: oklch(0.9666 0.004 100);
+  --sup-elevada: oklch(0.945 0.004 100);
+  --sup-hundida: oklch(0.9268 0.004 100);
+  --sup-superpuesta: oklch(0.904 0.004 100);
+
+  /* Cuatro niveles de tinta. `desactivada` está exenta de 1.4.3 y no se usa como texto activo. */
+  --tinta-principal: oklch(0.2088 0.006 100);
+  --tinta-secundaria: oklch(0.397 0.006 100);
+  --tinta-tenue: oklch(0.4936 0.006 100);
+  --tinta-desactivada: oklch(0.5702 0.006 100);
+
+  /* Tres hairlines · las tres ≥ 3:1 (WCAG 1.4.11) contra las cuatro superficies. */
+  --hair-zona: oklch(0.4542 0.006 100);
+  --hair-control: oklch(0.5282 0.006 100);
+  --hair-fila: oklch(0.592 0.006 100);
+
+  /* Primario · valores distintos en claro y oscuro, mismo croma ±0.003.
+     H ≈ 86: fuera del rango prohibido índigo-violeta-morado (265-320). */
+  --cromo: oklch(0.7927 0.1574 85.3);
+  --sobre-cromo: oklch(0.2088 0.006 100); /* mismo valor en los dos temas: medido, 9.17 y 10.08 */
+
+  /* Textura de inerte · 45°, un solo paso de 4 px. Único gradiente del sistema. */
+  --trama-inerte: repeating-linear-gradient(
+    45deg,
+    transparent 0 2px,
+    var(--tinta-desactivada) 2px 4px
+  );
+}
+
+/* Conmutador explícito. Lo escribe el bootstrap de `index.html` antes del primer pintado. */
+:root[data-tema='oscuro'] {
+  color-scheme: dark;
+
+  --sup-base: oklch(0.1901 0.005 100);
+  --sup-elevada: oklch(0.221 0.005 100);
+  --sup-hundida: oklch(0.2467 0.005 100);
+  --sup-superpuesta: oklch(0.279 0.005 100);
+
+  --tinta-principal: oklch(0.9403 0.006 100);
+  --tinta-secundaria: oklch(0.7676 0.006 100);
+  --tinta-tenue: oklch(0.6544 0.006 100);
+  --tinta-desactivada: oklch(0.577 0.006 100);
+
+  --hair-zona: oklch(0.7016 0.006 100);
+  --hair-control: oklch(0.6192 0.006 100);
+  --hair-fila: oklch(0.5532 0.006 100);
+
+  --cromo: oklch(0.8197 0.1605 87.4);
+  --sobre-cromo: oklch(0.2088 0.006 100);
+}
+
+/* El tercer bloque —«sistema»: sin preferencia guardada manda el sistema operativo— vive aparte,
+   en `tokens-cromo-sistema.css`, y esta app NO lo importa todavía.
+   El motivo está medido, no es prudencia genérica: quedan ~192 usos de la paleta heredada
+   (`slate`, `blue`, `red`) en 26 archivos que aún no se han migrado a tokens. Con el bloque de
+   `prefers-color-scheme` activo, cualquiera que tenga el sistema operativo en oscuro vería el
+   fondo en `#141411` con el texto todavía en `slate-900`, sin haber pedido nada. Se importa el día
+   que el restyle deje esa cuenta a cero; la muestra (`docs/design/muestra-color.html`) sí lo carga
+   ya, y por eso allí funcionan las tres opciones del conmutador. */
