@@ -147,21 +147,14 @@ salida real**. Lo que queda a medias se marca como tal, **con el motivo y el sig
 
 ---
 
-# Anexo · Lecciones medidas en este proyecto — VACIAR AL PORTAR
+# Anexo · Registro de defectos de este proyecto — NO SE PORTA
 
-Cada regla del método —hoy en las skills— salió de un defecto real. Se conservan para que se reconozcan rápido, y **se
-sustituyen por los del proyecto nuevo**.
+Cada regla del método salió de un defecto real, y una regla sin su historia se obedece a medias. Los
+de este repositorio están en **`docs/harness/defectos.md`**: los seis casos del contrato de parada con
+la forma que tomaron aquí, las once reglas del método con su origen, y los defectos del propio
+harness.
 
-| Regla | De dónde salió |
-|---|---|
-| Ningún requisito vive solo en el plan | «Objetivos ≥ 24 × 24 px» estaba en `plan.md` y en la tarea pero **sin AC**; por ese hueco se coló un control de **19,73 × 20 px** (spec `005`). |
-| Ningún número escrito a mano | `AC-30` de la `005` decía «cinco» al lado de una enumeración de **seis**. La `004` contó **14** elementos donde había **16**. |
-| Toda cifra con su ventana | `AC-33` de la `004` fue **cierto por corrida y falso bajo su propio comando** de verificación durante dos specs. |
-| Artefactos completos | La lista se quedó corta **6 veces** (`002` ×2, `004`, `005`, `006` ×2), siempre por olvidar lo que **construye un valor del tipo**. |
-| Córrelo antes de escribirlo | **Tres** comandos `DONE` de la `005` con `test "A|B"`: el filtro de Vitest 4 es **subcadena, no regex**, y salían con `No test files found`. |
-| Valida el instrumento | Un `pico=0` que venía de un `redis-cli` **inexistente** · un «cero 429» de una suite que **no ejecutó ni un caso** · una nota de seguimiento que afirmaba una verificación que **nunca ocurrió**. |
-| De uno en uno | Se borró la carpeta de compilación de un paquete **en paralelo** con la suite que la usaba, y la medición salió limpia y falsa. |
-| Rojo ancho por hambre de máquina | Un caso declaró **7.085 ms** y murió con «timeout de 5.000 ms» corriendo tres paquetes a la vez; solo, el paquete pasaba en 10 s. |
-| Decidir antes de `tasks.md` | La elección entre guardar el texto entero o solo el cambio (spec `006`) se cerró con la aritmética delante **antes** de escribir tareas, y sostuvo la implementación entera sin una corrección. |
-| Las formas exactas, después | `plan.md` de la `006` fijó la forma de un valor que resultó irrelevante, y corregirlo obligó a razonar que normalizarlo habría añadido una rama que **solo su propio test ejercitaría**. |
-| Si te ves implementando, dilo | En la spec `006` el orchestrator implementó **las 10 tareas** porque la configuración impedía usar subagentes. Salió bien, y aun así se perdió el mecanismo que en la `005` encontró **cinco** defectos. |
+**Léelo antes de la primera tarea de una sesión.**
+
+Vive fuera de este archivo a propósito: este archivo pasa a ser **generado** desde `harness.yml`, y el
+registro es del proyecto, no del método. Un proyecto nuevo lo empieza vacío.

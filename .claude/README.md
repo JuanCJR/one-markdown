@@ -11,7 +11,7 @@ versiones la medición que se genera sola (`skill-usage.jsonl`) y los *overrides
 |---|---|---|
 | `skills/` de método | **El método.** Cuatro skills, escritas sin nombrar este proyecto | **Se copian tal cual** |
 | `skills/` de stack | Guías de las tecnologías concretas (de terceros) | Se sustituyen por las del stack nuevo |
-| `agents/` | Quién es cada agente, dónde trabaja, qué skills le tocan | §1 y Anexo se sustituyen |
+| `agents/` | Quién es cada agente, dónde trabaja, qué skills le tocan | §1 se sustituye |
 | `hooks/` | Instrumentación: mide lo que de otro modo se cree por fe | Se copian tal cual |
 
 ## El método está en las skills, no en los agentes
@@ -43,11 +43,15 @@ ya especificadas, en TDD, dentro de su territorio. Cada archivo tiene:
 |---|---|---|
 | §1 Perfil | Dominio, stack, rutas, comandos, skills de stack, reglas de la casa | **Se sustituye entero** |
 | §2 en adelante | Skills de método obligatorias, puertas, rol | **No se toca** |
-| Anexo | Los defectos reales de este proyecto que originaron cada regla | **Se vacía** |
+| Anexo | Un enlace a `docs/harness/defectos.md` | **No se toca** |
 
-El **Anexo** existe porque una regla sin su historia se obedece a medias. «Comprueba que el comando de
-verificación ejecute algo» suena a burocracia hasta que se lee que tres comandos reales salían con
-`No test files found` y nadie lo notó.
+El **registro de defectos** existe porque una regla sin su historia se obedece a medias. «Comprueba que
+el comando de verificación ejecute algo» suena a burocracia hasta que se lee que tres comandos reales
+salían con `No test files found` y nadie lo notó.
+
+Vive en **`docs/harness/defectos.md`**, fuera de los ficheros de agente, porque esos ficheros pasan a
+ser **generados** desde `harness.yml` y un `update` se lo llevaría por delante. El registro es del
+proyecto, no del método: no se genera, no se porta, y un proyecto nuevo lo empieza vacío.
 
 ## La instrumentación
 
@@ -105,7 +109,9 @@ Este hook no revierte nada; solo hace visible cuál de los dos casos está ocurr
    constante `TERRITORIOS` a las rutas del proyecto nuevo.
 2. Copia los tres agentes y reescribe **§1** de cada uno: stack, rutas, comandos, reglas de la casa.
 3. Sustituye las skills **de stack** por las de la tecnología nueva, y actualiza la tabla de §1.
-4. **Vacía el Anexo** de los tres. Se rellena con los defectos del proyecto nuevo cuando ocurran.
+4. **Empieza `docs/harness/defectos.md` vacío.** El enlace del Anexo de los tres agentes no se toca;
+   lo que cambia es el contenido del documento, que se llena con los defectos del proyecto nuevo
+   cuando ocurran.
 5. Ajusta el `description` del *frontmatter* de cada agente: es lo que decide cuándo se invoca.
 6. Si los territorios cambian —no hay backend, o hay tres frontends—, ajusta la tabla de agentes de
    `orchestrator.md` §1 y borra o duplica archivos.

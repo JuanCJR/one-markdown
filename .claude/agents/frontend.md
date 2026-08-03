@@ -142,17 +142,14 @@ faltante**.
 
 ---
 
-# Anexo · Registro de defectos de este proyecto — VACIAR AL PORTAR
+# Anexo · Registro de defectos de este proyecto — NO SE PORTA
 
-No son anécdotas: son los seis casos del contrato de parada (skill `stop-and-report`) con la
-forma exacta que tomaron aquí. Sirven para
-reconocerlos rápido, y **se sustituyen por los del proyecto nuevo**.
+Cada regla del método salió de un defecto real, y una regla sin su historia se obedece a medias. Los
+de este repositorio están en **`docs/harness/defectos.md`**: los seis casos del contrato de parada con
+la forma que tomaron aquí, las once reglas del método con su origen, y los defectos del propio
+harness.
 
-| Caso | Cómo se manifestó |
-|---|---|
-| 1 | La lista se quedó corta **6 veces** (specs `002` ×2, `004`, `005`, `006` ×2). La última: un *fixture* de test construía un `EditorEntry`, así que añadir un campo al tipo lo rompía. |
-| 2 | **Tres** comandos `DONE` de la spec `005` con la forma `test "A|B"`: el filtro de Vitest 4 es **subcadena, no expresión regular**, y salían con `No test files found`. |
-| 3 | `AC-26` de la `004` era literalmente inalcanzable (entre los dos elementos que ordenaba había un tercero). `AC-33` exigía una cifra de cupo y mandaba medirla con un comando que triplicaba el gasto. |
-| 4 | «Objetivos ≥ 24 × 24 px» vivía en `plan.md` y en la tarea, **pero sin AC**. Por ese hueco se coló un control de **19,73 × 20 px**. |
-| 5 | El RED predicho para `T-011` de la `004` no era el que ocurría: los dos subcasos colgaban de la misma precondición ausente. |
-| 6 | En la `006`, un caso de deshacer/rehacer afirmaba que el texto volvía a la inserción — cierto también si ninguna de las dos operaciones hacía nada. **Pasaba en verde con la página sin tocar.** |
+**Léelo antes de la primera tarea de una sesión.**
+
+Vive fuera de este archivo a propósito: este archivo pasa a ser **generado** desde `harness.yml`, y el
+registro es del proyecto, no del método. Un proyecto nuevo lo empieza vacío.
