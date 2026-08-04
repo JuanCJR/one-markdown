@@ -1,5 +1,7 @@
 import { MAX_DOCUMENT_CONTENT_CHARS } from '@one-markdown/shared';
 
+import { EDITOR } from '../../shared/textos/textos';
+
 /**
  * Constantes del editor (plan `003` §3).
  *
@@ -67,6 +69,9 @@ export const DOCUMENT_CONTENT_CONFLICT_CODE = 'DOCUMENT_CONTENT_CONFLICT';
  * presentaba igual un fallo del cliente y uno del servidor, y eso escondió un defecto real hasta
  * que alguien instrumentó. Si esta cadena acaba coincidiendo con la de un rechazo, el editor
  * repite aquel error.
+ *
+ * La cadena vive en `shared/textos/textos.ts` desde la fase 6 —la voz en un sitio—, pero la
+ * constante se queda: lo que este módulo declara no es el texto, es **qué papel juega** ese texto, y
+ * ese papel tiene un test que lo defiende.
  */
-export const UNREACHABLE_SAVE_MESSAGE =
-  'No se pudo contactar con el servidor. Tus cambios siguen aquí; se reintentarán cuando sigas escribiendo.';
+export const UNREACHABLE_SAVE_MESSAGE = EDITOR.sinServidor;

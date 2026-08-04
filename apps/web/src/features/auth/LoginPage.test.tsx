@@ -77,13 +77,17 @@ describe('LoginPage — formulario de credenciales (AC-22)', () => {
     stubApi({});
     renderLogin();
 
-    expect(screen.getByRole('link', { name: /crear (una )?cuenta/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Crear el tuyo' })).toHaveAttribute(
       'href',
       '/register',
     );
   });
 
-  it('muestra el error del servidor en un contenedor role="alert" que recibe el foco', async () => {
+  it('traduce el 401 en vez de reenviar el mensaje del servidor, en un role="alert" con el foco', async () => {
+    // El backend sigue diciendo «Credenciales inválidas» y la pantalla ya **no** lo repite: desde la
+    // fase 6 el cliente mapea por código de estado (regla 15). Se afirman las dos mitades —que
+    // aparece la nuestra y que no aparece la suya—, porque solo la primera pasaría igual si el mapeo
+    // se cayera y la cadena del servidor volviera a colarse con otra redacción.
     stubApi({ 'POST /api/auth/login': () => apiErrorResponse(401, 'Credenciales inválidas') });
     renderLogin();
 
@@ -91,7 +95,8 @@ describe('LoginPage — formulario de credenciales (AC-22)', () => {
     await userEvent.click(screen.getByRole('button', { name: /entrar/i }));
 
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('Credenciales inválidas');
+    expect(alert).toHaveTextContent('El correo o la contraseña no coinciden.');
+    expect(alert).not.toHaveTextContent('Credenciales inválidas');
     expect(alert).toHaveFocus();
   });
 
@@ -105,7 +110,12 @@ describe('LoginPage — formulario de credenciales (AC-22)', () => {
     await fillCredentials();
     await userEvent.click(screen.getByRole('button', { name: /entrar/i }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(/15 minutos/);
+    // Con la cifra **y** con «Nadie ha entrado», que es la mitad del mensaje que faltaba: quien ve
+    // un bloqueo en su cuenta teme dos cosas, y el bloqueo es justamente la prueba de la segunda.
+    const alert = await screen.findByRole('alert');
+
+    expect(alert).toHaveTextContent(/dentro de 15 minutos/);
+    expect(alert).toHaveTextContent('Nadie ha entrado.');
   });
 
   it('deshabilita el botón mientras la petición está en vuelo', async () => {
@@ -295,7 +305,7 @@ describe('LoginPage — paso de segundo factor (AC-23)', () => {
 
     await reachMfaStep();
 
-    await userEvent.click(screen.getByRole('button', { name: /otra cuenta/i }));
+    await userEvent.click(screen.getByRole('button', { name: 'Empezar con otro correo' }));
 
     expect(screen.getByLabelText(/^contraseña$/i)).toBeInTheDocument();
     expect(screen.queryByLabelText(/código de verificación/i)).not.toBeInTheDocument();

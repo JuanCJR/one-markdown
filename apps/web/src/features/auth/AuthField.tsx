@@ -9,8 +9,15 @@ interface AuthFieldProps {
   readonly required?: boolean;
   /** Ayuda permanente (reglas del campo), enlazada con `aria-describedby`. */
   readonly hint?: string;
-  /** Problema concreto de este campo: marca `aria-invalid` y se enlaza también. */
-  readonly problem?: string;
+  /**
+   * Los problemas concretos de este campo: marcan `aria-invalid` y se enlazan también.
+   *
+   * Es una **lista** desde la fase 6, y no una cadena, por lo que pedía §4.4: la contraseña deja de
+   * repetir la regla («No cumple las reglas indicadas») y dice qué falta, un problema por fallo y
+   * con la cifra. Los tres van dentro del **mismo** contenedor referenciado, para que el lector de
+   * pantalla los lea todos al enfocar el campo y no solo el primero.
+   */
+  readonly problems?: readonly string[];
   readonly inputMode?: 'numeric';
   readonly maxLength?: number;
   /**
@@ -29,14 +36,15 @@ export function AuthField({
   onValueChange,
   required = false,
   hint,
-  problem,
+  problems,
   inputMode,
   maxLength,
   autoFocus = false,
 }: AuthFieldProps): React.JSX.Element {
   const hintId = `${id}-hint`;
   const problemId = `${id}-problem`;
-  const describedBy = [hint === undefined ? null : hintId, problem === undefined ? null : problemId]
+  const hasProblems = problems !== undefined && problems.length > 0;
+  const describedBy = [hint === undefined ? null : hintId, hasProblems ? problemId : null]
     .filter((token): token is string => token !== null)
     .join(' ');
 
@@ -56,7 +64,7 @@ export function AuthField({
         inputMode={inputMode}
         maxLength={maxLength}
         autoFocus={autoFocus}
-        aria-invalid={problem === undefined ? undefined : true}
+        aria-invalid={hasProblems ? true : undefined}
         aria-describedby={describedBy === '' ? undefined : describedBy}
         onChange={(event) => {
           onValueChange(event.target.value);
@@ -70,10 +78,12 @@ export function AuthField({
         </p>
       )}
 
-      {problem === undefined ? null : (
-        <p id={problemId} className="mt-1 text-xs font-medium text-tinta">
-          {problem}
-        </p>
+      {!hasProblems ? null : (
+        <div id={problemId} className="mt-1 text-xs font-medium text-tinta">
+          {problems.map((problem) => (
+            <p key={problem}>{problem}</p>
+          ))}
+        </div>
       )}
     </div>
   );

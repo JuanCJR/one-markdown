@@ -43,6 +43,49 @@ todas son reversibles si el producto lo pide, y aquí está lo que costaría.
 | **`Ctrl`+`W` no se usa** para cerrar pestaña | Es atajo reservado del navegador | No aplica |
 | **Sin scroll sincronizado** entre los dos paneles de la vista dividida | Quedó fuera de alcance, sin más razón que el tamaño de la spec | Bajo. **Candidato barato con retorno visible** |
 
+## Marca
+
+Registrado al cerrar la fase 6 de diseño (`docs/design/06-marca.md`), que es cuando el nombre dejó de
+ser una cadena en un `package.json` y pasó a estar dibujado.
+
+| Decisión | Por qué | Coste de revertir |
+|---|---|---|
+| **El producto se llama «One Markdown»** | Es el nombre con el que nació y con el que están escritas las siete specs, el `showi.yml`, el scope de paquetes `@one-markdown` y el repositorio entero | **Bajo en diseño, medio en repositorio.** Ver abajo |
+| **El símbolo no contiene ninguna letra** | Es un corte, no un monograma: no ilustra la palabra «markdown» ni lleva una «O» ni una «M» dentro | No aplica — **es la mitigación** |
+| **El nombre aparece en dos sitios y ninguno es un `h1`**: el bloqueo de la cabecera y el título de la pestaña | Un `h1` fijo con el nombre del producto repetido en las cinco rutas no encabeza nada | Trivial |
+
+### El riesgo de colisión, escrito
+
+**«One Markdown» es un nombre descriptivo, y eso tiene consecuencias conocidas.** No se registra aquí
+como una alarma sino como un dato, para que quien lo revierta algún día sepa qué estaba comprado:
+
+1. **«Markdown» es el nombre de un formato, no una marca del proyecto.** Es el formato que John Gruber
+   publicó en 2004 y su nombre se usa genéricamente en todo el sector. Un nombre construido sobre un
+   término genérico del dominio es **débil como marca**: cuesta registrarlo, cuesta defenderlo, y no
+   impide que otro producto se llame parecido.
+2. **La colisión de búsqueda es alta y estructural.** «Markdown» compite con la documentación del
+   propio formato y con decenas de editores; «one» es de los calificadores más usados que existen. No
+   es un riesgo que se arregle con contenido: es aritmética del nombre.
+3. **Qué NO se ha comprobado, y hace falta antes de cualquier publicación**: búsqueda en registros de
+   marcas, disponibilidad de dominio, y disponibilidad del nombre en las tiendas de aplicaciones. No
+   está hecho, y este documento no finge que sí.
+
+### Por qué se acepta hoy, y qué costaría cambiarlo
+
+Se acepta porque **el producto no está publicado** y porque el coste de renombrar está acotado y es
+conocido:
+
+| Qué habría que tocar | Coste |
+|---|---|
+| Los dos bloqueos (`bloque-horizontal.svg`, `bloque-vertical.svg`, `Marca.tsx`) | **Bajo.** Dos archivos y un componente. El símbolo, el favicon y el icono de aplicación **no se tocan**: no llevan letra |
+| `NOMBRE_APP` en `shared/textos/textos.ts` | Trivial — una constante, y de ahí sale el título de la pestaña y el nombre accesible del bloqueo |
+| La cadena de `ERRORES.desconocido`, que nombra al producto | Trivial, mismo archivo |
+| El scope `@one-markdown`, el nombre del repositorio, `showi.yml`, las siete specs y sus CHANGELOG | **Medio.** Mecánico y ancho: es donde vive el coste de verdad |
+
+**La decisión de diseño que abarata el cambio ya está tomada**: el símbolo es una figura y no una
+letra. Mientras eso siga siendo cierto, renombrar es un trabajo de repositorio y no un rediseño de
+identidad.
+
 ## Postura general
 
 Tres criterios se han sostenido en las siete specs y conviene conocerlos antes de proponer nada:

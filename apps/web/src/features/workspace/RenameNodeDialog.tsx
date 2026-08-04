@@ -8,6 +8,7 @@ import {
   ModalDialog,
 } from './ModalDialog';
 import type { TreeNode } from './tree-nodes';
+import { DIALOGOS } from '../../shared/textos/textos';
 
 /**
  * Renombra un directorio o un documento (AC-29). El campo llega **precargado** con el nombre
@@ -31,7 +32,7 @@ export function RenameNodeDialog({
   const fieldId = useId();
 
   return (
-    <ModalDialog title={`Renombrar «${node.name}»`} onDismiss={onCancel}>
+    <ModalDialog title={DIALOGOS.renombrar.titulo(node.name)} onDismiss={onCancel}>
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -63,11 +64,11 @@ export function RenameNodeDialog({
             disabled={pending}
             className={DIALOG_SECONDARY_CLASS}
           >
-            Cancelar
+            {DIALOGOS.cancelar}
           </button>
 
           <button type="submit" disabled={pending} {...DIALOG_PRIMARY_PROPS}>
-            Guardar
+            {DIALOGOS.renombrar.enviar}
           </button>
         </DialogActions>
       </form>

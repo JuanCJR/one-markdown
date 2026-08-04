@@ -8,6 +8,8 @@ import { AuthSubmitButton } from './AuthPageLayout';
 import { describeAuthError } from './auth.errors';
 import { useAuthStore } from './auth.store';
 import { mfaDisable, mfaEnable, mfaSetup } from '../../shared/api/http';
+import { CODIGO, CREAR_CUENTA, SEGURIDAD } from '../../shared/textos/textos';
+import { useTituloDePestana } from '../../shared/textos/useTituloDePestana';
 
 /**
  * Paso del enrolamiento. El secreto solo existe aquí mientras se confirma: el backend lo guarda
@@ -30,6 +32,8 @@ export function SecurityPage(): React.JSX.Element {
   const [password, setPassword] = useState('');
 
   const mfaEnabled = user?.mfaEnabled ?? false;
+
+  useTituloDePestana(SEGURIDAD.titulo);
 
   const run = async (action: () => Promise<void>): Promise<void> => {
     setBusy(true);
@@ -79,10 +83,15 @@ export function SecurityPage(): React.JSX.Element {
   return (
     <div className="min-h-screen bg-sup-elevada px-4 py-10">
       <main className="mx-auto w-full max-w-xl bg-sup-base p-6">
-        <h1 className="text-xl font-semibold text-tinta">Seguridad de la cuenta</h1>
+        <h1 className="text-xl font-semibold text-tinta">{SEGURIDAD.titulo}</h1>
 
+        {/*
+          El estado va en **una** cadena y no en un tronco más un adjetivo concatenado: partirlo
+          dejaba a un lector de pantalla leyendo «Verificación en dos pasos, dos puntos, activada»,
+          y a quien traduzca mañana, con media frase.
+        */}
         <p role="status" className="mt-2 text-sm text-tinta-secundaria">
-          Verificación en dos pasos: {mfaEnabled ? 'activada' : 'desactivada'}
+          {mfaEnabled ? SEGURIDAD.estadoActivada : SEGURIDAD.estadoDesactivada}
         </p>
 
         <div className="mt-6">
@@ -118,7 +127,7 @@ export function SecurityPage(): React.JSX.Element {
             to="/"
             className="font-medium text-tinta underline hover:bg-tinta hover:text-sup-base"
           >
-            Volver al workspace
+            {SEGURIDAD.volver}
           </Link>
         </p>
       </main>
@@ -147,11 +156,8 @@ function EnrollSection({
   if (setup === null) {
     return (
       <section>
-        <h2 className="text-base font-medium text-tinta">Verificación en dos pasos</h2>
-        <p className="mt-1 mb-4 text-sm text-tinta-secundaria">
-          Añade un código de tu app de autenticación (Google Authenticator, 1Password, Aegis) al
-          iniciar sesión.
-        </p>
+        <h2 className="text-base font-medium text-tinta">{SEGURIDAD.seccion}</h2>
+        <p className="mt-1 mb-4 text-sm text-tinta-secundaria">{SEGURIDAD.invitacion}</p>
         <button
           type="button"
           disabled={busy}
@@ -160,7 +166,7 @@ function EnrollSection({
           data-cromo="primaria"
           className="min-h-11 bg-cromo px-4 py-2 font-black text-sobre-cromo outline-none hover:bg-tinta hover:text-sup-base focus-visible:foco-cromo disabled:cursor-not-allowed disabled:inerte disabled:text-tinta-desactivada"
         >
-          Activar verificación en dos pasos
+          {SEGURIDAD.activar}
         </button>
       </section>
     );
@@ -168,19 +174,17 @@ function EnrollSection({
 
   return (
     <section>
-      <h2 className="text-base font-medium text-tinta">Escanea el código</h2>
+      <h2 className="text-base font-medium text-tinta">{SEGURIDAD.escanea}</h2>
 
       <img
         src={setup.qrCodeDataUrl}
-        alt="Código QR para añadir esta cuenta a tu app de autenticación"
+        alt={SEGURIDAD.altQr}
         width={192}
         height={192}
         className="mt-4 bg-sup-base p-2"
       />
 
-      <p className="mt-4 text-sm text-tinta-secundaria">
-        Si no puedes escanearlo, escribe esta clave en tu app:
-      </p>
+      <p className="mt-4 text-sm text-tinta-secundaria">{SEGURIDAD.claveManual}</p>
       {/* Texto seleccionable, no una imagen: sin esto quien no pueda escanear se queda fuera. */}
       <code className="mt-1 block break-all bg-sup-hundida px-2 py-1 font-mono text-sm text-tinta select-all">
         {setup.secret}
@@ -196,19 +200,19 @@ function EnrollSection({
       >
         <AuthField
           id="enrollCode"
-          label="Código de verificación"
+          label={CODIGO.etiqueta}
           type="text"
           autoComplete="one-time-code"
           inputMode="numeric"
           maxLength={6}
           required
           autoFocus
-          hint="Los 6 dígitos que muestra tu app ahora mismo."
+          hint={SEGURIDAD.ayudaCodigo}
           value={code}
           onValueChange={onCodeChange}
         />
 
-        <AuthSubmitButton busy={busy}>Confirmar</AuthSubmitButton>
+        <AuthSubmitButton busy={busy}>{SEGURIDAD.confirmar}</AuthSubmitButton>
       </form>
     </section>
   );
@@ -217,11 +221,16 @@ function EnrollSection({
 function RecoveryCodes({ codes }: { readonly codes: readonly string[] }): React.JSX.Element {
   return (
     <section>
-      <h2 className="text-base font-medium text-tinta">Códigos de recuperación</h2>
+      <h2 className="text-base font-medium text-tinta">{SEGURIDAD.codigos}</h2>
 
+      {/*
+        Sin `<strong>`: la frase entera va sobre masa de tinta, que es el recurso del sistema para
+        «estado que hay que leer», y una negrita dentro de un negativo no destaca nada — compite.
+        Lo que antes hacía la negrita («no volverás a verlos») ahora lo hace el orden: la
+        consecuencia va la primera.
+      */}
       <div role="alert" className="mt-3 bg-tinta px-3 py-2 text-sm text-sup-base">
-        Guárdalos ahora en un lugar seguro: <strong>no volverás a verlos</strong>. Cada uno sirve
-        una sola vez para entrar si pierdes el teléfono.
+        {SEGURIDAD.avisoCodigos}
       </div>
 
       <ul className="mt-4 grid grid-cols-2 gap-2">
@@ -257,10 +266,8 @@ function DisableSection({
 }: DisableSectionProps): React.JSX.Element {
   return (
     <section>
-      <h2 className="text-base font-medium text-tinta">Desactivar la verificación</h2>
-      <p className="mt-1 mb-4 text-sm text-tinta-secundaria">
-        Se borrarán tu clave TOTP y tus códigos de recuperación, y se cerrarán tus otras sesiones.
-      </p>
+      <h2 className="text-base font-medium text-tinta">{SEGURIDAD.desactivarSeccion}</h2>
+      <p className="mt-1 mb-4 text-sm text-tinta-secundaria">{SEGURIDAD.desactivarAviso}</p>
 
       <form
         noValidate
@@ -271,7 +278,7 @@ function DisableSection({
       >
         <AuthField
           id="disablePassword"
-          label="Contraseña"
+          label={CREAR_CUENTA.contrasena}
           type="password"
           autoComplete="current-password"
           maxLength={128}
@@ -282,18 +289,18 @@ function DisableSection({
 
         <AuthField
           id="disableCode"
-          label="Código de verificación"
+          label={CODIGO.etiqueta}
           type="text"
           autoComplete="one-time-code"
           inputMode="numeric"
           maxLength={9}
           required
-          hint="6 dígitos, o uno de tus códigos de recuperación."
+          hint={CODIGO.formato}
           value={code}
           onValueChange={onCodeChange}
         />
 
-        <AuthSubmitButton busy={busy}>Desactivar verificación en dos pasos</AuthSubmitButton>
+        <AuthSubmitButton busy={busy}>{SEGURIDAD.desactivar}</AuthSubmitButton>
       </form>
     </section>
   );

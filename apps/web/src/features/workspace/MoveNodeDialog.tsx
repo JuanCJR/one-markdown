@@ -8,6 +8,7 @@ import {
 } from './ModalDialog';
 import { collectDescendantDirectoryIds, listDirectoryPaths, type TreeNode } from './tree-nodes';
 import { useWorkspaceStore } from './workspace.store';
+import { DIALOGOS } from '../../shared/textos/textos';
 
 /**
  * Mueve un directorio o un documento a otro punto del árbol (AC-30).
@@ -64,7 +65,7 @@ export function MoveNodeDialog({
   const fieldId = useId();
 
   return (
-    <ModalDialog title={`Mover «${node.name}»`} onDismiss={onCancel}>
+    <ModalDialog title={DIALOGOS.mover.titulo(node.name)} onDismiss={onCancel}>
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -72,7 +73,7 @@ export function MoveNodeDialog({
         }}
       >
         <label htmlFor={fieldId} className="mb-1 block text-sm font-medium text-tinta">
-          Destino
+          {DIALOGOS.mover.destino}
         </label>
 
         <select
@@ -85,7 +86,7 @@ export function MoveNodeDialog({
           }}
           className="block min-h-10 w-full border border-hair-control bg-sup-base px-2 py-2 text-sm outline-none focus:border-tinta"
         >
-          <option value={ROOT_VALUE}>Raíz</option>
+          <option value={ROOT_VALUE}>{DIALOGOS.mover.raiz}</option>
 
           {destinations.map((option) => (
             <option key={option.id} value={option.id}>
@@ -101,11 +102,11 @@ export function MoveNodeDialog({
             disabled={pending}
             className={DIALOG_SECONDARY_CLASS}
           >
-            Cancelar
+            {DIALOGOS.cancelar}
           </button>
 
           <button type="submit" disabled={pending} {...DIALOG_PRIMARY_PROPS}>
-            Mover
+            {DIALOGOS.mover.enviar}
           </button>
         </DialogActions>
       </form>

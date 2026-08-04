@@ -67,17 +67,41 @@ describe('RegisterPage (AC-22)', () => {
     );
   });
 
-  it('avisa de una contraseña demasiado corta sin gastar una petición', async () => {
+  it('dice CUÁNTOS caracteres faltan, en el campo, sin gastar una petición', async () => {
+    // La fase 6 retira «No cumple las reglas indicadas» y la repetición de la regla como error
+    // (§4.4): quien escribió seis caracteres necesita saber que le faltan **seis**, y contarlos a
+    // mano en un campo de contraseña es imposible porque los puntos no se cuentan.
+    //
+    // Y el problema vive **en el campo**, no en el aviso de cabecera: ese queda para lo que viene
+    // del servidor. Se afirma que el campo lo describe, que es lo que oye un lector de pantalla.
     const api = stubApi({});
     renderRegister();
 
     await userEvent.type(screen.getByLabelText(/correo electrónico/i), 'nueva@example.test');
     await userEvent.type(screen.getByLabelText(/^contraseña$/i), 'corta1');
-    await userEvent.click(screen.getByRole('button', { name: /crear cuenta/i }));
+    await userEvent.click(screen.getByRole('button', { name: /crear (el archivo|tu archivo)/i }));
 
     const password = screen.getByLabelText(/^contraseña$/i);
+
     expect(password).toHaveAttribute('aria-invalid', 'true');
-    expect(screen.getByRole('alert')).toHaveTextContent(/12/);
+    expect(password).toHaveAccessibleDescription(/Te faltan 6 caracteres\./);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(api.calls).toHaveLength(0);
+  });
+
+  it('enumera un problema por fallo: la cifra que falta, la letra y el número', async () => {
+    const api = stubApi({});
+    renderRegister();
+
+    await userEvent.type(screen.getByLabelText(/correo electrónico/i), 'nueva@example.test');
+    await userEvent.type(screen.getByLabelText(/^contraseña$/i), '....');
+    await userEvent.click(screen.getByRole('button', { name: /crear (el archivo|tu archivo)/i }));
+
+    const descripcion = screen.getByLabelText(/^contraseña$/i);
+
+    expect(descripcion).toHaveAccessibleDescription(/Te faltan 8 caracteres\./);
+    expect(descripcion).toHaveAccessibleDescription(/Añade una letra\./);
+    expect(descripcion).toHaveAccessibleDescription(/Añade un número\./);
     expect(api.calls).toHaveLength(0);
   });
 
@@ -88,7 +112,7 @@ describe('RegisterPage (AC-22)', () => {
     renderRegister();
 
     await fillValidForm();
-    await userEvent.click(screen.getByRole('button', { name: /crear cuenta/i }));
+    await userEvent.click(screen.getByRole('button', { name: /crear (el archivo|tu archivo)/i }));
 
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('El correo ya está registrado');
@@ -102,7 +126,7 @@ describe('RegisterPage (AC-22)', () => {
 
     await fillValidForm();
 
-    const submit = screen.getByRole('button', { name: /crear cuenta/i });
+    const submit = screen.getByRole('button', { name: /crear (el archivo|tu archivo)/i });
     await userEvent.click(submit);
 
     expect(submit).toBeDisabled();
@@ -122,7 +146,7 @@ describe('RegisterPage (AC-22)', () => {
 
     await userEvent.type(screen.getByLabelText(/nombre/i), 'Ada');
     await fillValidForm();
-    await userEvent.click(screen.getByRole('button', { name: /crear cuenta/i }));
+    await userEvent.click(screen.getByRole('button', { name: /crear (el archivo|tu archivo)/i }));
 
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/');
@@ -139,7 +163,7 @@ describe('RegisterPage (AC-22)', () => {
     renderRegister();
 
     await fillValidForm();
-    await userEvent.click(screen.getByRole('button', { name: /crear cuenta/i }));
+    await userEvent.click(screen.getByRole('button', { name: /crear (el archivo|tu archivo)/i }));
 
     await waitFor(() => {
       expect(api.calls[0]?.body).toEqual({

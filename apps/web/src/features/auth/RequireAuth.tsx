@@ -1,6 +1,7 @@
 import { Navigate, Outlet, useLocation } from 'react-router';
 
 import { useAuthStore } from './auth.store';
+import { ERRORES } from '../../shared/textos/textos';
 
 /**
  * Puerta de las rutas protegidas (AC-22).
@@ -17,7 +18,7 @@ export function RequireAuth(): React.JSX.Element {
     return (
       <main className="flex min-h-screen items-center justify-center bg-sup-elevada">
         <p role="status" className="text-sm text-tinta-secundaria">
-          Comprobando tu sesión…
+          {ERRORES.comprobandoSesion}
         </p>
       </main>
     );

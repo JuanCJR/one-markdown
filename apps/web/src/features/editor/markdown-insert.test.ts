@@ -12,12 +12,11 @@ import type { PaletteBehaviour, PaletteElement, PaletteGroup } from './markdown-
 
 /**
  * Un elemento del catálogo reducido a lo que el núcleo mira: su `id` y su comportamiento. El rótulo
- * y la descripción son contrato de interfaz y los afirma `markdown-palette.test.ts` (AC-16); aquí
- * serían ruido. Lo que **sí** viene literal de `spec.md` §6 son los marcadores, los marcadores de
+ * es contrato de interfaz y lo afirma `markdown-palette.test.ts` (AC-16); aquí sería ruido. Lo que **sí** viene literal de `spec.md` §6 son los marcadores, los marcadores de
  * posición, los prefijos y las plantillas: son las cadenas que acaban en el documento.
  */
 function element(id: string, group: PaletteGroup, behaviour: PaletteBehaviour): PaletteElement {
-  return { id, label: id, description: `Elemento ${id}`, group, behaviour };
+  return { id, label: id, group, behaviour };
 }
 
 const bold = element('bold', 'format', {

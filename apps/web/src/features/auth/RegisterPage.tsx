@@ -6,14 +6,14 @@ import { AuthFormError } from './AuthFormError';
 import { AuthPageLayout, AuthSubmitButton } from './AuthPageLayout';
 import { useAuthStore } from './auth.store';
 import { readRedirectTarget } from './redirect-target';
+import { CREAR_CUENTA, problemasDeContrasena } from '../../shared/textos/textos';
 
-const PASSWORD_RULE =
-  'La contraseña debe tener al menos 12 caracteres e incluir una letra y un número.';
-
-/** Mismas reglas que `RegisterRequestDto`: avisar aquí evita una ida y vuelta segura de fallar. */
-function isPasswordAcceptable(password: string): boolean {
-  return password.length >= 12 && /[A-Za-z]/.test(password) && /\d/.test(password);
-}
+/**
+ * Las reglas de la contraseña ya no viven aquí: `problemasDeContrasena` las tiene y devuelve **qué
+ * falta**, no si vale. La comprobación se hace preguntando si esa lista está vacía, así que la regla
+ * y el mensaje no pueden separarse — que es exactamente cómo la fase 0 acabó con una sola cadena
+ * sirviendo de ayuda y de error a la vez.
+ */
 
 export function RegisterPage(): React.JSX.Element {
   const status = useAuthStore((state) => state.status);
@@ -27,7 +27,9 @@ export function RegisterPage(): React.JSX.Element {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
-  const [passwordRejected, setPasswordRejected] = useState(false);
+  // Qué le faltaba a la contraseña **en el último envío**, no mientras se teclea: señalar tres
+  // problemas a quien va por el cuarto carácter es regañar por adelantado.
+  const [passwordProblems, setPasswordProblems] = useState<readonly string[]>([]);
 
   useEffect(() => {
     if (status === 'authenticated') {
@@ -36,13 +38,17 @@ export function RegisterPage(): React.JSX.Element {
   }, [status, destination, navigate]);
 
   const busy = status === 'authenticating';
-  const message = passwordRejected ? PASSWORD_RULE : serverError;
+  // El aviso de cabecera queda para lo que viene del servidor. Lo que le falta a la contraseña se
+  // dice **en su campo**, que es donde se arregla, y por eso ya no hay una cadena que sirva para las
+  // dos cosas.
+  const message = serverError;
 
   const submit = (): void => {
-    const acceptable = isPasswordAcceptable(password);
-    setPasswordRejected(!acceptable);
+    const problems = problemasDeContrasena(password);
 
-    if (!acceptable) {
+    setPasswordProblems(problems);
+
+    if (problems.length > 0) {
       return;
     }
 
@@ -58,15 +64,15 @@ export function RegisterPage(): React.JSX.Element {
 
   return (
     <AuthPageLayout
-      title="Crear cuenta"
+      title={CREAR_CUENTA.titulo}
       footer={
         <>
-          ¿Ya tienes cuenta?{' '}
+          {CREAR_CUENTA.pie}{' '}
           <Link
             to="/login"
             className="font-medium text-tinta underline hover:bg-tinta hover:text-sup-base"
           >
-            Iniciar sesión
+            {CREAR_CUENTA.entrar}
           </Link>
         </>
       }
@@ -82,7 +88,7 @@ export function RegisterPage(): React.JSX.Element {
       >
         <AuthField
           id="email"
-          label="Correo electrónico"
+          label={CREAR_CUENTA.correo}
           type="email"
           autoComplete="email"
           maxLength={254}
@@ -93,20 +99,20 @@ export function RegisterPage(): React.JSX.Element {
 
         <AuthField
           id="password"
-          label="Contraseña"
+          label={CREAR_CUENTA.contrasena}
           type="password"
           autoComplete="new-password"
           maxLength={128}
           required
-          hint={PASSWORD_RULE}
+          hint={CREAR_CUENTA.ayudaContrasena}
           value={password}
           onValueChange={setPassword}
-          {...(passwordRejected ? { problem: 'No cumple las reglas indicadas.' } : {})}
+          problems={passwordProblems}
         />
 
         <AuthField
           id="displayName"
-          label="Nombre (opcional)"
+          label={CREAR_CUENTA.nombre}
           type="text"
           autoComplete="name"
           maxLength={80}
@@ -114,7 +120,7 @@ export function RegisterPage(): React.JSX.Element {
           onValueChange={setDisplayName}
         />
 
-        <AuthSubmitButton busy={busy}>Crear cuenta</AuthSubmitButton>
+        <AuthSubmitButton busy={busy}>{CREAR_CUENTA.enviar}</AuthSubmitButton>
       </form>
     </AuthPageLayout>
   );

@@ -46,6 +46,9 @@ function entry(overrides: Partial<EditorEntry> = {}): EditorEntry {
     draft: '# Hola\n',
     contentVersion: 0,
     status: 'clean',
+    // Añadido por la fase 6: `EditorEntry` gana la hora del último guardado confirmado, y este
+    // *fixture* construye un valor del tipo, así que entra en el radio del cambio.
+    savedAt: null,
     viewMode: 'text',
     error: null,
     serverContent: null,

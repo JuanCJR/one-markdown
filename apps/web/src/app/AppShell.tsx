@@ -3,7 +3,9 @@ import { Link, Outlet } from 'react-router';
 import { useAuthStore } from '../features/auth/auth.store';
 import { DocumentTabs, EDITOR_PANEL_ID } from '../features/editor/DocumentTabs';
 import { WorkspaceTreeView } from '../features/workspace/WorkspaceTreeView';
+import { BloqueHorizontal } from '../shared/marca/Marca';
 import { useUiStore } from '../shared/store/ui.store';
+import { SHELL } from '../shared/textos/textos';
 import { TemaSwitcher } from '../shared/theme/TemaSwitcher';
 
 /**
@@ -20,7 +22,7 @@ export function AppShell(): React.JSX.Element {
   return (
     <div className="flex h-full min-h-screen bg-sup-base text-tinta">
       <nav
-        aria-label="Árbol de documentos"
+        aria-label={SHELL.navegacion}
         className={`flex shrink-0 flex-col bg-sup-elevada transition-[width] ${
           sidebarCollapsed ? 'w-14' : 'w-64'
         }`}
@@ -32,7 +34,7 @@ export function AppShell(): React.JSX.Element {
           aria-controls="document-tree"
           className="m-2 px-2 py-1 text-left text-sm text-tinta-secundaria hover:bg-tinta hover:text-sup-base"
         >
-          {sidebarCollapsed ? 'Mostrar barra lateral' : 'Ocultar barra lateral'}
+          {sidebarCollapsed ? SHELL.mostrarEstructura : SHELL.ocultarEstructura}
         </button>
 
         <div
@@ -46,7 +48,14 @@ export function AppShell(): React.JSX.Element {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
-          <h1 className="text-lg font-semibold">One Markdown</h1>
+          {/*
+            **Aquí ya no hay `h1`.** El `h1` de cada pantalla es el nombre del documento abierto
+            (R7), y el nombre de la aplicación vive en dos sitios: este bloqueo y el título de la
+            pestaña. Un `h1` fijo con el nombre del producto repetido en las cinco rutas no encabeza
+            nada: quien recorre los encabezados con un lector de pantalla oía «One Markdown» y tenía
+            que seguir bajando para averiguar dónde estaba.
+          */}
+          <BloqueHorizontal className="flex items-center" />
 
           <div className="flex items-center gap-4 text-sm">
             {/*
@@ -63,7 +72,7 @@ export function AppShell(): React.JSX.Element {
               to="/settings/security"
               className=" px-1 font-medium text-tinta underline outline-none hover:bg-tinta hover:text-sup-base focus-visible:foco-cromo"
             >
-              Seguridad
+              {SHELL.seguridad}
             </Link>
 
             <button
@@ -73,7 +82,7 @@ export function AppShell(): React.JSX.Element {
               }}
               className="min-h-9 border border-hair-control px-3 py-1 font-medium text-tinta-secundaria outline-none hover:bg-tinta hover:text-sup-base focus-visible:foco-cromo"
             >
-              Cerrar sesión
+              {SHELL.cerrarSesion}
             </button>
           </div>
         </header>

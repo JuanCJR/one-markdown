@@ -64,6 +64,19 @@ export interface EditorEntry {
   /** Token de concurrencia: el `contentVersion` que se enviará en el guardado siguiente. */
   readonly contentVersion: number;
   readonly status: SaveStatus;
+  /**
+   * Cuándo confirmó el servidor el último guardado, en milisegundos, o `null` si en esta sesión no
+   * se ha guardado nada todavía.
+   *
+   * Existe desde la fase 6 porque el estado limpio pasa a decir «Guardado 14:32» y no «Guardado»:
+   * la hora es la diferencia entre «no hay nada pendiente» y «lo que hay en pantalla llegó al
+   * servidor **hace un momento**», que es lo que de verdad se está preguntando al mirar ahí.
+   *
+   * `null` y no la hora de apertura: un documento recién abierto está limpio porque nadie lo ha
+   * tocado, no porque se haya guardado. Ponerle la hora del momento diría que ocurrió algo que no
+   * ocurrió, y el rótulo se degrada solo a «Guardado» a secas (`shared/textos/textos.ts`).
+   */
+  readonly savedAt: number | null;
   /** Modo del conmutador de este documento. Estado de interfaz: no viaja al servidor. */
   readonly viewMode: ViewMode;
   /** Mensaje para la persona. En `rejected` es el del servidor; en `unreachable`, el nuestro. */
@@ -328,6 +341,7 @@ export const useEditorStore = create<EditorState>()((set, get) => {
         savedContent: sent,
         contentVersion: saved.contentVersion,
         status: after.draft === sent ? 'clean' : 'dirty',
+        savedAt: Date.now(),
         error: null,
         serverContent: null,
         serverVersion: null,
@@ -421,6 +435,8 @@ export const useEditorStore = create<EditorState>()((set, get) => {
           draft: document.content,
           contentVersion: document.contentVersion,
           status: 'clean',
+          // Recién leído: está limpio, pero **no** se ha guardado en esta sesión.
+          savedAt: null,
           viewMode: 'text',
           error: null,
           serverContent: null,
@@ -633,6 +649,9 @@ export const useEditorStore = create<EditorState>()((set, get) => {
           contentVersion: current.contentVersion,
           draft: mine,
           status: mine === current.content ? 'clean' : 'dirty',
+          // Lo que hay ahora es del servidor y no lo hemos escrito nosotros: no sabemos cuándo se
+          // guardó, así que no se inventa una hora. El rótulo cae a «Guardado» a secas.
+          savedAt: null,
           error: null,
           serverContent: null,
           serverVersion: null,
@@ -661,6 +680,9 @@ export const useEditorStore = create<EditorState>()((set, get) => {
         draft: entry.serverContent,
         contentVersion: entry.serverVersion,
         status: 'clean',
+        // Mismo caso que en `resolveKeepMine`: se adopta un texto que guardó el servidor en un
+        // momento que este cliente no presenció.
+        savedAt: null,
         error: null,
         serverContent: null,
         serverVersion: null,

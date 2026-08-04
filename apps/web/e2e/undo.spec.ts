@@ -90,7 +90,7 @@ test.describe('Deshacer en el navegador (AC-32, AC-33)', () => {
     const id = await createDocument(page, authorization, title);
 
     await page.goto(`/documents/${id}`);
-    await expect(page.getByRole('heading', { level: 2, name: title })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
 
     const editor = textarea(page, title);
     const typed = 'hola mundo';

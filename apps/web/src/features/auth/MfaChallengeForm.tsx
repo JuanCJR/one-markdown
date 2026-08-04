@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { AuthField } from './AuthField';
 import { AuthSubmitButton } from './AuthPageLayout';
 import { useAuthStore } from './auth.store';
+import { CODIGO } from '../../shared/textos/textos';
 
 /**
  * Segundo paso del login: la contraseña ya se validó y el servidor entregó un `mfaToken` de vida
@@ -25,13 +26,11 @@ export function MfaChallengeForm(): React.JSX.Element {
         void verifyMfa(code.trim());
       }}
     >
-      <p className="mb-4 text-sm text-tinta-secundaria">
-        Tu cuenta tiene verificación en dos pasos. Escribe el código de tu app de autenticación.
-      </p>
+      <p className="mb-4 text-sm text-tinta-secundaria">{CODIGO.ayuda}</p>
 
       <AuthField
         id="mfaCode"
-        label="Código de verificación"
+        label={CODIGO.etiqueta}
         type="text"
         autoComplete="one-time-code"
         inputMode="numeric"
@@ -39,19 +38,19 @@ export function MfaChallengeForm(): React.JSX.Element {
         maxLength={9}
         required
         autoFocus
-        hint="6 dígitos, o uno de tus códigos de recuperación."
+        hint={CODIGO.formato}
         value={code}
         onValueChange={setCode}
       />
 
-      <AuthSubmitButton busy={busy}>Verificar</AuthSubmitButton>
+      <AuthSubmitButton busy={busy}>{CODIGO.verificar}</AuthSubmitButton>
 
       <button
         type="button"
         onClick={cancelMfa}
         className="mt-3 min-h-11 w-full px-4 py-2 text-sm text-tinta-secundaria underline outline-none hover:text-tinta focus-visible:foco-cromo"
       >
-        Entrar con otra cuenta
+        {CODIGO.otroCorreo}
       </button>
     </form>
   );

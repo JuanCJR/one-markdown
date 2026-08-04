@@ -92,10 +92,18 @@ export type PaletteBehaviour = InlineBehaviour | LinePrefixBehaviour | BlockBeha
 /** Un elemento de la paleta, tal y como lo pinta la interfaz y lo aplica el núcleo. */
 export interface PaletteElement {
   readonly id: string;
-  /** Rótulo en castellano. Es el nombre accesible del botón (AC-24). */
+  /**
+   * Rótulo en castellano. Es el nombre accesible del botón (AC-24) y, desde la fase 6, **lo único**
+   * que nombra al elemento: el `title` se retiró con los otros diecinueve del producto.
+   *
+   * Tres de los dieciséis cambiaron ahí mismo, y los tres por la misma razón —pedían vocabulario que
+   * la persona a la que servimos no tiene—: «Código en línea» pasó a `Código`, «Bloque de código» a
+   * `Código en bloque` y «Lista de tareas» a `Lista de cosas por hacer`.
+   *
+   * Lo que **no** cambió es el marcador que acaba dentro del documento (`placeholder`, `render`):
+   * eso es contrato de producto y lo afirma entero `markdown-palette.test.ts`.
+   */
   readonly label: string;
-  /** Frase de ayuda; es el `title` del botón. */
-  readonly description: string;
   readonly group: PaletteGroup;
   /**
    * Tecla del atajo, en minúscula y tal y como llega en `KeyboardEvent.key`. El modificador es
@@ -136,7 +144,6 @@ export const MARKDOWN_PALETTE: readonly PaletteElement[] = [
   {
     id: 'bold',
     label: 'Negrita',
-    description: 'Resalta el texto en negrita',
     group: 'format',
     shortcut: 'b',
     behaviour: {
@@ -149,7 +156,6 @@ export const MARKDOWN_PALETTE: readonly PaletteElement[] = [
   {
     id: 'italic',
     label: 'Cursiva',
-    description: 'Pone el texto en cursiva',
     group: 'format',
     shortcut: 'i',
     behaviour: {
@@ -162,7 +168,6 @@ export const MARKDOWN_PALETTE: readonly PaletteElement[] = [
   {
     id: 'strikethrough',
     label: 'Tachado',
-    description: 'Tacha el texto',
     group: 'format',
     behaviour: {
       kind: 'inline',
@@ -173,8 +178,7 @@ export const MARKDOWN_PALETTE: readonly PaletteElement[] = [
   },
   {
     id: 'inlineCode',
-    label: 'Código en línea',
-    description: 'Marca un fragmento como código',
+    label: 'Código',
     group: 'format',
     behaviour: {
       kind: 'inline',
@@ -186,7 +190,6 @@ export const MARKDOWN_PALETTE: readonly PaletteElement[] = [
   {
     id: 'heading1',
     label: 'Encabezado 1',
-    description: 'Título de primer nivel',
     group: 'textBlocks',
     behaviour: {
       kind: 'linePrefix',
@@ -198,7 +201,6 @@ export const MARKDOWN_PALETTE: readonly PaletteElement[] = [
   {
     id: 'heading2',
     label: 'Encabezado 2',
-    description: 'Título de segundo nivel',
     group: 'textBlocks',
     behaviour: {
       kind: 'linePrefix',
@@ -210,7 +212,6 @@ export const MARKDOWN_PALETTE: readonly PaletteElement[] = [
   {
     id: 'heading3',
     label: 'Encabezado 3',
-    description: 'Título de tercer nivel',
     group: 'textBlocks',
     behaviour: {
       kind: 'linePrefix',
@@ -222,7 +223,6 @@ export const MARKDOWN_PALETTE: readonly PaletteElement[] = [
   {
     id: 'quote',
     label: 'Cita',
-    description: 'Convierte la línea en una cita',
     group: 'textBlocks',
     behaviour: {
       kind: 'linePrefix',
@@ -234,7 +234,6 @@ export const MARKDOWN_PALETTE: readonly PaletteElement[] = [
   {
     id: 'bulletList',
     label: 'Lista con viñetas',
-    description: 'Convierte las líneas en una lista con viñetas',
     group: 'textBlocks',
     behaviour: {
       kind: 'linePrefix',
@@ -246,7 +245,6 @@ export const MARKDOWN_PALETTE: readonly PaletteElement[] = [
   {
     id: 'numberedList',
     label: 'Lista numerada',
-    description: 'Convierte las líneas en una lista numerada',
     group: 'textBlocks',
     behaviour: {
       kind: 'linePrefix',
@@ -257,8 +255,7 @@ export const MARKDOWN_PALETTE: readonly PaletteElement[] = [
   },
   {
     id: 'taskList',
-    label: 'Lista de tareas',
-    description: 'Convierte las líneas en tareas por hacer',
+    label: 'Lista de cosas por hacer',
     group: 'textBlocks',
     behaviour: {
       kind: 'linePrefix',
@@ -270,7 +267,6 @@ export const MARKDOWN_PALETTE: readonly PaletteElement[] = [
   {
     id: 'link',
     label: 'Enlace',
-    description: 'Inserta un enlace',
     group: 'insert',
     shortcut: 'k',
     behaviour: {
@@ -284,7 +280,6 @@ export const MARKDOWN_PALETTE: readonly PaletteElement[] = [
   {
     id: 'image',
     label: 'Imagen',
-    description: 'Inserta una imagen',
     group: 'insert',
     behaviour: {
       kind: 'inline',
@@ -296,8 +291,7 @@ export const MARKDOWN_PALETTE: readonly PaletteElement[] = [
   },
   {
     id: 'codeBlock',
-    label: 'Bloque de código',
-    description: 'Inserta un bloque de código',
+    label: 'Código en bloque',
     group: 'insert',
     behaviour: {
       kind: 'block',
@@ -314,7 +308,6 @@ export const MARKDOWN_PALETTE: readonly PaletteElement[] = [
   {
     id: 'table',
     label: 'Tabla',
-    description: 'Inserta una tabla de 3 columnas',
     group: 'insert',
     behaviour: {
       kind: 'block',
@@ -331,7 +324,6 @@ export const MARKDOWN_PALETTE: readonly PaletteElement[] = [
   {
     id: 'divider',
     label: 'Separador',
-    description: 'Inserta una línea separadora',
     group: 'insert',
     behaviour: {
       kind: 'block',

@@ -163,10 +163,36 @@ export function listDirectoryPaths(
  * es lo que la confirmación tiene que nombrar antes de mandar `recursive=true`.
  */
 export function countSubtreeNodes(source: SubtreeSource, directoryId: string): number {
+  const { directories, documents } = countSubtreeByKind(source, directoryId);
+
+  return directories + documents;
+}
+
+/** Lo mismo, **repartido por tipo**. Es el desglose que enseña la confirmación de borrado. */
+export interface SubtreeCount {
+  readonly directories: number;
+  readonly documents: number;
+}
+
+/**
+ * El reparto por tipo del subárbol, él no incluido.
+ *
+ * Existe porque desde la fase 6 el aviso de borrado dice «dentro hay 12 elementos: 3 carpetas y 9
+ * documentos» en vez de un total pelado. Los dos números no son cosmética: borrar tres carpetas no
+ * es lo mismo que borrar tres notas sueltas, y quien confirma tiene derecho a saber cuál de las dos
+ * cosas está a punto de hacer.
+ *
+ * `countSubtreeNodes` se deriva de aquí y no al revés, para que el total y el desglose no puedan
+ * discrepar: dos recorridos del mismo árbol es cómo un aviso acaba diciendo 12 arriba y 13 abajo.
+ */
+export function countSubtreeByKind(source: SubtreeSource, directoryId: string): SubtreeCount {
   const descendants = collectDescendantDirectoryIds(source, directoryId);
 
-  return [directoryId, ...descendants].reduce(
-    (total, id) => total + (source.childDocumentIds[id] ?? []).length,
-    descendants.length,
-  );
+  return {
+    directories: descendants.length,
+    documents: [directoryId, ...descendants].reduce(
+      (total, id) => total + (source.childDocumentIds[id] ?? []).length,
+      0,
+    ),
+  };
 }

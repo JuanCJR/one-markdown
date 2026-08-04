@@ -49,17 +49,19 @@ test.describe('Flujo de autenticación en el navegador (AC-25)', () => {
 
     // 1. Registro desde el formulario.
     await page.goto('/register');
-    await expect(page.getByRole('heading', { level: 1, name: 'Crear cuenta' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Crear tu archivo' })).toBeVisible();
 
     await page.getByLabel('Correo electrónico').fill(email);
     await page.getByLabel('Contraseña').fill(E2E_PASSWORD);
-    await page.getByLabel('Nombre (opcional)').fill('Persona E2E');
-    await page.getByRole('button', { name: 'Crear cuenta' }).click();
+    await page.getByLabel('Nombre (opcional, solo lo ves tú)').fill('Persona E2E');
+    await page.getByRole('button', { name: 'Crear el archivo' }).click();
 
     // 2. La ruta protegida se ve, y con la identidad recién creada.
-    const shellHeading = page.getByRole('heading', { level: 1, name: 'One Markdown' });
+    // Ya no hay `h1` con el nombre del producto: el marcador de «estoy dentro del shell» es el
+    // bloqueo de la cabecera (fase 6, §4.1).
+    const shellMark = page.getByRole('banner').getByRole('img', { name: 'One Markdown' });
 
-    await expect(shellHeading).toBeVisible();
+    await expect(shellMark).toBeAttached();
     await expect(page.getByText(email)).toBeVisible();
     await expect(page).toHaveURL('/');
 
@@ -68,21 +70,23 @@ test.describe('Flujo de autenticación en el navegador (AC-25)', () => {
 
     // 3. Cerrar sesión devuelve al formulario de entrada.
     await page.getByRole('button', { name: 'Cerrar sesión' }).click();
-    await expect(page.getByRole('heading', { level: 1, name: 'Iniciar sesión' })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Entrar en tu archivo' }),
+    ).toBeVisible();
 
     // 4. Volver a entrar con las mismas credenciales.
     await page.getByLabel('Correo electrónico').fill(email);
     await page.getByLabel('Contraseña').fill(E2E_PASSWORD);
     await page.getByRole('button', { name: 'Entrar' }).click();
 
-    await expect(shellHeading).toBeVisible();
+    await expect(shellMark).toBeAttached();
     await expect(page).toHaveURL('/');
 
     // 5. La recarga tira el access token (vive solo en memoria) y la sesión se recupera sola con la
     //    cookie de refresh: si el refresh silencioso no funcionara, aquí acabaríamos en `/login`.
     await page.reload();
 
-    await expect(shellHeading).toBeVisible();
+    await expect(shellMark).toBeAttached();
     await expect(page.getByText(email)).toBeVisible();
     await expect(page).toHaveURL('/');
 

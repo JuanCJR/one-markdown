@@ -40,7 +40,9 @@ describe('RequireAuth (AC-22)', () => {
 
     expect(screen.getByRole('status')).toHaveTextContent(/comprobando tu sesión/i);
     expect(router.state.location.pathname).toBe('/documentos/uno');
-    expect(screen.queryByRole('heading', { name: /iniciar sesión/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: /entrar en tu archivo/i }),
+    ).not.toBeInTheDocument();
   });
 
   it('sin sesión, una ruta protegida redirige a /login', async () => {
@@ -51,7 +53,9 @@ describe('RequireAuth (AC-22)', () => {
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/login');
     });
-    expect(screen.getByRole('heading', { level: 1, name: /iniciar sesión/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { level: 1, name: /entrar en tu archivo/i }),
+    ).toBeInTheDocument();
   });
 
   it('al autenticarse aterriza en el destino que se pidió originalmente', async () => {
@@ -98,9 +102,13 @@ describe('RequireAuth (AC-22)', () => {
 
   it('/login y /register son públicas: no esperan ni redirigen con el estado desconocido', () => {
     expect(renderAt('/login').state.location.pathname).toBe('/login');
-    expect(screen.getByRole('heading', { level: 1, name: /iniciar sesión/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { level: 1, name: /entrar en tu archivo/i }),
+    ).toBeInTheDocument();
 
     expect(renderAt('/register').state.location.pathname).toBe('/register');
-    expect(screen.getByRole('heading', { level: 1, name: /crear cuenta/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { level: 1, name: /crear (el archivo|tu archivo)/i }),
+    ).toBeInTheDocument();
   });
 });

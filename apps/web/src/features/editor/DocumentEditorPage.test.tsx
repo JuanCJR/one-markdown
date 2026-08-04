@@ -71,7 +71,7 @@ const SERVER_VERSION = 3;
 const OTHER_TAB_TEXT = '# Lo que escribió la otra pestaña\n';
 
 /** Nombre accesible del área de edición: lleva el título dentro (plan `003` §7). */
-const TEXTAREA_NAME = 'Contenido de «Lunes» en markdown';
+const TEXTAREA_NAME = 'Texto de «Lunes»';
 
 interface ServerState {
   readonly content: string;
@@ -484,11 +484,11 @@ afterEach(() => {
 });
 
 describe('DocumentEditorPage — estructura y accesibilidad (AC-22)', () => {
-  it('muestra el título en un h2 y la ruta del documento en un nav', async () => {
+  it('muestra el título en un h1 y la ruta del documento en un nav', async () => {
     await seedTree();
     await openEditor();
 
-    expect(screen.getByRole('heading', { name: 'Lunes', level: 2 })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Lunes', level: 1 })).toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: /ruta del documento/i })).toBeInTheDocument();
     expect(screen.getAllByRole('listitem').map((step) => step.textContent)).toEqual([
       'Notas',
@@ -589,7 +589,7 @@ describe('DocumentEditorPage — modo texto (AC-23)', () => {
     await user.tab();
 
     const textTab = screen.getByRole('tab', { name: 'Texto' });
-    const previewTab = screen.getByRole('tab', { name: 'Vista previa' });
+    const previewTab = screen.getByRole('tab', { name: 'Vista' });
 
     expect(textTab).toHaveFocus();
 
@@ -627,7 +627,7 @@ describe('DocumentEditorPage — vista previa (AC-24)', () => {
       savedContent: SERVER_TEXT,
     });
 
-    await user.click(screen.getByRole('tab', { name: 'Vista previa' }));
+    await user.click(screen.getByRole('tab', { name: 'Vista' }));
 
     expect(
       screen.getByRole('heading', { name: 'Lo que estoy escribiendo', level: 1 }),
@@ -669,7 +669,7 @@ describe('DocumentEditorPage — vista dividida (spec 005: AC-14 a AC-18, AC-25)
     // la vez sería inventarse una variante. Las dos mitades son **regiones con nombre** dentro.
     expect(screen.getAllByRole('tabpanel')).toHaveLength(1);
     expect(within(panel()).getByRole('region', { name: 'Texto' })).toContainElement(textarea());
-    expect(within(panel()).getByRole('region', { name: 'Vista previa' })).toContainElement(heading);
+    expect(within(panel()).getByRole('region', { name: 'Vista' })).toContainElement(heading);
   });
 
   it('en modo dividido la vista previa pinta el BORRADOR, sin esperar al guardado (AC-16)', async () => {
@@ -708,7 +708,7 @@ describe('DocumentEditorPage — vista dividida (spec 005: AC-14 a AC-18, AC-25)
     await settle();
 
     // El documento recién abierto arranca en texto: el modo del otro no se le pega.
-    expect(screen.getByRole('heading', { name: 'En la raíz', level: 2 })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'En la raíz', level: 1 })).toBeInTheDocument();
     expect(
       screen.getByRole('tab', { name: VIEW_MODE_LABELS.text, selected: true }),
     ).toBeInTheDocument();
@@ -843,7 +843,7 @@ describe('DocumentEditorPage — resolución del conflicto (AC-20)', () => {
         puts += 1;
 
         return puts === 1
-          ? apiErrorResponse(409, 'El documento cambió mientras lo editabas', {
+          ? apiErrorResponse(409, 'Este documento cambió mientras escribías', {
               code: DOCUMENT_CONTENT_CONFLICT_CODE,
             })
           : onSecondPut(request);
@@ -874,7 +874,7 @@ describe('DocumentEditorPage — resolución del conflicto (AC-20)', () => {
       within(dialog).getByRole('button', { name: 'Conservar mi versión' }),
     ).toBeInTheDocument();
     expect(
-      within(dialog).getByRole('button', { name: 'Descartar mis cambios' }),
+      within(dialog).getByRole('button', { name: 'Descartar lo que escribí' }),
     ).toBeInTheDocument();
   });
 
@@ -896,7 +896,7 @@ describe('DocumentEditorPage — resolución del conflicto (AC-20)', () => {
   it('«Descartar mis cambios» adopta el texto del servidor sin emitir ningún PUT más', async () => {
     const api = await reachConflict();
 
-    await user.click(screen.getByRole('button', { name: 'Descartar mis cambios' }));
+    await user.click(screen.getByRole('button', { name: 'Descartar lo que escribí' }));
     await settle();
 
     expect(api.callsTo(PUT_ROUTE)).toHaveLength(1);
@@ -988,7 +988,7 @@ describe('DocumentEditorPage — activar un documento del árbol (AC-31)', () =>
     await settle();
 
     expect(router.state.location.pathname).toBe(`/documents/${ROOT_DOC_ID}`);
-    expect(screen.getByRole('heading', { name: 'En la raíz', level: 2 })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'En la raíz', level: 1 })).toBeInTheDocument();
   });
 
   it('navega a /documents/:id al activar un documento con Enter', async () => {
@@ -1034,7 +1034,7 @@ describe('DocumentEditorPage — paleta de markdown (spec 004: AC-19 a AC-23, AC
 
     expect(screen.getByRole('toolbar', { name: 'Elementos de markdown' })).toBeInTheDocument();
 
-    await user.click(screen.getByRole('tab', { name: 'Vista previa' }));
+    await user.click(screen.getByRole('tab', { name: 'Vista' }));
 
     // Insertar en un área de texto que no se ve no es una funcionalidad, es desconcierto.
     expect(
@@ -1110,7 +1110,7 @@ describe('DocumentEditorPage — paleta de markdown (spec 004: AC-19 a AC-23, AC
     expect(textareaNode()).toHaveValue('');
     expect(textareaNode()).not.toHaveFocus();
 
-    await user.click(paletteButton('Lista de tareas'));
+    await user.click(paletteButton('Lista de cosas por hacer'));
 
     expect(entry().draft).toBe('- [ ] Tarea pendiente');
     expect(textareaNode()).toHaveFocus();
@@ -1190,7 +1190,7 @@ describe('DocumentEditorPage — paleta de markdown (spec 004: AC-19 a AC-23, AC
     expect(palette).not.toBe(save);
     expectNoneNested(regions);
     expect(palette).toHaveTextContent('Insertado: Negrita');
-    expect(save).toHaveTextContent('Cambios sin guardar');
+    expect(save).toHaveTextContent('Sin guardar');
   });
 });
 
@@ -1311,7 +1311,7 @@ describe('DocumentEditorPage — casos heredados del andamio de la 002 (AC-31)',
     pending.resolveWith(jsonResponse(lunes({ content: SERVER_TEXT, contentVersion: 3 })));
     await settle();
 
-    expect(screen.getByRole('heading', { name: 'Lunes', level: 2 })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Lunes', level: 1 })).toBeInTheDocument();
     expect(screen.queryByText(/cargando el documento/i)).not.toBeInTheDocument();
   });
 
@@ -1334,7 +1334,7 @@ describe('DocumentEditorPage — casos heredados del andamio de la 002 (AC-31)',
     );
     await settle();
 
-    expect(screen.getByRole('heading', { name: 'En la raíz', level: 2 })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'En la raíz', level: 1 })).toBeInTheDocument();
   });
 
   it('dice que el documento ya no existe cuando el servidor responde 404', async () => {

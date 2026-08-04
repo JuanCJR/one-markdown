@@ -19,6 +19,7 @@
     "color:muestra": "node tools/color/servir-muestra.mjs",
     "tipo:medir": "node tools/tipografia/medir-tipografia.mjs",
     "tipo:muestra": "node tools/tipografia/servir-muestra.mjs",
+    "marca:rasterizar": "node tools/marca/rasterizar-marca.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

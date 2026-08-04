@@ -70,7 +70,7 @@ const CATALOG: readonly CatalogRow[] = [
   {
     id: 'inlineCode',
     group: 'format',
-    label: 'Código en línea',
+    label: 'Código',
     shortcut: null,
     text: '`código`',
     selected: 'código',
@@ -126,7 +126,7 @@ const CATALOG: readonly CatalogRow[] = [
   {
     id: 'taskList',
     group: 'textBlocks',
-    label: 'Lista de tareas',
+    label: 'Lista de cosas por hacer',
     shortcut: null,
     text: '- [ ] Tarea pendiente',
     selected: 'Tarea pendiente',
@@ -150,7 +150,7 @@ const CATALOG: readonly CatalogRow[] = [
   {
     id: 'codeBlock',
     group: 'insert',
-    label: 'Bloque de código',
+    label: 'Código en bloque',
     shortcut: null,
     text: '```\n\n```\n',
     selected: '',
@@ -197,15 +197,13 @@ describe('catálogo de elementos markdown', () => {
     ]);
   });
 
-  it.each(CATALOG)('«$label» trae rótulo, descripción, grupo y atajo (AC-16)', (row) => {
+  it.each(CATALOG)('«$label» trae rótulo, grupo y atajo (AC-16)', (row) => {
     const element = MARKDOWN_PALETTE.find((candidate) => candidate.id === row.id);
 
     expect(element).toBeDefined();
     expect(element?.label).toBe(row.label);
     expect(element?.group).toBe(row.group);
     expect(element?.shortcut ?? null).toBe(row.shortcut);
-    // La descripción es el `title` del botón: si está vacía, el botón no explica nada.
-    expect(element?.description.length).toBeGreaterThan(0);
   });
 
   it('solo negrita, cursiva y enlace llevan atajo (`spec.md` §6)', () => {

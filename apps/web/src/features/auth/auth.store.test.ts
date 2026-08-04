@@ -128,14 +128,17 @@ describe('useAuthStore.login (AC-22, AC-23)', () => {
     expect(state.pendingMfa).toEqual({ mfaToken: 'mfa-token-1' });
   });
 
-  it('con credenciales inválidas vuelve a "anonymous" con el mensaje del servidor', async () => {
+  it('con credenciales inválidas vuelve a "anonymous" con NUESTRA frase, no la del servidor', async () => {
+    // El stub responde lo que responde el backend de verdad. Lo que se afirma es que el store **no**
+    // lo reenvía: desde la fase 6 el `401` se mapea por código en el cliente (regla 15), para que la
+    // voz del producto no dependa de cómo se redacte una excepción de NestJS.
     stubApi({ 'POST /api/auth/login': () => apiErrorResponse(401, 'Credenciales inválidas') });
 
     await useAuthStore.getState().login({ email: 'ada@example.test', password: 'mala' });
 
     const state = useAuthStore.getState();
     expect(state.status).toBe('anonymous');
-    expect(state.error).toBe('Credenciales inválidas');
+    expect(state.error).toBe('El correo o la contraseña no coinciden.');
   });
 
   it('con la cuenta bloqueada dice cuánto hay que esperar en vez de un error genérico', async () => {

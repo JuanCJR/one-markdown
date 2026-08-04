@@ -7,6 +7,7 @@ import {
   ModalDialog,
 } from './ModalDialog';
 import type { TreeNodeKind } from './tree-nodes';
+import { DIALOGOS } from '../../shared/textos/textos';
 
 /**
  * Alta de un directorio o de un documento dentro de un padre ya elegido (AC-29).
@@ -27,7 +28,7 @@ interface CreateNodeFormProps {
 
 /** Directorios y documentos no llaman igual a lo mismo: un directorio tiene nombre; un documento, título. */
 export function nameLabelOf(kind: TreeNodeKind): string {
-  return kind === 'directory' ? 'Nombre' : 'Título';
+  return DIALOGOS.etiquetaNombre(kind === 'directory');
 }
 
 export function CreateNodeForm({
@@ -41,7 +42,8 @@ export function CreateNodeForm({
 
   const fieldId = useId();
   const groupName = useId();
-  const title = parentName === null ? 'Nuevo en la raíz' : `Nuevo en «${parentName}»`;
+  const title =
+    parentName === null ? DIALOGOS.crear.tituloRaiz : DIALOGOS.crear.tituloEn(parentName);
 
   return (
     <ModalDialog title={title} onDismiss={onCancel}>
@@ -52,7 +54,7 @@ export function CreateNodeForm({
         }}
       >
         <fieldset className="mb-3" disabled={pending}>
-          <legend className="mb-1 text-sm font-medium text-tinta">Tipo</legend>
+          <legend className="mb-1 text-sm font-medium text-tinta">{DIALOGOS.crear.tipo}</legend>
 
           <div className="flex gap-4">
             {(['directory', 'document'] as const).map((option) => (
@@ -70,7 +72,12 @@ export function CreateNodeForm({
                   }}
                   className="size-4"
                 />
-                {option === 'directory' ? 'Directorio' : 'Documento'}
+                {/*
+                  «Carpeta», no «Directorio». Un directorio es una palabra del sistema de ficheros,
+                  y aquí no hay sistema de ficheros: hay una base de datos y una persona que guarda
+                  cosas. El **valor** sigue siendo `directory` porque eso sí es el contrato del API.
+                */}
+                {option === 'directory' ? DIALOGOS.crear.carpeta : DIALOGOS.crear.documento}
               </label>
             ))}
           </div>
@@ -101,11 +108,12 @@ export function CreateNodeForm({
             disabled={pending}
             className={DIALOG_SECONDARY_CLASS}
           >
-            Cancelar
+            {DIALOGOS.cancelar}
           </button>
 
+          {/* El botón dice qué se va a crear: sin eso hay que mirar arriba antes de pulsarlo. */}
           <button type="submit" disabled={pending} {...DIALOG_PRIMARY_PROPS}>
-            Crear
+            {kind === 'directory' ? DIALOGOS.crear.enviarCarpeta : DIALOGOS.crear.enviarDocumento}
           </button>
         </DialogActions>
       </form>
