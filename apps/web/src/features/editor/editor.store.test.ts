@@ -278,7 +278,7 @@ describe('useEditorStore — las tres ramas de fallo (AC-19)', () => {
         { content: 'lo que escribió la otra pestaña', contentVersion: SERVER_VERSION + 5 },
       ),
       [PUT_ROUTE]: () =>
-        apiErrorResponse(409, 'El documento cambió mientras lo editabas', {
+        apiErrorResponse(409, 'Este documento cambió mientras escribías', {
           code: DOCUMENT_CONTENT_CONFLICT_CODE,
         }),
     });
@@ -413,7 +413,7 @@ describe('useEditorStore — resolución del conflicto (AC-20)', () => {
         puts += 1;
 
         return puts === 1
-          ? apiErrorResponse(409, 'El documento cambió mientras lo editabas', {
+          ? apiErrorResponse(409, 'Este documento cambió mientras escribías', {
               code: DOCUMENT_CONTENT_CONFLICT_CODE,
             })
           : onSecondPut(request);

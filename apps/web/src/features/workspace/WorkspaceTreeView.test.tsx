@@ -129,7 +129,7 @@ describe('WorkspaceTreeView — carga (AC-28)', () => {
 
     renderTree();
 
-    expect(await screen.findByText(/todavía no hay/i)).toBeInTheDocument();
+    expect(await screen.findByText(/tu archivo está vacío/i)).toBeInTheDocument();
     expect(screen.queryAllByRole('treeitem')).toHaveLength(0);
   });
 
@@ -150,7 +150,7 @@ describe('WorkspaceTreeView — estructura ARIA (AC-28)', () => {
 
     renderTree();
 
-    expect(screen.getByRole('tree', { name: /documentos/i })).toBeInTheDocument();
+    expect(screen.getByRole('tree', { name: 'Estructura' })).toBeInTheDocument();
   });
 
   it('da a cada nodo el aria-level de su profundidad', async () => {
@@ -383,7 +383,7 @@ describe('WorkspaceTreeView — crear (AC-29)', () => {
     renderTree();
     await userEvent.click(screen.getByRole('button', { name: 'Nuevo en la raíz' }));
     await userEvent.type(screen.getByLabelText('Nombre'), 'Recetas');
-    await userEvent.click(screen.getByRole('button', { name: 'Crear' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Crear la carpeta' }));
 
     expect(api.callsTo('POST /api/workspace/directories')[0]?.body).toEqual({
       name: 'Recetas',
@@ -414,7 +414,7 @@ describe('WorkspaceTreeView — crear (AC-29)', () => {
     renderTree();
     await userEvent.click(screen.getByRole('button', { name: 'Nuevo en «Notas»' }));
     await userEvent.type(screen.getByLabelText('Nombre'), 'Cocina');
-    await userEvent.click(screen.getByRole('button', { name: 'Crear' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Crear la carpeta' }));
 
     expect(api.callsTo('POST /api/workspace/directories')[0]?.body).toEqual({
       name: 'Cocina',
@@ -446,7 +446,9 @@ describe('WorkspaceTreeView — crear (AC-29)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Nuevo en «Notas»' }));
     await userEvent.click(screen.getByRole('radio', { name: 'Documento' }));
     await userEvent.type(screen.getByLabelText('Título'), 'Sopa');
-    await userEvent.click(screen.getByRole('button', { name: 'Crear' }));
+    // El botón sigue al tipo elegido (fase 6, §4.8): con «Documento» marcado dice qué va a crear, y
+    // por eso no puede quedar escrito «Crear» a secas en ninguna de las dos ramas.
+    await userEvent.click(screen.getByRole('button', { name: 'Crear el documento' }));
 
     expect(api.callsTo('POST /api/workspace/documents')[0]?.body).toEqual({
       title: 'Sopa',
@@ -494,7 +496,7 @@ describe('WorkspaceTreeView — renombrar (AC-29)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Renombrar «Ideas»' }));
     await userEvent.clear(screen.getByLabelText('Título'));
     await userEvent.type(screen.getByLabelText('Título'), 'Ocurrencias');
-    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar el nombre' }));
 
     expect(api.callsTo('PATCH /api/workspace/documents/doc-ideas')[0]?.body).toEqual({
       title: 'Ocurrencias',
@@ -515,7 +517,7 @@ describe('WorkspaceTreeView — renombrar (AC-29)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Renombrar «Notas»' }));
     await userEvent.clear(screen.getByLabelText('Nombre'));
     await userEvent.type(screen.getByLabelText('Nombre'), 'Proyectos');
-    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar el nombre' }));
 
     const alert = await screen.findByRole('alert');
 
@@ -541,9 +543,13 @@ describe('WorkspaceTreeView — borrar (AC-29)', () => {
     renderTree();
     await userEvent.click(screen.getByRole('button', { name: 'Borrar «Proyectos»' }));
 
-    expect(screen.getByRole('dialog', { name: 'Borrar «Proyectos»' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Borrar «Proyectos»' })).toHaveTextContent(
+      'Esta carpeta está vacía y se borra ahora. No vuelve.',
+    );
+    // Sin campo de confirmación: no hay nada dentro que perder, así que no se cobra la fricción.
+    expect(screen.queryByLabelText(/escribe borrar/i)).not.toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Borrar' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Borrar la carpeta' }));
 
     await waitFor(() => {
       expect(screen.queryByRole('treeitem', { name: 'Proyectos' })).not.toBeInTheDocument();
@@ -568,11 +574,22 @@ describe('WorkspaceTreeView — borrar (AC-29)', () => {
     renderTree();
     await userEvent.click(screen.getByRole('button', { name: 'Borrar «Notas»' }));
 
-    expect(screen.getByRole('dialog', { name: 'Borrar «Notas»' })).toHaveTextContent(
-      'También se borrará su contenido: 3 elementos.',
+    // «Notas» tiene dentro «Diario» (carpeta), «Ideas» y «Lunes» (documentos): 3 dentro, 4 borrados
+    // contando la propia carpeta. Los dos números son distintos y los dos se dicen — la cadena de la
+    // fase 0 solo escribía el 3 y dejaba el 4 sin aparecer en ninguna parte.
+    const dialogo = screen.getByRole('dialog', { name: 'Borrar «Notas» y lo que hay dentro' });
+
+    expect(dialogo).toHaveTextContent(
+      'Dentro hay 3 elementos: 1 carpeta y 2 documentos. Se borran los 4 y no vuelven.',
     );
 
-    await userEvent.click(screen.getByRole('button', { name: 'Borrar' }));
+    // Y la acción está cerrada hasta que se teclea la palabra: el borrado es definitivo y grande.
+    const confirmar = screen.getByRole('button', { name: 'Borrar 4 elementos' });
+
+    expect(confirmar).toBeDisabled();
+
+    await userEvent.type(screen.getByLabelText('Escribe borrar para confirmarlo.'), 'borrar');
+    await userEvent.click(confirmar);
 
     await waitFor(() => {
       expect(screen.queryByRole('treeitem', { name: 'Notas' })).not.toBeInTheDocument();
@@ -607,9 +624,9 @@ describe('WorkspaceTreeView — borrar (AC-29)', () => {
 
     renderTree();
     await userEvent.click(screen.getByRole('button', { name: 'Borrar «Proyectos»' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Borrar' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Borrar la carpeta' }));
 
-    expect(screen.getByRole('button', { name: 'Borrar' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Borrar la carpeta' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Cancelar' })).toBeDisabled();
 
     pending.resolveWith(noContentResponse());
@@ -628,7 +645,8 @@ describe('WorkspaceTreeView — borrar (AC-29)', () => {
 
     const route = renderTreeAt('/documents/doc-ideas');
     await userEvent.click(screen.getByRole('button', { name: 'Borrar «Ideas»' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Borrar' }));
+    // «Ideas» es un documento: su confirmación no pide teclear nada, y el botón lo nombra.
+    await userEvent.click(screen.getByRole('button', { name: 'Borrar el documento' }));
 
     await waitFor(() => {
       expect(route.pathname()).toBe('/');
@@ -650,14 +668,14 @@ describe('WorkspaceTreeView — diálogos (AC-29)', () => {
     expect(screen.getByRole('button', { name: 'Cancelar' })).toHaveFocus();
 
     await userEvent.tab();
-    expect(screen.getByRole('button', { name: 'Guardar' })).toHaveFocus();
+    expect(screen.getByRole('button', { name: 'Guardar el nombre' })).toHaveFocus();
 
     // El foco no se escapa por el final: vuelve al primer control del diálogo.
     await userEvent.tab();
     expect(screen.getByLabelText('Nombre')).toHaveFocus();
 
     await userEvent.tab({ shift: true });
-    expect(screen.getByRole('button', { name: 'Guardar' })).toHaveFocus();
+    expect(screen.getByRole('button', { name: 'Guardar el nombre' })).toHaveFocus();
 
     await userEvent.keyboard('{Escape}');
 

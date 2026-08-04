@@ -59,7 +59,7 @@ export const test = base.extend<{ session: E2eSession }>({
 
 /** El textarea del modo texto, por su nombre accesible, que lleva el título del documento. */
 export function textarea(page: Page, title: string): Locator {
-  return page.getByRole('textbox', { name: `Contenido de «${title}» en markdown` });
+  return page.getByRole('textbox', { name: `Texto de «${title}»` });
 }
 
 /**

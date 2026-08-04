@@ -260,7 +260,7 @@ describe('useWorkspaceStore — mutaciones (decisión 12: nada optimista, se rec
     await useWorkspaceStore.getState().createDirectory('Nuevo', null);
 
     expect(useWorkspaceStore.getState().error).toBe(
-      'No se pudo contactar con el servidor. Revisa tu conexión e inténtalo de nuevo.',
+      'El servidor no responde. Revisa tu conexión y vuelve a intentarlo.',
     );
   });
 

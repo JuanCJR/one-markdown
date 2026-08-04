@@ -87,14 +87,14 @@ test.describe('Pestañas y vista dividida en el navegador (AC-19)', () => {
     } as const;
 
     await page.goto(`/documents/${ids.left}`);
-    await expect(page.getByRole('heading', { level: 2, name: titles.left })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: titles.left })).toBeVisible();
 
     // Las otras dos se abren desde el árbol con `Enter`, **sin recargar**: `page.goto` reiniciaría
     // la aplicación y con ella `openIds`, que no se persiste (decisión D de la spec), y la tira se
     // quedaría con una sola pestaña. El orden de apertura es el orden de la tira.
     for (const title of [titles.middle, titles.right]) {
       await page.getByRole('treeitem', { name: title, exact: true }).press('Enter');
-      await expect(page.getByRole('heading', { level: 2, name: title })).toBeVisible();
+      await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
     }
 
     const strip = page.getByRole('tablist', { name: 'Documentos abiertos' });
@@ -152,7 +152,7 @@ test.describe('Pestañas y vista dividida en el navegador (AC-19)', () => {
 
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL(`/documents/${ids.middle}`);
-    await expect(page.getByRole('heading', { level: 2, name: titles.middle })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: titles.middle })).toBeVisible();
     await expect(tabFor(titles.middle)).toHaveAttribute('aria-selected', 'true');
     // Navegar no puede tirar el foco al `<body>`: quien acaba de activar con el teclado sigue en la
     // tira y su siguiente flecha tiene que funcionar.
@@ -167,7 +167,7 @@ test.describe('Pestañas y vista dividida en el navegador (AC-19)', () => {
     await expect(tabFor(titles.right), 'el foco cae en la vecina de la derecha').toBeFocused();
     await expect(page).toHaveURL(`/documents/${ids.right}`);
     await expect(tabFor(titles.right)).toHaveAttribute('aria-selected', 'true');
-    await expect(page.getByRole('heading', { level: 2, name: titles.right })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: titles.right })).toBeVisible();
     // Y la de la izquierda sigue donde estaba: cerrar una pestaña cierra **una**.
     await expect(tabFor(titles.left)).toBeVisible();
 
@@ -194,7 +194,7 @@ test.describe('Pestañas y vista dividida en el navegador (AC-19)', () => {
     const documentId = await createDocument(page, session.authorization, title);
 
     await page.goto(`/documents/${documentId}`);
-    await expect(page.getByRole('heading', { level: 2, name: title })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
 
     // ---- (a) El ancho útil **antes**, que es la mitad del AC que nadie mira ---------------------
     //
@@ -217,7 +217,7 @@ test.describe('Pestañas y vista dividida en el navegador (AC-19)', () => {
     // ---- (b) Los dos paneles, del **mismo** documento y a la vez -------------------------------
 
     const editorPane = page.getByRole('region', { name: 'Texto' });
-    const previewPane = page.getByRole('region', { name: 'Vista previa' });
+    const previewPane = page.getByRole('region', { name: 'Vista' });
 
     await expect(textarea(page, title)).toBeVisible();
     await expect(editorPane).toBeVisible();
@@ -312,4 +312,3 @@ async function measureTarget(target: Locator, what: string): Promise<readonly st
 
   return [`${what}: ${String(box.width)} × ${String(box.height)} px`];
 }
-

@@ -58,14 +58,18 @@ test.describe('Recorrido del árbol en el navegador (AC-32)', () => {
     await page.goto('/register');
     await page.getByLabel('Correo electrónico').fill(email);
     await page.getByLabel('Contraseña').fill(E2E_PASSWORD);
-    await page.getByRole('button', { name: 'Crear cuenta' }).click();
+    await page.getByRole('button', { name: 'Crear el archivo' }).click();
 
-    await expect(page.getByRole('heading', { level: 1, name: 'One Markdown' })).toBeVisible();
+    await expect(
+      page.getByRole('banner').getByRole('img', { name: 'One Markdown' }),
+    ).toBeAttached();
 
     // El contenedor del árbol existe desde el principio, pero vacío no ocupa un solo píxel: quien
     // cuenta que no hay nada es el texto de la barra lateral, no una caja invisible.
-    await expect(page.getByRole('tree', { name: 'Documentos' })).toBeAttached();
-    await expect(page.getByText('Todavía no hay directorios ni documentos.')).toBeVisible();
+    await expect(page.getByRole('tree', { name: 'Estructura' })).toBeAttached();
+    await expect(
+      page.getByText('Tu archivo está vacío. El primer documento va en la raíz.'),
+    ).toBeVisible();
 
     // Desde aquí ya hay sesión: cualquier cosa que aparezca en la consola es un defecto.
     const errorsBeforeSession = consoleErrors.length;
@@ -75,10 +79,10 @@ test.describe('Recorrido del árbol en el navegador (AC-32)', () => {
 
     const rootCreate = page.getByRole('dialog', { name: 'Nuevo en la raíz' });
 
-    // El tipo por defecto es «Directorio», así que crear una categoría es escribir y aceptar.
-    await expect(rootCreate.getByRole('radio', { name: 'Directorio' })).toBeChecked();
+    // El tipo por defecto es «Carpeta», así que crear una categoría es escribir y aceptar.
+    await expect(rootCreate.getByRole('radio', { name: 'Carpeta' })).toBeChecked();
     await rootCreate.getByLabel('Nombre').fill(DIRECTORY);
-    await rootCreate.getByRole('button', { name: 'Crear' }).click();
+    await rootCreate.getByRole('button', { name: 'Crear la carpeta' }).click();
 
     await expect(rootCreate).toBeHidden();
     await expect(treeItem(page, DIRECTORY)).toBeVisible();
@@ -89,7 +93,7 @@ test.describe('Recorrido del árbol en el navegador (AC-32)', () => {
     const nestedCreate = page.getByRole('dialog', { name: `Nuevo en «${DIRECTORY}»` });
 
     await nestedCreate.getByLabel('Nombre').fill(SUBDIRECTORY);
-    await nestedCreate.getByRole('button', { name: 'Crear' }).click();
+    await nestedCreate.getByRole('button', { name: 'Crear la carpeta' }).click();
 
     await expect(nestedCreate).toBeHidden();
     await expect(treeItem(page, DIRECTORY)).toHaveAttribute('aria-expanded', 'true');
@@ -104,7 +108,7 @@ test.describe('Recorrido del árbol en el navegador (AC-32)', () => {
     await documentCreate.getByRole('radio', { name: 'Documento' }).check();
     await expect(documentCreate.getByLabel('Nombre')).toHaveCount(0);
     await documentCreate.getByLabel('Título').fill(DOCUMENT_DRAFT);
-    await documentCreate.getByRole('button', { name: 'Crear' }).click();
+    await documentCreate.getByRole('button', { name: 'Crear el documento' }).click();
 
     await expect(documentCreate).toBeHidden();
     await expect(treeItem(page, DOCUMENT_DRAFT)).toHaveAttribute('aria-level', '3');
@@ -116,7 +120,7 @@ test.describe('Recorrido del árbol en el navegador (AC-32)', () => {
 
     await expect(rename.getByLabel('Título')).toHaveValue(DOCUMENT_DRAFT);
     await rename.getByLabel('Título').fill(DOCUMENT);
-    await rename.getByRole('button', { name: 'Guardar' }).click();
+    await rename.getByRole('button', { name: 'Guardar el nombre' }).click();
 
     await expect(rename).toBeHidden();
     await expect(treeItem(page, DOCUMENT)).toBeVisible();
@@ -137,7 +141,7 @@ test.describe('Recorrido del árbol en el navegador (AC-32)', () => {
       `${DIRECTORY} / ${SUBDIRECTORY}`,
     ]);
     await move.getByLabel('Destino').selectOption({ label: 'Raíz' });
-    await move.getByRole('button', { name: 'Mover' }).click();
+    await move.getByRole('button', { name: 'Mover ahí' }).click();
 
     await expect(move).toBeHidden();
     await expect(treeItem(page, DOCUMENT)).toHaveAttribute('aria-level', '1');
@@ -148,7 +152,7 @@ test.describe('Recorrido del árbol en el navegador (AC-32)', () => {
 
     await expect(page).toHaveURL(/\/documents\/[0-9a-f-]{36}$/);
     await expect(treeItem(page, DOCUMENT)).toHaveAttribute('aria-selected', 'true');
-    await expect(page.getByRole('heading', { level: 2, name: DOCUMENT })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: DOCUMENT })).toBeVisible();
 
     // La ruta del documento es un único paso: acaba de mudarse a la raíz.
     await expect(page.getByRole('navigation', { name: 'Ruta del documento' })).toHaveText(DOCUMENT);
@@ -161,21 +165,29 @@ test.describe('Recorrido del árbol en el navegador (AC-32)', () => {
     // `Markdown en crudo` del andamio, que ya no existe; el criterio y su razón de ser son los
     // mismos, y lo único que cambia es el elemento que pinta el contenido.
     const content = page.getByRole('textbox', {
-      name: `Contenido de «${DOCUMENT}» en markdown`,
+      name: `Texto de «${DOCUMENT}»`,
     });
 
     await expect(content).toBeVisible();
     await expect(content).toHaveValue('');
 
     // 8. Borrar el directorio, que sigue teniendo dentro el subdirectorio: la confirmación dice
-    //    cuánto se lleva por delante y solo entonces el borrado sale en recursivo.
+    //    cuánto se lleva por delante, **pide teclear la palabra**, y solo entonces el borrado sale
+    //    en recursivo. La fricción es de la fase 6 (§4.8) y solo se cobra aquí: en una carpeta con
+    //    algo dentro, que es donde el error es irreversible y grande.
     await page.getByRole('button', { name: `Borrar «${DIRECTORY}»` }).click();
 
-    const remove = page.getByRole('dialog', { name: `Borrar «${DIRECTORY}»` });
+    const remove = page.getByRole('dialog', { name: `Borrar «${DIRECTORY}» y lo que hay dentro` });
 
-    await expect(remove.getByText(`¿Seguro que quieres borrar «${DIRECTORY}»?`)).toBeVisible();
-    await expect(remove.getByText('También se borrará su contenido: 1 elemento.')).toBeVisible();
-    await remove.getByRole('button', { name: 'Borrar' }).click();
+    await expect(
+      remove.getByText('Dentro hay 1 carpeta. Se borran los 2 y no vuelven.'),
+    ).toBeVisible();
+
+    const confirmDelete = remove.getByRole('button', { name: 'Borrar 2 elementos' });
+
+    await expect(confirmDelete).toBeDisabled();
+    await remove.getByLabel('Escribe borrar para confirmarlo.').fill('borrar');
+    await confirmDelete.click();
 
     await expect(remove).toBeHidden();
 
@@ -186,7 +198,7 @@ test.describe('Recorrido del árbol en el navegador (AC-32)', () => {
     await expect(rows).toHaveAccessibleName(DOCUMENT);
 
     // El documento abierto no era del subárbol borrado, así que sigue a la vista y en su ruta.
-    await expect(page.getByRole('heading', { level: 2, name: DOCUMENT })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: DOCUMENT })).toBeVisible();
     await expect(page).toHaveURL(/\/documents\/[0-9a-f-]{36}$/);
 
     // Nada inesperado en toda la travesía…

@@ -90,7 +90,7 @@ describe('SecurityPage — alta de MFA (AC-13, AC-14 desde la UI)', () => {
     stubApi({});
     renderSecurity();
 
-    expect(screen.getByRole('status')).toHaveTextContent(/pasos: desactivada/i);
+    expect(screen.getByRole('status')).toHaveTextContent(/pasos, desactivada/i);
     expect(screen.getByRole('button', { name: /^activar/i })).toBeInTheDocument();
   });
 
@@ -132,9 +132,7 @@ describe('SecurityPage — alta de MFA (AC-13, AC-14 desde la UI)', () => {
       expect(screen.getByText(code)).toBeInTheDocument();
     }
 
-    expect(screen.getByRole('alert')).toHaveTextContent(
-      /no volverás a verlos|una (sola|única) vez/i,
-    );
+    expect(screen.getByRole('alert')).toHaveTextContent(/esta pantalla no vuelve|una sola vez/i);
     expect(api.calls[1]?.body).toEqual({ code: '123456' });
     expect(useAuthStore.getState().user?.mfaEnabled).toBe(true);
   });
@@ -174,14 +172,14 @@ describe('SecurityPage — baja de MFA (AC-19 desde la UI)', () => {
     });
     renderSecurity();
 
-    expect(screen.getByRole('status')).toHaveTextContent(/pasos: activada/i);
+    expect(screen.getByRole('status')).toHaveTextContent(/pasos, activada/i);
 
     await userEvent.type(screen.getByLabelText(/^contraseña$/i), 'contrasena-1234');
     await userEvent.type(screen.getByLabelText(/código de verificación/i), '123456');
     await userEvent.click(screen.getByRole('button', { name: /^desactivar/i }));
 
     await waitFor(() => {
-      expect(screen.getByRole('status')).toHaveTextContent(/pasos: desactivada/i);
+      expect(screen.getByRole('status')).toHaveTextContent(/pasos, desactivada/i);
     });
 
     expect(api.calls[0]?.body).toEqual({ password: 'contrasena-1234', code: '123456' });
@@ -200,7 +198,7 @@ describe('SecurityPage — baja de MFA (AC-19 desde la UI)', () => {
     await userEvent.click(screen.getByRole('button', { name: /^desactivar/i }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Contraseña incorrecta');
-    expect(screen.getByRole('status')).toHaveTextContent(/pasos: activada/i);
+    expect(screen.getByRole('status')).toHaveTextContent(/pasos, activada/i);
     expect(useAuthStore.getState().user?.mfaEnabled).toBe(true);
   });
 

@@ -6,6 +6,7 @@ import {
   type PaletteElement,
   type PaletteGroup,
 } from './markdown-palette';
+import { PALETA } from '../../shared/textos/textos';
 
 /**
  * Barra de elementos markdown insertables (`004/plan.md` §4.4; AC-24, AC-25, y la mitad de AC-27).
@@ -101,7 +102,7 @@ function textOf(announcement: Announcement | null): string {
     return '';
   }
 
-  return `Insertado: ${announcement.label}${announcement.count % 2 === 0 ? ZERO_WIDTH_SPACE : ''}`;
+  return `${PALETA.insertado(announcement.label)}${announcement.count % 2 === 0 ? ZERO_WIDTH_SPACE : ''}`;
 }
 
 export function MarkdownPalette({ onInsert }: MarkdownPaletteProps): React.JSX.Element {
@@ -167,7 +168,7 @@ export function MarkdownPalette({ onInsert }: MarkdownPaletteProps): React.JSX.E
     <div className="flex flex-col gap-1">
       <div
         role="toolbar"
-        aria-label="Elementos de markdown"
+        aria-label={PALETA.barra}
         onKeyDown={handleKeyDown}
         className="flex flex-wrap items-center gap-1 bg-sup-elevada p-1"
       >
@@ -188,7 +189,6 @@ export function MarkdownPalette({ onInsert }: MarkdownPaletteProps): React.JSX.E
                   buttonsRef.current[item.index] = node;
                 }}
                 aria-label={item.element.label}
-                title={item.element.description}
                 tabIndex={item.index === activeIndex ? 0 : -1}
                 onClick={() => {
                   activate(item);
@@ -213,7 +213,7 @@ export function MarkdownPalette({ onInsert }: MarkdownPaletteProps): React.JSX.E
         El `aria-label` la identifica en la lista de regiones y la distingue de la del guardado, que
         vive en la misma página y también es un `role="status"`.
       */}
-      <p role="status" aria-label="Elemento insertado" className="sr-only">
+      <p role="status" aria-label={PALETA.region} className="sr-only">
         {textOf(announcement)}
       </p>
     </div>

@@ -39,7 +39,13 @@ test.describe('Smoke (AC-11)', () => {
     await expect(page).toHaveTitle('One Markdown');
     await expect(page.getByRole('main')).toBeVisible();
     await expect(page.getByRole('navigation')).toBeVisible();
-    await expect(page.getByRole('heading', { level: 1, name: 'One Markdown' })).toBeVisible();
+    // El nombre de la aplicación ya **no** es un `h1` (fase 6, §4.1): el `h1` de cada pantalla es lo
+    // que esa pantalla contiene, y el nombre vive en el bloqueo de la cabecera y en el título de la
+    // pestaña, que se acaba de afirmar arriba. Se consulta por **rol y nombre accesible**, que es lo
+    // que oye un lector de pantalla, y no por el texto dibujado dentro del SVG.
+    await expect(
+      page.getByRole('banner').getByRole('img', { name: 'One Markdown' }),
+    ).toBeAttached();
 
     expect(consoleErrors).toEqual([]);
     expect(pageErrors).toEqual([]);
@@ -54,14 +60,19 @@ test.describe('Smoke (AC-11)', () => {
     // El rojo era **real y ajeno**, aparecía solo cuando el árbol tenía documentos de otros casos, y
     // se hace más probable con cada suite que crea documentos. Misma lección que la `T-012` de la
     // `004`: una consulta que puede resolver a otra cosa es una mina puesta para otro.
-    await expect(page.getByRole('heading', { name: /404/ })).toBeVisible();
+    // Sin el número: `404` es el código con el que hablan dos máquinas (fase 6, §4.9). La consulta
+    // sigue siendo por encabezado y no por texto suelto, por la misma razón que ya estaba escrita
+    // arriba: un documento titulado así haría que una consulta por texto resolviera a otra cosa.
+    await expect(
+      page.getByRole('heading', { name: 'Esta dirección no está en tu archivo.' }),
+    ).toBeVisible();
     await expect(page.getByRole('navigation')).toBeVisible();
   });
 
-  test('el toggle de la barra lateral responde al teclado', async ({ page }) => {
+  test('el toggle de la estructura responde al teclado', async ({ page }) => {
     await page.goto('/');
 
-    const toggle = page.getByRole('button', { name: /barra lateral/i });
+    const toggle = page.getByRole('button', { name: /^(mostrar|ocultar) la estructura$/i });
     await expect(toggle).toHaveAttribute('aria-expanded', 'true');
 
     await toggle.focus();

@@ -4,6 +4,7 @@ import { useShallow } from 'zustand/react/shallow';
 
 import { useEditorStore } from './editor.store';
 import { useWorkspaceStore } from '../workspace/workspace.store';
+import { PESTANAS } from '../../shared/textos/textos';
 
 /**
  * Tira de pestañas de documentos abiertos (`005/plan.md` §4.3; AC-3, AC-20…AC-24, AC-28).
@@ -43,7 +44,7 @@ const DOCUMENT_ROUTE = '/documents/:id';
 export const EDITOR_PANEL_ID = 'app-main-panel';
 
 /** Título con el que se pinta una pestaña cuyo documento el árbol todavía no conoce. */
-const UNTITLED_DOCUMENT = 'Documento sin título';
+const UNTITLED_DOCUMENT = PESTANAS.sinTitulo;
 
 /**
  * Espacio de ancho cero: la diferencia imperceptible que hace **volver a anunciar** (AC-28).
@@ -69,7 +70,9 @@ function textOf(announcement: Announcement | null): string {
     return '';
   }
 
-  return `Cerrada: ${announcement.title}${announcement.count % 2 === 0 ? ZERO_WIDTH_SPACE : ''}`;
+  // «Has cerrado «X»» y no «Cerrada: X» (fase 6, §4.11): el anuncio se lo lleva quien acaba de
+  // hacerlo, así que lleva sujeto y verbo. Un participio suelto con dos puntos es cómo habla un log.
+  return `${PESTANAS.cerrada(announcement.title)}${announcement.count % 2 === 0 ? ZERO_WIDTH_SPACE : ''}`;
 }
 
 /**
@@ -82,7 +85,7 @@ function textOf(announcement: Announcement | null): string {
  *   (decisión B) y un atajo que no se anuncia no existe.
  */
 function accessibleNameOf(title: string, unsaved: boolean): string {
-  return `«${title}»${unsaved ? ' · sin guardar' : ''} · Supr para cerrar`;
+  return PESTANAS.nombreAccesible(title, unsaved);
 }
 
 /** `id` del botón de una pestaña, para que el panel pueda apuntarle con `aria-labelledby`. */
@@ -244,7 +247,7 @@ export function DocumentTabs(): React.JSX.Element {
       {openIds.length > 0 && (
         <div
           role="tablist"
-          aria-label="Documentos abiertos"
+          aria-label={PESTANAS.lista}
           onKeyDown={handleKeyDown}
           className="flex items-stretch gap-px overflow-x-auto bg-sup-elevada px-2"
         >
@@ -357,13 +360,7 @@ export function DocumentTabs(): React.JSX.Element {
         de pasar. La alternativa —dejarlo en el `<body>`— manda a quien navega con teclado al
         principio del documento sin decírselo.
       */}
-      <p
-        ref={liveRef}
-        role="status"
-        aria-label="Pestañas abiertas"
-        tabIndex={-1}
-        className="sr-only"
-      >
+      <p ref={liveRef} role="status" aria-label={PESTANAS.region} tabIndex={-1} className="sr-only">
         {textOf(announcement)}
       </p>
     </div>

@@ -1,4 +1,5 @@
 import type { TreeNode } from './tree-nodes';
+import { accionesDeFila } from '../../shared/textos/textos';
 
 /** Lo que se puede hacer sobre un nodo desde su propia fila. */
 export type TreeNodeAction = 'create' | 'rename' | 'move' | 'delete';
@@ -75,7 +76,7 @@ export function TreeNodeRow({
 
         {isDirectory ? (
           <RowActionButton
-            label={`Nuevo en «${node.name}»`}
+            label={accionesDeFila.nuevoEn(node.name)}
             tabbable={tabbable}
             busy={busy}
             onActivate={() => {
@@ -87,7 +88,7 @@ export function TreeNodeRow({
         ) : null}
 
         <RowActionButton
-          label={`Renombrar «${node.name}»`}
+          label={accionesDeFila.renombrar(node.name)}
           tabbable={tabbable}
           busy={busy}
           onActivate={() => {
@@ -98,7 +99,7 @@ export function TreeNodeRow({
         </RowActionButton>
 
         <RowActionButton
-          label={`Mover «${node.name}»`}
+          label={accionesDeFila.mover(node.name)}
           tabbable={tabbable}
           busy={busy}
           onActivate={() => {
@@ -109,7 +110,7 @@ export function TreeNodeRow({
         </RowActionButton>
 
         <RowActionButton
-          label={`Borrar «${node.name}»`}
+          label={accionesDeFila.borrar(node.name)}
           tabbable={tabbable}
           busy={busy}
           onActivate={() => {
@@ -126,7 +127,14 @@ export function TreeNodeRow({
 }
 
 interface RowActionButtonProps {
-  /** Nombre accesible completo: incluye el nombre del nodo, no solo el verbo. */
+  /**
+   * Nombre accesible completo: incluye el nombre del nodo, no solo el verbo.
+   *
+   * **Ya no hay `title`.** Duplicaba esta misma cadena en un tooltip nativo que solo aparece con el
+   * ratón, tarda medio segundo y no se puede leer con el teclado — y la fase 0 contó veinte iguales
+   * (§4.13). Lo que hace falta es que la palabra esté **visible**, no que aparezca al pasar por
+   * encima: eso es trabajo del restyle, y quitarlo ahora es lo que deja de fingir que ya estaba.
+   */
   readonly label: string;
   readonly tabbable: boolean;
   readonly busy: boolean;
@@ -151,7 +159,6 @@ function RowActionButton({
     <button
       type="button"
       aria-label={label}
-      title={label}
       disabled={busy}
       tabIndex={tabbable ? 0 : -1}
       onClick={(event) => {

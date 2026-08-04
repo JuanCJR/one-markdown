@@ -91,7 +91,9 @@ test.describe('Editor en el navegador (AC-26, AC-32, AC-33)', () => {
     const markdown = '# Diario de julio\n\n- primera nota\n- segunda nota';
 
     await page.goto('/');
-    await expect(page.getByRole('heading', { level: 1, name: 'One Markdown' })).toBeVisible();
+    await expect(
+      page.getByRole('banner').getByRole('img', { name: 'One Markdown' }),
+    ).toBeAttached();
 
     // El documento se crea **desde la interfaz**, que es el recorrido que AC-32 describe: quien
     // escribe llega a su documento por el árbol, no por una URL que alguien le sembró.
@@ -101,7 +103,7 @@ test.describe('Editor en el navegador (AC-26, AC-32, AC-33)', () => {
 
     await create.getByRole('radio', { name: 'Documento' }).check();
     await create.getByLabel('Título').fill(title);
-    await create.getByRole('button', { name: 'Crear' }).click();
+    await create.getByRole('button', { name: 'Crear el documento' }).click();
 
     await expect(create).toBeHidden();
 
@@ -113,32 +115,33 @@ test.describe('Editor en el navegador (AC-26, AC-32, AC-33)', () => {
     const saveStatus = page.getByRole('status', { name: SAVE_REGION_NAME });
 
     await expect(textarea(page, title)).toHaveValue('');
+    // Recién creado: está limpio porque nadie lo ha tocado, **no** porque se haya guardado, así que
+    // el rótulo va sin hora. Inventarle una diría que ocurrió algo que no ocurrió (fase 6, §4.9).
     await expect(saveStatus).toHaveText('Guardado');
 
     // Escribir marca el documento como sucio y programa el guardado automático. La aserción
     // intermedia no es decorativa: sin ella, un «Guardado» leído demasiado pronto sería el de un
     // documento que nunca se llegó a ensuciar, y el caso pasaría sin guardar nada.
     await textarea(page, title).fill(markdown);
-    await expect(saveStatus).toHaveText('Cambios sin guardar');
-    await expect(saveStatus).toHaveText('Guardado');
+    await expect(saveStatus).toHaveText('Sin guardar');
+    // Con la hora: el guardado ha ocurrido de verdad y la región lo fecha (fase 6, §4.9).
+    await expect(saveStatus).toHaveText(/^Guardado \d{2}:\d{2}$/);
 
     // **La recarga es el criterio.** Es lo único que distingue «se pintó en pantalla» de «llegó al
     // servidor»: después de ella no queda nada del estado del cliente, así que el texto que se lea
     // viene de la base de datos.
     await page.reload();
 
-    await expect(page.getByRole('heading', { level: 2, name: title })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
     await expect(textarea(page, title)).toHaveValue(markdown);
 
     // Y en vista previa, el encabezado y la lista tienen que salir como **elementos**, no como el
     // texto con sus almohadillas y sus guiones.
-    await page.getByRole('tab', { name: 'Vista previa', exact: true }).click();
+    await page.getByRole('tab', { name: 'Vista', exact: true }).click();
 
     const preview = page.getByRole('tabpanel');
 
-    await expect(
-      preview.getByRole('heading', { level: 1, name: 'Diario de julio' }),
-    ).toBeVisible();
+    await expect(preview.getByRole('heading', { level: 1, name: 'Diario de julio' })).toBeVisible();
     await expect(preview.getByRole('listitem')).toHaveText(['primera nota', 'segunda nota']);
 
     expect(consoleErrors()).toEqual([]);
@@ -157,12 +160,12 @@ test.describe('Editor en el navegador (AC-26, AC-32, AC-33)', () => {
     const documentId = await createDocument(page, authorization, title);
 
     await page.goto(`/documents/${documentId}`);
-    await expect(page.getByRole('heading', { level: 2, name: title })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
 
     const saveStatus = page.getByRole('status', { name: SAVE_REGION_NAME });
 
     await textarea(page, title).fill(mine);
-    await expect(saveStatus).toHaveText('Cambios sin guardar');
+    await expect(saveStatus).toHaveText('Sin guardar');
 
     // Otro sitio guarda **antes** que el editor y sube la versión. Va por `page.request`, que
     // comparte el tarro de cookies con la pestaña, en vez de por un segundo navegador: dos contextos
@@ -181,15 +184,16 @@ test.describe('Editor en el navegador (AC-26, AC-32, AC-33)', () => {
     await page.getByRole('button', { name: 'Guardar' }).click();
 
     const conflict = page.getByRole('dialog', {
-      name: 'El documento cambió mientras lo editabas',
+      name: 'Este documento cambió mientras escribías',
     });
 
     await expect(conflict).toBeVisible();
-    await expect(conflict.getByRole('button', { name: 'Descartar mis cambios' })).toBeVisible();
+    await expect(conflict.getByRole('button', { name: 'Descartar lo que escribí' })).toBeVisible();
     await conflict.getByRole('button', { name: 'Conservar mi versión' }).click();
 
     await expect(conflict).toBeHidden();
-    await expect(saveStatus).toHaveText('Guardado');
+    // Con la hora: el guardado ha ocurrido de verdad y la región lo fecha (fase 6, §4.9).
+    await expect(saveStatus).toHaveText(/^Guardado \d{2}:\d{2}$/);
     await expect(textarea(page, title)).toHaveValue(mine);
 
     // **La comprobación que cuenta**, y por eso es por API y no por pantalla: que la interfaz diga
@@ -246,7 +250,7 @@ test.describe('Editor en el navegador (AC-26, AC-32, AC-33)', () => {
     const documentId = await createDocument(page, session.authorization, title);
 
     await page.goto(`/documents/${documentId}`);
-    await expect(page.getByRole('heading', { level: 2, name: title })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
 
     // Guardia contra el corpus podado o vacío: sin ella el bucle de abajo no ejercitaría nada y el
     // caso pasaría con nota. Es la misma que hace `MarkdownPreview.test.tsx`, y aquí importa más:
@@ -258,7 +262,7 @@ test.describe('Editor en el navegador (AC-26, AC-32, AC-33)', () => {
     for (const payload of MARKDOWN_XSS_CORPUS) {
       await page.getByRole('tab', { name: 'Texto', exact: true }).click();
       await textarea(page, title).fill(payload.markdown);
-      await page.getByRole('tab', { name: 'Vista previa', exact: true }).click();
+      await page.getByRole('tab', { name: 'Vista', exact: true }).click();
 
       const rendered = await preview.evaluate(
         (container, protocols) => {

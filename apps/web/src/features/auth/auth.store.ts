@@ -1,7 +1,7 @@
 import type { AuthSession, AuthUser } from '@one-markdown/shared';
 import { create } from 'zustand';
 
-import { describeAuthError } from './auth.errors';
+import { describeAuthError, type ContextoAuth } from './auth.errors';
 import {
   configureAuthBridge,
   getMe,
@@ -13,6 +13,7 @@ import {
   type LoginInput,
   type RegisterInput,
 } from '../../shared/api/http';
+import { DETALLE_TECNICO, ERRORES } from '../../shared/textos/textos';
 
 /**
  * `unknown` es el estado de arranque y **no** significa "anónimo": mientras el refresh silencioso
@@ -62,8 +63,8 @@ export const useAuthStore = create<AuthState>()((set, get) => {
     });
   };
 
-  const failWith = (cause: unknown): void => {
-    set({ status: 'anonymous', error: describeAuthError(cause) });
+  const failWith = (cause: unknown, contexto: ContextoAuth = 'sesionAbierta'): void => {
+    set({ status: 'anonymous', error: describeAuthError(cause, contexto) });
   };
 
   return {
@@ -89,7 +90,7 @@ export const useAuthStore = create<AuthState>()((set, get) => {
         applySession(await registerRequest(input));
       } catch (cause) {
         set({ user: null, accessToken: null });
-        failWith(cause);
+        failWith(cause, 'credenciales');
       }
     },
 
@@ -101,10 +102,11 @@ export const useAuthStore = create<AuthState>()((set, get) => {
 
         if (result.mfaRequired) {
           if (result.mfaToken === null) {
-            set({
-              status: 'anonymous',
-              error: 'La API pidió segundo factor sin entregar un token.',
-            });
+            // El detalle técnico va al log y **no** a la pantalla (fase 6, §4.6): quien está delante
+            // no puede hacer nada con «la API no entregó un token», y para quien sí puede —el que
+            // mantiene esto— la consola es el sitio donde lo va a buscar.
+            console.error(DETALLE_TECNICO.mfaSinToken);
+            set({ status: 'anonymous', error: ERRORES.sesionAMedias });
 
             return;
           }
@@ -121,7 +123,11 @@ export const useAuthStore = create<AuthState>()((set, get) => {
         }
 
         if (result.session === null) {
-          set({ status: 'anonymous', error: 'La API no devolvió sesión ni pidió segundo factor.' });
+          // Mismo trato que arriba, y **la misma frase para la persona**: desde donde ella está los
+          // dos incumplimientos son el mismo hecho —el inicio de sesión no terminó—, y darles dos
+          // redacciones distintas solo transmitiría una precisión que no le sirve de nada.
+          console.error(DETALLE_TECNICO.sinSesionNiMfa);
+          set({ status: 'anonymous', error: ERRORES.sesionAMedias });
 
           return;
         }
@@ -129,7 +135,7 @@ export const useAuthStore = create<AuthState>()((set, get) => {
         applySession(result.session);
       } catch (cause) {
         set({ user: null, accessToken: null });
-        failWith(cause);
+        failWith(cause, 'credenciales');
       }
     },
 
@@ -137,7 +143,7 @@ export const useAuthStore = create<AuthState>()((set, get) => {
       const pending = get().pendingMfa;
 
       if (pending === null) {
-        set({ status: 'anonymous', error: 'La verificación caducó. Vuelve a iniciar sesión.' });
+        set({ status: 'anonymous', error: ERRORES.desafioCaducado });
 
         return;
       }

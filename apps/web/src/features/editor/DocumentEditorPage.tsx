@@ -1,6 +1,6 @@
 import { MAX_DOCUMENT_CONTENT_CHARS, type DirectoryNode } from '@one-markdown/shared';
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { useParams } from 'react-router';
+import { Link, useParams } from 'react-router';
 
 import { ConflictDialog } from './ConflictDialog';
 import { CONTENT_COUNTER_THRESHOLD } from './editor.constants';
@@ -11,6 +11,8 @@ import { MarkdownPalette } from './MarkdownPalette';
 import { MarkdownPreview } from './MarkdownPreview';
 import { SaveStatus } from './SaveStatus';
 import { ApiError } from '../../shared/api/http';
+import { EDITOR, ERRORES } from '../../shared/textos/textos';
+import { useTituloDePestana } from '../../shared/textos/useTituloDePestana';
 import { useWorkspaceStore } from '../workspace/workspace.store';
 
 /**
@@ -64,14 +66,22 @@ export const HISTORY_SHORTCUT_KEYS: readonly string[] = ['z', 'y'];
  * que se anuncia y el lado de la pila que los habilita viven en **una** fila cada uno.
  */
 const HISTORY_CONTROLS = [
-  { direction: 'undo', label: 'Deshacer', shortcut: 'Ctrl+Z' },
-  { direction: 'redo', label: 'Rehacer', shortcut: 'Ctrl+Shift+Z' },
+  { direction: 'undo', label: EDITOR.deshacer, shortcut: EDITOR.atajoDeshacer },
+  { direction: 'redo', label: EDITOR.rehacer, shortcut: EDITOR.atajoRehacer },
 ] as const;
 
+/**
+ * Los tres modos, con las **dos** palabras del sistema: texto y vista.
+ *
+ * «Vista previa» se retira (fase 6, §4.9). Sobraba una palabra y prometía un paso intermedio que no
+ * existe —no hay nada después de la vista previa: eso **es** el documento—, y además el sistema ya
+ * llamaba a los dos paneles «texto» y «vista». Dos vocabularios para los mismos dos objetos es la
+ * clase de ruido que la interfaz le hace pagar a quien la usa.
+ */
 export const VIEW_MODE_LABELS: Readonly<Record<ViewMode, string>> = {
-  text: 'Texto',
-  preview: 'Vista previa',
-  split: 'Dividida',
+  text: EDITOR.modoTexto,
+  preview: EDITOR.modoVista,
+  split: EDITOR.modoDividida,
 };
 
 export function DocumentEditorPage(): React.JSX.Element {
@@ -245,6 +255,10 @@ export function DocumentEditorPage(): React.JSX.Element {
 
   const title = summary?.title ?? 'Documento';
 
+  // «Fermentos · One Markdown». Con seis pestañas del mismo producto abiertas, es lo único que
+  // distingue una de otra sin entrar en todas.
+  useTituloDePestana(summary?.title ?? null);
+
   const ancestors = useMemo(
     () => directoryPathOf(directoriesById, summary?.directoryId ?? null),
     [directoriesById, summary],
@@ -255,9 +269,25 @@ export function DocumentEditorPage(): React.JSX.Element {
   // documento que ya se sabe que no va a llegar.
   if (load.status === 'missing' || load.status === 'error') {
     return (
-      <p role="alert" className="max-w-prose bg-tinta px-3 py-2 text-sm text-sup-base">
-        {load.status === 'missing' ? 'Este documento ya no existe.' : load.message}
-      </p>
+      <section className="max-w-prose">
+        <p role="alert" className="bg-tinta px-3 py-2 text-sm text-sup-base">
+          {load.status === 'missing' ? EDITOR.desaparecido : load.message}
+        </p>
+
+        {/*
+          El «ya no existe» pasa a decir **cómo** ha podido pasar —lo borraste en otra pestaña o en
+          otro dispositivo— y a ofrecer salida. Sin las dos cosas, la pantalla acusa al programa de
+          haber perdido algo y deja a la persona en un callejón con la navegación al lado, que es
+          justo lo que un aviso no debe hacer.
+        */}
+        {load.status !== 'missing' ? null : (
+          <p className="mt-4 text-sm">
+            <Link to="/" className="text-tinta underline hover:bg-tinta hover:text-sup-base">
+              {EDITOR.volverAEstructura}
+            </Link>
+          </p>
+        )}
+      </section>
     );
   }
 
@@ -268,8 +298,8 @@ export function DocumentEditorPage(): React.JSX.Element {
       // pestañas se pinta **mientras** el documento carga, así que en ese instante hay dos regiones
       // vivas en la página y esta era la anónima. Con dos `role="status"` sin distinguir, quien
       // recorre la lista de regiones con un lector de pantalla no sabe cuál acaba de hablar.
-      <p role="status" aria-label="Carga del documento" className="text-sm text-tinta-tenue">
-        Cargando el documento…
+      <p role="status" aria-label={EDITOR.cargandoRegion} className="text-sm text-tinta-tenue">
+        {EDITOR.cargando}
       </p>
     );
   }
@@ -418,7 +448,9 @@ export function DocumentEditorPage(): React.JSX.Element {
   const editorTextarea = (
     <textarea
       ref={textareaRef}
-      aria-label={`Contenido de «${title}» en markdown`}
+      // **No dice «markdown»** (fase 6, §4.9). La persona a la que servimos no sabe que esto es
+      // markdown, y el nombre accesible del campo donde escribe no es el sitio para enseñárselo.
+      aria-label={EDITOR.areaDeTexto(title)}
       value={entry.draft}
       spellCheck={false}
       onKeyDown={handleTextareaKeyDown}
@@ -443,7 +475,7 @@ export function DocumentEditorPage(): React.JSX.Element {
       }`}
     >
       <header className="flex flex-col gap-1">
-        <nav aria-label="Ruta del documento">
+        <nav aria-label={EDITOR.ruta}>
           <ol className="flex flex-wrap items-center text-sm text-tinta-tenue">
             {ancestors.map((directory) => (
               <li key={directory.id} className={STEP_CLASS}>
@@ -457,13 +489,19 @@ export function DocumentEditorPage(): React.JSX.Element {
           </ol>
         </nav>
 
-        <h2 className="text-xl font-semibold text-tinta">{title}</h2>
+        {/*
+          `h1` y no `h2` desde la fase 6: el shell dejó de aportar un `h1` fijo con el nombre del
+          producto, así que el encabezado de primer nivel de esta pantalla es **el documento
+          abierto**, que es lo que R7 dice que identifica la pantalla. El cuerpo de 60 px que R7 le
+          asigna llega con el restyle; aquí se cambia el nivel, no la escala.
+        */}
+        <h1 className="text-xl font-semibold text-tinta">{title}</h1>
       </header>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div
           role="tablist"
-          aria-label="Modo de vista"
+          aria-label={EDITOR.modoDeVista}
           onKeyDown={handleTablistKeyDown}
           className="flex gap-1 border border-hair-control p-0.5"
         >
@@ -508,9 +546,7 @@ export function DocumentEditorPage(): React.JSX.Element {
         <div className="flex flex-wrap items-center gap-3">
           {entry.draft.length < CONTENT_COUNTER_THRESHOLD ? null : (
             <p className={remaining < 0 ? 'text-sm text-tinta' : 'text-sm text-tinta-tenue'}>
-              {remaining < 0
-                ? `Te sobran ${(-remaining).toLocaleString('es-ES')} caracteres`
-                : `Quedan ${remaining.toLocaleString('es-ES')} caracteres`}
+              {remaining < 0 ? EDITOR.sobran(-remaining) : EDITOR.quedan(remaining)}
             </p>
           )}
 
@@ -551,12 +587,13 @@ export function DocumentEditorPage(): React.JSX.Element {
             }}
             className="min-h-9 border border-hair-control px-3 py-1 text-sm font-medium text-tinta-secundaria outline-solid outline-0 hover:bg-tinta hover:text-sup-base focus-visible:foco-cromo"
           >
-            Guardar
+            {EDITOR.guardar}
           </button>
 
           <SaveStatus
             status={status}
             error={entry.error}
+            savedAt={entry.savedAt}
             onResolveConflict={
               status === 'conflict' && conflictDismissed
                 ? () => {
@@ -599,7 +636,7 @@ export function DocumentEditorPage(): React.JSX.Element {
           // dividido es «el panel de la vista dividida, que dentro tiene dos regiones con nombre».
           // Dos `tabpanel` a la vez sería inventarse una variante del patrón.
           <div className="grid h-full min-h-0 gap-4 md:grid-cols-2">
-            <section aria-label="Texto" className="flex min-h-0 flex-col">
+            <section aria-label={EDITOR.modoTexto} className="flex min-h-0 flex-col">
               {editorTextarea}
             </section>
 
@@ -608,7 +645,7 @@ export function DocumentEditorPage(): React.JSX.Element {
               puede leer quien va con el teclado (WCAG 2.1.1). Aquí se desplaza el `<main>` del
               shell, que es lo que ya pasa hoy con la vista previa a pantalla completa.
             */}
-            <section aria-label="Vista previa" className="min-h-0">
+            <section aria-label={EDITOR.modoVista} className="min-h-0">
               {preview}
             </section>
           </div>
@@ -673,11 +710,11 @@ function directoryPathOf(
 /** Igual que en el store: los mensajes de dominio se reenvían; la red caída se traduce. */
 function describeDocumentError(cause: unknown): string {
   if (!(cause instanceof ApiError)) {
-    return 'Ocurrió un error inesperado. Inténtalo de nuevo.';
+    return ERRORES.desconocido;
   }
 
   if (cause.statusCode === 0) {
-    return 'No se pudo contactar con el servidor. Revisa tu conexión e inténtalo de nuevo.';
+    return ERRORES.sinServidor;
   }
 
   return cause.message;

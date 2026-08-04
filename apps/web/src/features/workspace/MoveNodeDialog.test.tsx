@@ -119,7 +119,7 @@ describe('MoveNodeDialog — mover (AC-30)', () => {
     renderTree();
     await userEvent.click(screen.getByRole('button', { name: 'Mover «Notas»' }));
     await userEvent.selectOptions(screen.getByLabelText('Destino'), 'dir-proyectos');
-    await userEvent.click(screen.getByRole('button', { name: 'Mover' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Mover ahí' }));
 
     expect(api.callsTo('POST /api/workspace/directories/dir-notas/move')[0]?.body).toEqual({
       parentId: 'dir-proyectos',
@@ -140,7 +140,7 @@ describe('MoveNodeDialog — mover (AC-30)', () => {
     renderTree();
     await userEvent.click(screen.getByRole('button', { name: 'Mover «Ideas»' }));
     await userEvent.selectOptions(screen.getByLabelText('Destino'), 'Raíz');
-    await userEvent.click(screen.getByRole('button', { name: 'Mover' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Mover ahí' }));
 
     expect(api.callsTo('POST /api/workspace/documents/doc-ideas/move')[0]?.body).toEqual({
       directoryId: null,
@@ -162,7 +162,7 @@ describe('MoveNodeDialog — el servidor es la autoridad (AC-30)', () => {
     renderTree();
     await userEvent.click(screen.getByRole('button', { name: 'Mover «Notas»' }));
     await userEvent.selectOptions(screen.getByLabelText('Destino'), 'dir-proyectos');
-    await userEvent.click(screen.getByRole('button', { name: 'Mover' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Mover ahí' }));
 
     const alert = await screen.findByRole('alert');
 
@@ -187,7 +187,7 @@ describe('MoveNodeDialog — el servidor es la autoridad (AC-30)', () => {
     renderTree();
     await userEvent.click(screen.getByRole('button', { name: 'Mover «Notas»' }));
     await userEvent.selectOptions(screen.getByLabelText('Destino'), 'dir-proyectos');
-    await userEvent.click(screen.getByRole('button', { name: 'Mover' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Mover ahí' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('El directorio no existe');
     expect(api.callsTo('GET /api/workspace/tree')).toHaveLength(1);

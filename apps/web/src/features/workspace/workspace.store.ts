@@ -13,6 +13,7 @@ import {
   renameDirectory as renameDirectoryRequest,
   renameDocument as renameDocumentRequest,
 } from '../../shared/api/http';
+import { ERRORES } from '../../shared/textos/textos';
 
 /**
  * Clave de los hijos que cuelgan de la raíz. El servidor los marca con `parentId: null`, que no
@@ -93,17 +94,20 @@ function normalizeTree(tree: WorkspaceTree): NormalizedTree {
 }
 
 /**
- * Texto que se le muestra a la persona. Los mensajes de dominio del backend ya están redactados
- * para leerse («Ya existe un directorio con ese nombre»), así que se reenvían tal cual; lo que no
- * se puede enseñar es el mensaje del navegador cuando la red falla.
+ * Texto que se le muestra a la persona.
+ *
+ * Los mensajes de **dominio** del backend siguen reenviándose tal cual —«Ya existe un directorio con
+ * ese nombre»— porque ya están redactados para leerse y porque son los únicos que saben qué ha
+ * pasado. Lo que no se enseña nunca es el fallo de transporte: ahí no hay nada del servidor en lo que
+ * confiar, y la frase es nuestra (`06-marca.md` §4, regla 15).
  */
 function describeWorkspaceError(cause: unknown): string {
   if (!(cause instanceof ApiError)) {
-    return 'Ocurrió un error inesperado. Inténtalo de nuevo.';
+    return ERRORES.desconocido;
   }
 
   if (cause.statusCode === 0) {
-    return 'No se pudo contactar con el servidor. Revisa tu conexión e inténtalo de nuevo.';
+    return ERRORES.sinServidor;
   }
 
   return cause.message;

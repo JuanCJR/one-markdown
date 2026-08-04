@@ -8,12 +8,14 @@ import { RenameNodeDialog } from './RenameNodeDialog';
 import { TreeNodeRow, type TreeNodeAction } from './TreeNodeRow';
 import {
   buildVisibleTree,
-  countSubtreeNodes,
+  countSubtreeByKind,
   flattenTree,
+  type SubtreeCount,
   type TreeNode,
   type TreeNodeKind,
 } from './tree-nodes';
 import { useWorkspaceStore } from './workspace.store';
+import { ESTRUCTURA } from '../../shared/textos/textos';
 
 /** Diálogo abierto sobre el árbol, con lo que necesita para pintarse. */
 type OpenDialog =
@@ -314,19 +316,17 @@ export function WorkspaceTreeView(): React.JSX.Element {
       )}
 
       {status === 'idle' || status === 'loading' ? (
-        <p className="px-2 py-1 text-sm text-tinta-tenue">Cargando el árbol…</p>
+        <p className="px-2 py-1 text-sm text-tinta-tenue">{ESTRUCTURA.cargando}</p>
       ) : null}
 
       {status === 'ready' && focusOrder.length === 0 ? (
-        <p className="px-2 py-1 text-sm text-tinta-tenue">
-          Todavía no hay directorios ni documentos.
-        </p>
+        <p className="px-2 py-1 text-sm text-tinta-tenue">{ESTRUCTURA.vacio}</p>
       ) : null}
 
       <div
         ref={treeRef}
         role="tree"
-        aria-label="Documentos"
+        aria-label={ESTRUCTURA.arbol}
         onClick={handleClick}
         onKeyDown={handleKeyDown}
         className="min-h-0 flex-1 overflow-auto"
@@ -355,7 +355,7 @@ export function WorkspaceTreeView(): React.JSX.Element {
           }}
           className="min-h-8 border border-hair-control px-2 py-1 text-sm font-medium text-tinta-secundaria outline-solid outline-0 hover:bg-tinta hover:text-sup-base focus-visible:foco-cromo disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Nuevo en la raíz
+          {ESTRUCTURA.nuevoEnRaiz}
         </button>
       </div>
 
@@ -363,10 +363,13 @@ export function WorkspaceTreeView(): React.JSX.Element {
         <WorkspaceDialog
           dialog={dialog}
           busy={busy}
-          contentCount={
+          // El desglose por tipo y no solo el total: es lo que nombra el aviso de borrado desde la
+          // fase 6 («dentro hay 12 elementos: 3 carpetas y 9 documentos»). Sale de **un** recorrido
+          // del subárbol, para que el total y las dos cifras no puedan discrepar.
+          contenido={
             dialog.kind === 'delete' && dialog.node.kind === 'directory'
-              ? countSubtreeNodes({ childDirectoryIds, childDocumentIds }, dialog.node.id)
-              : 0
+              ? countSubtreeByKind({ childDirectoryIds, childDocumentIds }, dialog.node.id)
+              : SUBARBOL_VACIO
           }
           onCancel={() => {
             setDialog(null);
@@ -389,10 +392,13 @@ export function WorkspaceTreeView(): React.JSX.Element {
   );
 }
 
+/** Un documento, o un directorio sin nada dentro: no hay subárbol que contar. */
+const SUBARBOL_VACIO: SubtreeCount = { directories: 0, documents: 0 };
+
 interface WorkspaceDialogProps {
   readonly dialog: OpenDialog;
   readonly busy: boolean;
-  readonly contentCount: number;
+  readonly contenido: SubtreeCount;
   readonly onCancel: () => void;
   readonly onCreate: (kind: TreeNodeKind, name: string) => void;
   readonly onRename: (name: string) => void;
@@ -404,7 +410,7 @@ interface WorkspaceDialogProps {
 function WorkspaceDialog({
   dialog,
   busy,
-  contentCount,
+  contenido,
   onCancel,
   onCreate,
   onRename,
@@ -432,10 +438,14 @@ function WorkspaceDialog({
     return <MoveNodeDialog node={dialog.node} pending={busy} onCancel={onCancel} onMove={onMove} />;
   }
 
+  const contentCount = contenido.directories + contenido.documents;
+
   return (
     <ConfirmDeleteDialog
       node={dialog.node}
       contentCount={contentCount}
+      directoryCount={contenido.directories}
+      documentCount={contenido.documents}
       pending={busy}
       onCancel={onCancel}
       onConfirm={() => {

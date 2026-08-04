@@ -133,7 +133,11 @@ describe('MarkdownPalette — estructura y nombres accesibles (AC-24)', () => {
 
       expect(button).toHaveAttribute('type', 'button');
       expect(button).toHaveAccessibleName(element.label);
-      expect(button).toHaveAttribute('title', element.description);
+      // Y **no** hay `title`: la fase 6 retira los veinte del producto (§4.12). Duplicaban el nombre
+      // accesible en un tooltip que solo existe con ratón, así que no añadían nada a quien va con
+      // teclado y añadían una segunda cadena que mantener. Se afirma la ausencia, no se deja de
+      // mirar: sin esta línea, volver a poner el `title` no rompería nada.
+      expect(button).not.toHaveAttribute('title');
     });
 
     GROUPS_IN_CATALOG_ORDER.forEach((group, index) => {

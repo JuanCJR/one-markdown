@@ -67,7 +67,7 @@ test.describe('Paleta de markdown en el navegador (AC-29, AC-32)', () => {
     const documentId = await createDocument(page, session.authorization, title);
 
     await page.goto(`/documents/${documentId}`);
-    await expect(page.getByRole('heading', { level: 2, name: title })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
 
     const toolbar = page.getByRole('toolbar', { name: 'Elementos de markdown' });
     const bold = toolbar.getByRole('button', { name: 'Negrita' });
@@ -75,6 +75,8 @@ test.describe('Paleta de markdown en el navegador (AC-29, AC-32)', () => {
 
     await expect(toolbar).toBeVisible();
     await expect(textarea(page, title)).toHaveValue('');
+    // Recién creado: está limpio porque nadie lo ha tocado, **no** porque se haya guardado, así que
+    // el rótulo va sin hora. Inventarle una diría que ocurrió algo que no ocurrió (fase 6, §4.9).
     await expect(saveStatus).toHaveText('Guardado');
 
     // ---- (a) El recorrido, **sin un solo clic** -----------------------------------------------
@@ -141,7 +143,7 @@ test.describe('Paleta de markdown en el navegador (AC-29, AC-32)', () => {
     await page.keyboard.press('Enter');
     await expect(textarea(page, title)).toBeFocused();
     await expect(textarea(page, title)).toHaveValue('**texto en negrita**');
-    await expect(saveStatus).toHaveText('Cambios sin guardar');
+    await expect(saveStatus).toHaveText('Sin guardar');
 
     await page.keyboard.type(TYPED);
     await expect(textarea(page, title)).toHaveValue(`**${TYPED}**`);
@@ -149,13 +151,14 @@ test.describe('Paleta de markdown en el navegador (AC-29, AC-32)', () => {
     // `Ctrl`+`S` cancela el debounce pendiente y guarda **una** vez: es lo que mantiene el caso
     // dentro del presupuesto de AC-33.
     await page.keyboard.press('Control+s');
-    await expect(saveStatus).toHaveText('Guardado');
+    // Con la hora: el guardado ha ocurrido de verdad y la región lo fecha (fase 6, §4.9).
+    await expect(saveStatus).toHaveText(/^Guardado \d{2}:\d{2}$/);
 
     // **La recarga es el criterio.** Después de ella no queda nada del estado del cliente, así que
     // lo que se lea viene de la base de datos y no de un borrador que nunca salió del navegador.
     await page.reload();
 
-    await expect(page.getByRole('heading', { level: 2, name: title })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
     await expect(textarea(page, title)).toHaveValue(`**${TYPED}**`);
 
     // La pestaña se cambia con el teclado también: el recorrido entero de AC-32 es sin ratón.

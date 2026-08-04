@@ -51,7 +51,7 @@ describe('AppShell (AC-9)', () => {
   it('monta el árbol de documentos en la barra lateral', async () => {
     renderAt('/');
 
-    expect(await screen.findByRole('tree', { name: /documentos/i })).toBeInTheDocument();
+    expect(await screen.findByRole('tree', { name: 'Estructura' })).toBeInTheDocument();
   });
 
   it('renderiza los landmarks de navegación y contenido principal', () => {
@@ -70,7 +70,7 @@ describe('AppShell (AC-9)', () => {
   it('expone el toggle del sidebar como botón con aria-expanded', async () => {
     renderAt('/');
 
-    const toggle = screen.getByRole('button', { name: /barra lateral/i });
+    const toggle = screen.getByRole('button', { name: /^(mostrar|ocultar) la estructura$/i });
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
 
     await userEvent.click(toggle);

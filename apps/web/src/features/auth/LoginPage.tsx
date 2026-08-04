@@ -7,6 +7,7 @@ import { AuthPageLayout, AuthSubmitButton } from './AuthPageLayout';
 import { MfaChallengeForm } from './MfaChallengeForm';
 import { useAuthStore } from './auth.store';
 import { readRedirectTarget } from './redirect-target';
+import { ENTRAR } from '../../shared/textos/textos';
 
 export function LoginPage(): React.JSX.Element {
   const status = useAuthStore((state) => state.status);
@@ -31,15 +32,15 @@ export function LoginPage(): React.JSX.Element {
 
   return (
     <AuthPageLayout
-      title="Iniciar sesión"
+      title={ENTRAR.titulo}
       footer={
         <>
-          ¿Todavía no tienes cuenta?{' '}
+          {ENTRAR.pie}{' '}
           <Link
             to="/register"
             className="font-medium text-tinta underline hover:bg-tinta hover:text-sup-base"
           >
-            Crear una cuenta
+            {ENTRAR.crear}
           </Link>
         </>
       }
@@ -56,7 +57,7 @@ export function LoginPage(): React.JSX.Element {
         >
           <AuthField
             id="email"
-            label="Correo electrónico"
+            label={ENTRAR.correo}
             type="email"
             autoComplete="email"
             maxLength={254}
@@ -67,7 +68,7 @@ export function LoginPage(): React.JSX.Element {
 
           <AuthField
             id="password"
-            label="Contraseña"
+            label={ENTRAR.contrasena}
             type="password"
             autoComplete="current-password"
             maxLength={128}
@@ -76,7 +77,7 @@ export function LoginPage(): React.JSX.Element {
             onValueChange={setPassword}
           />
 
-          <AuthSubmitButton busy={busy}>Entrar</AuthSubmitButton>
+          <AuthSubmitButton busy={busy}>{ENTRAR.enviar}</AuthSubmitButton>
         </form>
       ) : (
         // La contraseña deja de estar en el DOM en cuanto se canjea por el desafío: ya no hace

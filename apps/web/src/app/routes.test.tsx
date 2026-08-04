@@ -35,7 +35,9 @@ describe('Enrutado (AC-10)', () => {
   it('invita a elegir un documento en el estado vacío del workspace', () => {
     renderAt('/');
 
-    expect(screen.getByText(/selecciona un documento/i)).toBeInTheDocument();
+    // El vacío ya no describe dónde está el árbol: **ofrece una salida** (fase 6, §4.9). Sin
+    // pestañas abiertas la salida es el botón que lleva el foco a la estructura.
+    expect(screen.getByRole('button', { name: 'Elegir uno en la estructura' })).toBeInTheDocument();
   });
 
   it('monta el editor de documento dentro del shell en /documents/:id (AC-31 de la 002)', async () => {
@@ -49,18 +51,19 @@ describe('Enrutado (AC-10)', () => {
 
     renderAt('/documents/doc-diario');
 
-    expect(await screen.findByRole('heading', { name: 'Diario', level: 2 })).toBeInTheDocument();
-    expect(
-      screen.getByRole('textbox', { name: 'Contenido de «Diario» en markdown' }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Diario', level: 1 })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Texto de «Diario»' })).toBeInTheDocument();
     expect(screen.getByRole('main')).toBeInTheDocument();
-    expect(screen.queryByText(/404/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/no está en tu archivo/i)).not.toBeInTheDocument();
   });
 
   it('muestra la vista 404 en una ruta desconocida', () => {
     renderAt('/ruta-que-no-existe');
 
-    expect(screen.getByText(/404/)).toBeInTheDocument();
+    // Sin el número y sin la raya: `404` es el código con el que hablan dos máquinas, y quien llega
+    // aquí no ha escrito ninguna de las dos (fase 6, §4.9).
+    expect(screen.getByText('Esta dirección no está en tu archivo.')).toBeInTheDocument();
+    expect(screen.queryByText(/404/)).not.toBeInTheDocument();
   });
 
   it('mantiene el shell montado en la vista 404', () => {
@@ -73,6 +76,9 @@ describe('Enrutado (AC-10)', () => {
   it('ofrece una vuelta al inicio desde el 404', () => {
     renderAt('/ruta-que-no-existe');
 
-    expect(screen.getByRole('link', { name: /inicio/i })).toHaveAttribute('href', '/');
+    expect(screen.getByRole('link', { name: 'Volver a tus documentos' })).toHaveAttribute(
+      'href',
+      '/',
+    );
   });
 });

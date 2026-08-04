@@ -3,7 +3,26 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!--
+      El título de arranque. En cuanto React monta, cada pantalla lo sustituye por el suyo
+      («Fermentos · One Markdown»), y esta es la única vez que se ve a secas: mientras carga todavía
+      no hay documento que nombrar. El contrato de la cadena vive en `shared/textos/textos.ts`.
+    -->
     <title>One Markdown</title>
+
+    <!--
+      La marca, por orden de preferencia. El SVG va **primero** y es el que usa cualquier navegador
+      de los últimos años: lleva los dos temas dentro con una `prefers-color-scheme`, así que gira
+      con el papel de la pestaña. Los dos PNG son el respaldo para quien no admita SVG y van en tinta
+      del tema claro, que es lo único que un PNG puede ser (`docs/design/06-marca.md` §3).
+
+      Los tres se rasterizan del **mismo** SVG con `pnpm marca:rasterizar`. Ninguno se dibuja aparte.
+    -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
 
     <!--
       Tema, antes del primer pintado. Va aquí y no en React a propósito: si esperásemos a montar,
